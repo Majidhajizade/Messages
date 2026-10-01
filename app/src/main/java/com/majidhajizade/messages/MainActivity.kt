@@ -504,6 +504,15 @@ class MainActivity : Activity() {
         var downY = 0f
         var startTranslation = 0f
         var moved = false
+        var longPressed = false
+
+        val handler = android.os.Handler(mainLooper)
+        val longPressRunnable = Runnable {
+            if (!moved && !selectionMode) {
+                longPressed = true
+                enterSelectionMode(address)
+            }
+        }
 
         foreground.setOnTouchListener { _, event ->
             when (event.actionMasked) {
@@ -513,10 +522,13 @@ class MainActivity : Activity() {
                     downY = event.rawY
                     startTranslation = foreground.translationX
                     moved = false
+                    longPressed = false
 
                     if (selectionMode) {
                         draggingSelection = true
                         lastDragAddress = address
+                    } else {
+                        handler.postDelayed(longPressRunnable, 500)
                     }
 
                     true
@@ -526,21 +538,19 @@ class MainActivity : Activity() {
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
 
+                    if (abs(dx) > dp(10) || abs(dy) > dp(10)) {
+                        moved = true
+                        handler.removeCallbacks(longPressRunnable)
+                    }
+
                     if (selectionMode) {
                         if (abs(dy) > dp(8)) {
-                            draggingSelection = true
-
                             val location = IntArray(2)
                             messagesContainer.getLocationOnScreen(location)
-
                             val y = event.rawY - location[1]
                             selectRowsByY(y, dy > 0)
                         }
                         return@setOnTouchListener true
-                    }
-
-                    if (abs(dx) > dp(8)) {
-                        moved = true
                     }
 
                     if (abs(dx) > abs(dy)) {
@@ -553,22 +563,28 @@ class MainActivity : Activity() {
                 }
 
                 MotionEvent.ACTION_UP -> {
+                    handler.removeCallbacks(longPressRunnable)
+
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
 
                     if (selectionMode) {
-                        if (!moved && abs(dy) < dp(12)) {
+                        if (!moved && !longPressed && abs(dy) < dp(12)) {
                             toggleSelection(address)
                         }
                         draggingSelection = false
+                        foreground.animate()
+                            .translationX(0f)
+                            .setDuration(180)
+                            .start()
                         return@setOnTouchListener true
                     }
 
-                    if (!moved) {
+                    if (!longPressed && !moved) {
                         openConversation(address)
-                    } else if (dx < -dp(70)) {
+                    } else if (!longPressed && dx < -dp(70)) {
                         deleteConversation(address)
-                    } else if (dx > dp(70)) {
+                    } else if (!longPressed && dx > dp(70)) {
                         callNumber(address)
                     }
 
@@ -581,24 +597,17 @@ class MainActivity : Activity() {
                 }
 
                 MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(longPressRunnable)
                     foreground.animate()
                         .translationX(0f)
                         .setDuration(180)
                         .start()
-
                     draggingSelection = false
                     true
                 }
 
                 else -> true
             }
-        }
-
-        foreground.setOnLongClickListener {
-            if (!selectionMode) {
-                enterSelectionMode(address)
-            }
-            true
         }
     }
 
@@ -681,10 +690,76 @@ class MainActivity : Activity() {
     }
 
     private fun createSelectionBar(): LinearLayout {
-        val bar = LinearLayout(this).apply {
+        val wrapper = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+        }
+
+        val top = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(4), dp(8), dp(4), dp(8))
+        }
+
+        allButton = TextView(this).apply {
+            text = "○"
+            textSize = 28f
+            setTextColor(premiumBlue)
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                if (selectedAddresses.size == rowViews.size) {
+                    selectedAddresses.clear()
+                } else {
+                    selectedAddresses.clear()
+                    selectedAddresses.addAll(rowViews.keys)
+                }
+                updateSelectionUI()
+            }
+        }
+
+        top.addView(
+            allButton,
+            LinearLayout.LayoutParams(dp(48), dp(48))
+        )
+
+        selectionCount = TextView(this).apply {
+            text = "All"
+            textSize = 17f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER_VERTICAL
+            typeface = Typeface.DEFAULT_BOLD
+        }
+
+        top.addView(
+            selectionCount,
+            LinearLayout.LayoutParams(0, dp(48), 1f)
+        )
+
+        val cancel = TextView(this).apply {
+            text = "Cancel"
+            textSize = 16f
+            setTextColor(premiumBlue)
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                exitSelectionMode()
+            }
+        }
+
+        top.addView(
+            cancel,
+            LinearLayout.LayoutParams(dp(80), dp(48))
+        )
+
+        wrapper.addView(
+            top,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(48)
+            )
+        )
+
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 setColor(Color.rgb(248, 248, 250))
                 cornerRadius = dp(26).toFloat()
@@ -712,22 +787,30 @@ class MainActivity : Activity() {
             showMorePopup()
         }
 
-        bar.addView(
+        actions.addView(
             notification,
             LinearLayout.LayoutParams(0, dp(66), 1f)
         )
 
-        bar.addView(
+        actions.addView(
             delete,
             LinearLayout.LayoutParams(0, dp(66), 1f)
         )
 
-        bar.addView(
+        actions.addView(
             more,
             LinearLayout.LayoutParams(0, dp(66), 1f)
         )
 
-        return bar
+        wrapper.addView(
+            actions,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(66)
+            )
+        )
+
+        return wrapper
     }
 
     private fun createActionButton(
