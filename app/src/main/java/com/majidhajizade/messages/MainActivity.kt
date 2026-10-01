@@ -166,14 +166,11 @@ class MainActivity : Activity() {
         val composeButton = TextView(this).apply {
             text = "+"
             textSize = 30f
-            setTextColor(Color.WHITE)
+            setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                setColor(premiumBlue)
-                shape = GradientDrawable.OVAL
-            }
-            elevation = dp(4).toFloat()
+            background = null
+            elevation = 0f
 
             setOnClickListener {
                 openNewMessage()
@@ -223,8 +220,14 @@ class MainActivity : Activity() {
 
         messagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(24).toFloat()
+                setStroke(dp(1), Color.rgb(230, 230, 235))
+            }
+            clipToOutline = true
+            setPadding(0, dp(4), 0, dp(4))
         }
-
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
             addView(
@@ -418,14 +421,10 @@ class MainActivity : Activity() {
         val foreground = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(20).toFloat()
-            }
+            background = null
             setPadding(dp(12), dp(8), dp(12), dp(8))
-            clipToOutline = true
-            elevation = dp(1).toFloat()
-        }
+            clipToOutline = false
+            elevation = 0f
 
         val contactFrame = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(52), dp(52)).apply {
@@ -548,14 +547,13 @@ class MainActivity : Activity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(76)
             ).apply {
-                leftMargin = dp(6)
-                rightMargin = dp(6)
-                topMargin = dp(4)
-                bottomMargin = dp(4)
-            }
-        )
-
-        val divider = View(this).apply {
+                leftMargin = 0
+                rightMargin = 0
+                topMargin = 0
+                leftMargin = 0
+                rightMargin = 0
+                topMargin = 0
+                bottomMargin = 0
             setBackgroundColor(Color.rgb(230, 230, 230))
         }
 
