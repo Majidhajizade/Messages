@@ -11,25 +11,50 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Telephony
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.TextView
+import android.widget.Toast
 import android.graphics.drawable.GradientDrawable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 
 class MainActivity : Activity() {
 
     private val blue = Color.rgb(0, 122, 255)
+    private val premiumBlue = Color.rgb(0, 95, 220)
+    private val deleteRed = Color.rgb(235, 55, 65)
     private val background = Color.WHITE
     private val secondaryText = Color.rgb(110, 110, 115)
 
     private lateinit var messagesContainer: LinearLayout
+    private lateinit var messagesScroll: android.widget.ScrollView
+    private lateinit var selectionBar: LinearLayout
+    private lateinit var selectionCount: TextView
+    private lateinit var allButton: TextView
+
+    private val selectedAddresses = linkedSetOf<String>()
+    private val rowViews = mutableMapOf<String, View>()
+
+    private var selectionMode = false
+    private var draggingSelection = false
+    private var dragSelectState = true
+    private var lastDragAddress: String? = null
 
     companion object {
         private const val SMS_PERMISSION_REQUEST = 2001
+        private const val PREFS = "messages_settings"
+        private const val PINNED = "pinned_numbers"
+        private const val BLOCKED = "blocked_numbers"
+        private const val MUTED = "muted_numbers"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,7 +62,8 @@ class MainActivity : Activity() {
 
         window.statusBarColor = background
         window.navigationBarColor = background
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 
         setContentView(createHomeScreen())
     }
@@ -62,14 +88,12 @@ class MainActivity : Activity() {
     }
 
     private fun createHomeScreen(): View {
-
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = background
             setPadding(dp(20), dp(18), dp(20), dp(12))
         }
 
-        // Header
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -116,7 +140,6 @@ class MainActivity : Activity() {
             )
         )
 
-        // Search - capsule
         val searchBackground = GradientDrawable().apply {
             setColor(Color.rgb(242, 242, 247))
             cornerRadius = dp(23).toFloat()
@@ -147,13 +170,13 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
 
-        val messagesScroll = android.widget.ScrollView(this).apply {
+        messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
             addView(
                 messagesContainer,
-                android.view.ViewGroup.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
                 )
             )
         }
@@ -167,11 +190,23 @@ class MainActivity : Activity() {
             )
         )
 
+        selectionBar = createSelectionBar()
+        selectionBar.visibility = View.GONE
+
+        root.addView(
+            selectionBar,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(82)
+            )
+        )
+
         return root
     }
 
     private fun loadMessages() {
         messagesContainer.removeAllViews()
+        rowViews.clear()
 
         val projection = arrayOf(
             Telephony.Sms._ID,
@@ -189,24 +224,17 @@ class MainActivity : Activity() {
             "${Telephony.Sms.DATE} DESC"
         )
 
+        val conversations = mutableMapOf<String, ConversationData>()
+
         cursor?.use {
-            if (!it.moveToFirst()) {
-                showEmptyState()
-                return
-            }
-
-            val shownNumbers = mutableSetOf<String>()
-
-            do {
+            while (it.moveToNext()) {
                 val address = it.getString(
                     it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
                 ) ?: "Unknown"
 
-                if (shownNumbers.contains(address)) {
+                if (conversations.containsKey(address)) {
                     continue
                 }
-
-                shownNumbers.add(address)
 
                 val body = it.getString(
                     it.getColumnIndexOrThrow(Telephony.Sms.BODY)
@@ -220,10 +248,38 @@ class MainActivity : Activity() {
                     it.getColumnIndexOrThrow(Telephony.Sms.TYPE)
                 )
 
-                addConversation(address, body, date, type)
-
-            } while (it.moveToNext())
+                conversations[address] = ConversationData(
+                    address,
+                    body,
+                    date,
+                    type
+                )
+            }
         }
+
+        if (conversations.isEmpty()) {
+            showEmptyState()
+            return
+        }
+
+        val pinned = getPinnedNumbers()
+
+        conversations.values
+            .sortedWith(
+                compareByDescending<ConversationData> {
+                    pinned.contains(it.address)
+                }.thenByDescending {
+                    it.date
+                }
+            )
+            .forEach {
+                addConversation(
+                    it.address,
+                    it.body,
+                    it.date,
+                    it.type
+                )
+            }
     }
 
     private fun showEmptyState() {
@@ -251,15 +307,78 @@ class MainActivity : Activity() {
         date: Long,
         type: Int
     ) {
-        val row = LinearLayout(this).apply {
+        val actionLayer = FrameLayout(this)
+
+        val actionBackground = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(10), 0, dp(10))
-
-            setOnClickListener {
-                openConversation(address)
-            }
         }
+
+        val callAction = TextView(this).apply {
+            text = "Call"
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = solidDrawable(blue, 0f)
+        }
+
+        val deleteAction = TextView(this).apply {
+            text = "Delete"
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            background = solidDrawable(deleteRed, 0f)
+        }
+
+        actionBackground.addView(
+            callAction,
+            LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1f
+            )
+        )
+
+        actionBackground.addView(
+            deleteAction,
+            LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1f
+            )
+        )
+
+        actionLayer.addView(
+            actionBackground,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(76)
+            )
+        )
+
+        val foreground = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = ColorDrawableCompat.white()
+            setPadding(0, dp(8), 0, dp(8))
+        }
+
+        val contact = ImageView(this).apply {
+            setImageResource(android.R.drawable.ic_menu_myplaces)
+            setColorFilter(Color.rgb(145, 145, 150))
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(242, 242, 247))
+                shape = GradientDrawable.OVAL
+            }
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+        }
+
+        foreground.addView(
+            contact,
+            LinearLayout.LayoutParams(dp(52), dp(52)).apply {
+                rightMargin = dp(12)
+            }
+        )
 
         val textContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -284,7 +403,7 @@ class MainActivity : Activity() {
         textContainer.addView(name)
         textContainer.addView(preview)
 
-        row.addView(
+        foreground.addView(
             textContainer,
             LinearLayout.LayoutParams(
                 0,
@@ -293,26 +412,73 @@ class MainActivity : Activity() {
             )
         )
 
-        val time = TextView(this).apply {
-            text = formatDate(date)
+        val dateText = TextView(this).apply {
+            text = formatShortDate(date)
             textSize = 13f
             setTextColor(secondaryText)
-            gravity = Gravity.TOP
+            gravity = Gravity.TOP or Gravity.END
+            typeface = Typeface.DEFAULT_BOLD
         }
 
-        row.addView(
-            time,
+        foreground.addView(
+            dateText,
             LinearLayout.LayoutParams(
-                dp(65),
+                dp(62),
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
 
+        val selectionCircle = TextView(this).apply {
+            text = "✓"
+            textSize = 18f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            visibility = View.GONE
+            background = GradientDrawable().apply {
+                setColor(premiumBlue)
+                shape = GradientDrawable.OVAL
+            }
+        }
+
+        foreground.addView(
+            selectionCircle,
+            LinearLayout.LayoutParams(
+                dp(28),
+                dp(28)
+            ).apply {
+                leftMargin = dp(8)
+            }
+        )
+
+        actionLayer.addView(
+            foreground,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(76)
+            )
+        )
+
+        rowViews[address] = selectionCircle
+
+        callAction.setOnClickListener {
+            callNumber(address)
+        }
+
+        deleteAction.setOnClickListener {
+            deleteConversation(address)
+        }
+
+        setupRowTouch(
+            actionLayer,
+            foreground,
+            address
+        )
+
         messagesContainer.addView(
-            row,
+            actionLayer,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(72)
+                dp(76)
             )
         )
 
@@ -329,8 +495,499 @@ class MainActivity : Activity() {
         )
     }
 
+    private fun setupRowTouch(
+        container: FrameLayout,
+        foreground: View,
+        address: String
+    ) {
+        var downX = 0f
+        var downY = 0f
+        var startTranslation = 0f
+        var moved = false
+
+        foreground.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    startTranslation = foreground.translationX
+                    moved = false
+
+                    if (selectionMode) {
+                        draggingSelection = true
+                        lastDragAddress = address
+                    }
+
+                    true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
+
+                    if (selectionMode) {
+                        if (abs(dy) > dp(8)) {
+                            draggingSelection = true
+
+                            val location = IntArray(2)
+                            messagesContainer.getLocationOnScreen(location)
+
+                            val y = event.rawY - location[1]
+                            selectRowsByY(y, dy > 0)
+                        }
+                        return@setOnTouchListener true
+                    }
+
+                    if (abs(dx) > dp(8)) {
+                        moved = true
+                    }
+
+                    if (abs(dx) > abs(dy)) {
+                        foreground.translationX =
+                            (startTranslation + dx)
+                                .coerceIn(-dp(110).toFloat(), dp(110).toFloat())
+                    }
+
+                    true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
+
+                    if (selectionMode) {
+                        if (!moved && abs(dy) < dp(12)) {
+                            toggleSelection(address)
+                        }
+                        draggingSelection = false
+                        return@setOnTouchListener true
+                    }
+
+                    if (!moved) {
+                        openConversation(address)
+                    } else if (dx < -dp(70)) {
+                        deleteConversation(address)
+                    } else if (dx > dp(70)) {
+                        callNumber(address)
+                    }
+
+                    foreground.animate()
+                        .translationX(0f)
+                        .setDuration(180)
+                        .start()
+
+                    true
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    foreground.animate()
+                        .translationX(0f)
+                        .setDuration(180)
+                        .start()
+
+                    draggingSelection = false
+                    true
+                }
+
+                else -> true
+            }
+        }
+
+        foreground.setOnLongClickListener {
+            if (!selectionMode) {
+                enterSelectionMode(address)
+            }
+            true
+        }
+    }
+
+    private fun enterSelectionMode(address: String) {
+        selectionMode = true
+        selectedAddresses.clear()
+        selectedAddresses.add(address)
+        updateSelectionUI()
+    }
+
+    private fun toggleSelection(address: String) {
+        if (selectedAddresses.contains(address)) {
+            selectedAddresses.remove(address)
+        } else {
+            selectedAddresses.add(address)
+        }
+
+        if (selectedAddresses.isEmpty()) {
+            exitSelectionMode()
+        } else {
+            updateSelectionUI()
+        }
+    }
+
+    private fun selectRowsByY(y: Float, selecting: Boolean) {
+        var currentTop = 0
+
+        for (i in 0 until messagesContainer.childCount) {
+            val child = messagesContainer.getChildAt(i)
+
+            if (child is FrameLayout) {
+                val bottom = currentTop + child.height
+
+                if (y >= currentTop && y <= bottom) {
+                    val address = rowViews.entries
+                        .firstOrNull { it.value.parent?.parent === child }
+                        ?.key
+
+                    if (address != null && address != lastDragAddress) {
+                        if (selecting) {
+                            selectedAddresses.add(address)
+                        } else {
+                            selectedAddresses.remove(address)
+                        }
+
+                        lastDragAddress = address
+                        updateSelectionUI()
+                    }
+                }
+
+                currentTop = bottom + dp(1)
+            }
+        }
+    }
+
+    private fun updateSelectionUI() {
+        selectionBar.visibility = View.VISIBLE
+
+        val allCount = rowViews.size
+        val selectedCount = selectedAddresses.size
+
+        allButton.text =
+            if (selectedCount == allCount) "✓" else "○"
+
+        selectionCount.text =
+            if (selectedCount == allCount) "All" else "$selectedCount"
+
+        rowViews.forEach { (address, circle) ->
+            circle.visibility = View.VISIBLE
+            circle.text =
+                if (selectedAddresses.contains(address)) "✓" else ""
+            circle.setBackgroundColor(
+                if (selectedAddresses.contains(address)) {
+                    premiumBlue
+                } else {
+                    Color.rgb(225, 225, 230)
+                }
+            )
+        }
+    }
+
+    private fun createSelectionBar(): LinearLayout {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(8), dp(4), dp(8))
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(248, 248, 250))
+                cornerRadius = dp(26).toFloat()
+            }
+        }
+
+        val notification = createActionButton(
+            "♢",
+            "Notifications"
+        ) {
+            toggleNotifications()
+        }
+
+        val delete = createActionButton(
+            "⌫",
+            "Delete"
+        ) {
+            deleteSelected()
+        }
+
+        val more = createActionButton(
+            "⋮",
+            "More"
+        ) {
+            showMorePopup()
+        }
+
+        bar.addView(
+            notification,
+            LinearLayout.LayoutParams(0, dp(66), 1f)
+        )
+
+        bar.addView(
+            delete,
+            LinearLayout.LayoutParams(0, dp(66), 1f)
+        )
+
+        bar.addView(
+            more,
+            LinearLayout.LayoutParams(0, dp(66), 1f)
+        )
+
+        return bar
+    }
+
+    private fun createActionButton(
+        icon: String,
+        label: String,
+        action: () -> Unit
+    ): View {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                action()
+            }
+        }
+
+        val iconView = TextView(this).apply {
+            text = icon
+            textSize = 22f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+        }
+
+        val text = TextView(this).apply {
+            this.text = label
+            textSize = 11f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER
+        }
+
+        box.addView(
+            iconView,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(34)
+            )
+        )
+
+        box.addView(
+            text,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(24)
+            )
+        )
+
+        return box
+    }
+
+    private fun toggleNotifications() {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val muted = prefs.getStringSet(MUTED, emptySet())
+            ?.toMutableSet() ?: mutableSetOf()
+
+        selectedAddresses.forEach {
+            if (muted.contains(it)) {
+                muted.remove(it)
+            } else {
+                muted.add(it)
+            }
+        }
+
+        prefs.edit().putStringSet(MUTED, muted).apply()
+
+        Toast.makeText(
+            this,
+            "Notifications updated",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun deleteSelected() {
+        val numbers = selectedAddresses.toList()
+
+        numbers.forEach {
+            deleteConversationFromProvider(it)
+        }
+
+        exitSelectionMode()
+        loadMessages()
+    }
+
+    private fun deleteConversation(address: String) {
+        deleteConversationFromProvider(address)
+        Toast.makeText(
+            this,
+            "Deleted",
+            Toast.LENGTH_SHORT
+        ).show()
+        loadMessages()
+    }
+
+    private fun deleteConversationFromProvider(address: String) {
+        try {
+            contentResolver.delete(
+                Telephony.Sms.CONTENT_URI,
+                "${Telephony.Sms.ADDRESS} = ?",
+                arrayOf(address)
+            )
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun callNumber(address: String) {
+        try {
+            val intent = Intent(
+                Intent.ACTION_DIAL,
+                Uri.parse("tel:${Uri.encode(address)}")
+            )
+            startActivity(intent)
+        } catch (_: Exception) {
+            Toast.makeText(
+                this,
+                "Cannot call this number",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun showMorePopup() {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(18).toFloat()
+            }
+        }
+
+        val pin = createPopupItem("pin to top") {
+            pinSelected()
+        }
+
+        val block = createPopupItem("Block") {
+            blockSelected()
+        }
+
+        box.addView(pin)
+        box.addView(block)
+
+        val popup = PopupWindow(
+            box,
+            dp(190),
+            dp(112),
+            true
+        )
+
+        popup.elevation = dp(10).toFloat()
+        popup.setBackgroundDrawable(
+            GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(18).toFloat()
+            }
+        )
+
+        popup.showAtLocation(
+            window.decorView,
+            Gravity.CENTER,
+            0,
+            0
+        )
+    }
+
+    private fun createPopupItem(
+        text: String,
+        action: () -> Unit
+    ): TextView {
+        return TextView(this).apply {
+            this.text = text
+            textSize = 16f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(18), 0, dp(18), 0)
+
+            setOnClickListener {
+                action()
+            }
+
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(48)
+            )
+        }
+    }
+
+    private fun pinSelected() {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val pinned = prefs.getStringSet(PINNED, emptySet())
+            ?.toMutableSet() ?: mutableSetOf()
+
+        selectedAddresses.forEach {
+            if (pinned.contains(it)) {
+                pinned.remove(it)
+            } else {
+                pinned.add(it)
+            }
+        }
+
+        prefs.edit().putStringSet(PINNED, pinned).apply()
+
+        exitSelectionMode()
+        loadMessages()
+    }
+
+    private fun blockSelected() {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val blocked = prefs.getStringSet(BLOCKED, emptySet())
+            ?.toMutableSet() ?: mutableSetOf()
+
+        selectedAddresses.forEach {
+            blocked.add(it)
+        }
+
+        prefs.edit().putStringSet(BLOCKED, blocked).apply()
+
+        exitSelectionMode()
+        loadMessages()
+
+        Toast.makeText(
+            this,
+            "Blocked",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun exitSelectionMode() {
+        selectionMode = false
+        draggingSelection = false
+        selectedAddresses.clear()
+        lastDragAddress = null
+
+        selectionBar.visibility = View.GONE
+
+        rowViews.values.forEach {
+            it.visibility = View.GONE
+        }
+    }
+
+    private fun getPinnedNumbers(): Set<String> {
+        return getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getStringSet(PINNED, emptySet()) ?: emptySet()
+    }
+
+    private fun formatShortDate(timestamp: Long): String {
+        return SimpleDateFormat(
+            "dd MMM",
+            Locale.getDefault()
+        ).format(Date(timestamp))
+    }
+
     private fun openConversation(address: String) {
-        val intent = Intent(this, ConversationActivity::class.java)
+        if (selectionMode) {
+            toggleSelection(address)
+            return
+        }
+
+        val intent = Intent(
+            this,
+            ConversationActivity::class.java
+        )
         intent.putExtra("phone", address)
         startActivity(intent)
     }
@@ -341,14 +998,34 @@ class MainActivity : Activity() {
         )
     }
 
-    private fun formatDate(timestamp: Long): String {
-        return SimpleDateFormat(
-            "HH:mm",
-            Locale.getDefault()
-        ).format(Date(timestamp))
+    private fun solidDrawable(
+        color: Int,
+        radius: Float
+    ): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = radius
+        }
     }
 
+    private object ColorDrawableCompat {
+        fun white(): GradientDrawable {
+            return GradientDrawable().apply {
+                setColor(Color.WHITE)
+            }
+        }
+    }
+
+    private data class ConversationData(
+        val address: String,
+        val body: String,
+        val date: Long,
+        val type: Int
+    )
+
     private fun dp(value: Int): Int {
-        return (value * resources.displayMetrics.density).toInt()
+        return (
+            value * resources.displayMetrics.density
+        ).toInt()
     }
 }
