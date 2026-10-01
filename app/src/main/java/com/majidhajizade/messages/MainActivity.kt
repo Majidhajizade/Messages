@@ -99,44 +99,29 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        val title = TextView(this).apply {
-            text = "Messages"
+        val selectAllButton = TextView(this).apply {
+            text = "○"
             textSize = 34f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
-        }
-
-        header.addView(
-            title,
-            LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
-            )
-        )
-
-        val composeButton = TextView(this).apply {
-            text = "✎"
-            textSize = 30f
-            setTextColor(blue)
+            setTextColor(Color.rgb(80, 80, 85))
             gravity = Gravity.CENTER
-            setPadding(dp(8), 0, dp(4), 0)
-
             setOnClickListener {
-                openNewMessage()
+                selectionMode = true
+                selectedAddresses.clear()
+                selectedAddresses.addAll(rowViews.keys)
+                updateSelectionUI()
             }
         }
 
         header.addView(
-            composeButton,
-            LinearLayout.LayoutParams(dp(50), dp(50))
+            selectAllButton,
+            LinearLayout.LayoutParams(dp(54), dp(54))
         )
 
         root.addView(
             header,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(64)
+                dp(54)
             )
         )
 
@@ -168,12 +153,30 @@ class MainActivity : Activity() {
 
         messagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(18), dp(18), dp(18))
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(28).toFloat()
+            }
+        }
+
+        val messagesCard = FrameLayout(this).apply {
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            setBackgroundColor(Color.TRANSPARENT)
+            addView(
+                messagesContainer,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
         }
 
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
+            setBackgroundColor(Color.TRANSPARENT)
             addView(
-                messagesContainer,
+                messagesCard,
                 ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
@@ -187,7 +190,12 @@ class MainActivity : Activity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
-            )
+            ).apply {
+                leftMargin = dp(4)
+                rightMargin = dp(4)
+                topMargin = dp(4)
+                bottomMargin = dp(4)
+            }
         )
 
         selectionBar = createSelectionBar()
@@ -198,7 +206,9 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(82)
-            )
+            ).apply {
+                bottomMargin = dp(8)
+            }
         )
 
         return root
@@ -373,10 +383,41 @@ class MainActivity : Activity() {
             setPadding(dp(10), dp(10), dp(10), dp(10))
         }
 
+        val contactHolder = FrameLayout(this).apply {
+            addView(
+                contact,
+                FrameLayout.LayoutParams(
+                    dp(52),
+                    dp(52)
+                )
+            )
+        }
+
+        val selectionCircle = TextView(this).apply {
+            text = ""
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            visibility = View.GONE
+            background = GradientDrawable().apply {
+                setColor(premiumBlue)
+                shape = GradientDrawable.OVAL
+            }
+        }
+
+        contactHolder.addView(
+            selectionCircle,
+            FrameLayout.LayoutParams(
+                dp(24),
+                dp(24),
+                Gravity.TOP or Gravity.END
+            )
+        )
+
         foreground.addView(
-            contact,
+            contactHolder,
             LinearLayout.LayoutParams(dp(52), dp(52)).apply {
-                rightMargin = dp(12)
+                rightMargin = dp(18)
             }
         )
 
@@ -426,28 +467,6 @@ class MainActivity : Activity() {
                 dp(62),
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-        )
-
-        val selectionCircle = TextView(this).apply {
-            text = "✓"
-            textSize = 18f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            visibility = View.GONE
-            background = GradientDrawable().apply {
-                setColor(premiumBlue)
-                shape = GradientDrawable.OVAL
-            }
-        }
-
-        foreground.addView(
-            selectionCircle,
-            LinearLayout.LayoutParams(
-                dp(28),
-                dp(28)
-            ).apply {
-                leftMargin = dp(8)
-            }
         )
 
         actionLayer.addView(
