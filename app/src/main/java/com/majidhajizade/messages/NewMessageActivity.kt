@@ -4,31 +4,23 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.database.Cursor
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
-import android.provider.ContactsContract
 import android.telephony.SmsManager
-import android.text.InputType
 import android.view.Gravity
-import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import android.graphics.drawable.GradientDrawable
 
 class NewMessageActivity : Activity() {
 
     private lateinit var phoneEditText: EditText
     private lateinit var messageEditText: EditText
-    private lateinit var contactsContainer: LinearLayout
 
     companion object {
         private const val SMS_PERMISSION_REQUEST = 1001
-        private const val CONTACTS_PERMISSION_REQUEST = 1002
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,7 +31,7 @@ class NewMessageActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
-            setPadding(dp(16), dp(12), dp(16), dp(12))
+            setPadding(dp(16), dp(12), dp(16), dp(16))
         }
 
         val header = LinearLayout(this).apply {
@@ -47,30 +39,41 @@ class NewMessageActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        val back = TextView(this).apply {
-            text = "‹"
-            textSize = 38f
+        val cancel = TextView(this).apply {
+            text = "‹  Back"
+            textSize = 17f
             setTextColor(Color.rgb(0, 122, 255))
-            gravity = Gravity.CENTER
-            setOnClickListener { finish() }
+            gravity = Gravity.CENTER_VERTICAL
+
+            setOnClickListener {
+                finish()
+            }
         }
 
-        header.addView(
-            back,
-            LinearLayout.LayoutParams(dp(48), dp(48))
-        )
-
         val title = TextView(this).apply {
-            text = "New Message"
-            textSize = 20f
+            text = if (existingPhone.isNullOrBlank()) {
+                "New Message"
+            } else {
+                existingPhone
+            }
+            textSize = 17f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
         }
 
         header.addView(
+            cancel,
+            LinearLayout.LayoutParams(dp(85), dp(48))
+        )
+
+        header.addView(
             title,
-            LinearLayout.LayoutParams(0, dp(48), 1f)
+            LinearLayout.LayoutParams(
+                0,
+                dp(48),
+                1f
+            )
         )
 
         root.addView(header)
@@ -79,7 +82,7 @@ class NewMessageActivity : Activity() {
             hint = "Phone number"
             textSize = 17f
             setSingleLine(true)
-            inputType = InputType.TYPE_CLASS_PHONE
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
 
             if (!existingPhone.isNullOrBlank()) {
                 setText(existingPhone)
@@ -92,238 +95,52 @@ class NewMessageActivity : Activity() {
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(52)
-            ).apply {
-                bottomMargin = dp(8)
-            }
-        )
-
-        val contactsTitle = TextView(this).apply {
-            text = "Contacts"
-            textSize = 16f
-            setTextColor(Color.rgb(100, 100, 105))
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(4), dp(6), 0, dp(6))
-        }
-
-        root.addView(contactsTitle)
-
-        val contactsScroll = ScrollView(this).apply {
-            isFillViewport = false
-        }
-
-        contactsContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
-        contactsScroll.addView(
-            contactsContainer,
-            ScrollView.LayoutParams(
-                ScrollView.LayoutParams.MATCH_PARENT,
-                ScrollView.LayoutParams.WRAP_CONTENT
             )
         )
-
-        root.addView(
-            contactsScroll,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
-
-        val composer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(8), 0, dp(4))
-        }
-
-        val messageBackground = GradientDrawable().apply {
-            setColor(Color.rgb(242, 242, 247))
-            cornerRadius = dp(24).toFloat()
-        }
 
         messageEditText = EditText(this).apply {
             hint = "Message"
             textSize = 17f
-            gravity = Gravity.CENTER_VERTICAL
-            minLines = 1
-            maxLines = 4
+            gravity = Gravity.TOP
+            minLines = 4
             inputType =
-                InputType.TYPE_CLASS_TEXT or
-                InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            setPadding(dp(16), dp(8), dp(52), dp(8))
-            background = messageBackground
+                android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
         }
 
-        val messageFrame = android.widget.FrameLayout(this)
-
-        messageFrame.addView(
+        root.addView(
             messageEditText,
-            android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(52)
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(130)
             )
         )
 
         val sendButton = TextView(this).apply {
-            text = "↑"
-            textSize = 25f
+            text = "Send"
+            textSize = 17f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-
-            background = GradientDrawable().apply {
-                setColor(Color.rgb(0, 95, 220))
-                shape = GradientDrawable.OVAL
-            }
+            setBackgroundColor(Color.rgb(0, 122, 255))
+            setPadding(dp(20), dp(10), dp(20), dp(10))
 
             setOnClickListener {
                 sendSms()
             }
         }
 
-        messageFrame.addView(
+        root.addView(
             sendButton,
-            android.widget.FrameLayout.LayoutParams(
-                dp(42),
-                dp(42),
-                Gravity.END or Gravity.CENTER_VERTICAL
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(50)
             ).apply {
-                rightMargin = dp(5)
+                topMargin = dp(16)
             }
         )
-
-        composer.addView(
-            messageFrame,
-            LinearLayout.LayoutParams(
-                0,
-                dp(56),
-                1f
-            )
-        )
-
-        root.addView(composer)
 
         setContentView(root)
-
-        if (existingPhone.isNullOrBlank()) {
-            if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
-                == PackageManager.PERMISSION_GRANTED
-            ) {
-                loadContacts()
-            } else {
-                requestPermissions(
-                    arrayOf(Manifest.permission.READ_CONTACTS),
-                    CONTACTS_PERMISSION_REQUEST
-                )
-            }
-        }
-    }
-
-    private fun loadContacts() {
-        contactsContainer.removeAllViews()
-
-        val projection = arrayOf(
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-            ContactsContract.CommonDataKinds.Phone.NUMBER
-        )
-
-        val cursor: Cursor? = contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            projection,
-            null,
-            null,
-            "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} COLLATE NOCASE ASC"
-        )
-
-        val seen = mutableSetOf<String>()
-
-        cursor?.use {
-            val nameIndex =
-                it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-            val numberIndex =
-                it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-
-            while (it.moveToNext()) {
-                val name = it.getString(nameIndex)?.trim().orEmpty()
-                val number = it.getString(numberIndex)?.trim().orEmpty()
-
-                if (number.isEmpty() || !seen.add(number)) {
-                    continue
-                }
-
-                addContact(name.ifEmpty { number }, number)
-            }
-        }
-
-        if (contactsContainer.childCount == 0) {
-            val empty = TextView(this).apply {
-                text = "No contacts with phone numbers"
-                textSize = 15f
-                setTextColor(Color.rgb(120, 120, 125))
-                gravity = Gravity.CENTER
-                setPadding(0, dp(20), 0, dp(20))
-            }
-
-            contactsContainer.addView(
-                empty,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(70)
-                )
-            )
-        }
-    }
-
-    private fun addContact(name: String, number: String) {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-
-            setOnClickListener {
-                phoneEditText.setText(number)
-                phoneEditText.setSelection(phoneEditText.length())
-            }
-        }
-
-        val nameView = TextView(this).apply {
-            text = name
-            textSize = 17f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
-        }
-
-        val numberView = TextView(this).apply {
-            text = number
-            textSize = 14f
-            setTextColor(Color.rgb(110, 110, 115))
-            setPadding(0, dp(2), 0, 0)
-        }
-
-        row.addView(nameView)
-        row.addView(numberView)
-
-        contactsContainer.addView(
-            row,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(62)
-            )
-        )
-
-        val divider = View(this).apply {
-            setBackgroundColor(Color.rgb(230, 230, 235))
-        }
-
-        contactsContainer.addView(
-            divider,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(1)
-            )
-        )
     }
 
     private fun sendSms() {
@@ -384,11 +201,9 @@ class NewMessageActivity : Activity() {
                 Toast.LENGTH_SHORT
             ).show()
 
-            startActivity(
-                Intent(this, ConversationActivity::class.java).apply {
-                    putExtra("phone", phone)
-                }
-            )
+            val intent = Intent(this, ConversationActivity::class.java)
+            intent.putExtra("phone", phone)
+            startActivity(intent)
             finish()
 
         } catch (e: Exception) {
@@ -411,27 +226,17 @@ class NewMessageActivity : Activity() {
             grantResults
         )
 
-        when (requestCode) {
-            CONTACTS_PERMISSION_REQUEST -> {
-                if (grantResults.isNotEmpty() &&
-                    grantResults[0] == PackageManager.PERMISSION_GRANTED
-                ) {
-                    loadContacts()
-                }
-            }
-
-            SMS_PERMISSION_REQUEST -> {
-                if (grantResults.isNotEmpty() &&
-                    grantResults[0] == PackageManager.PERMISSION_GRANTED
-                ) {
-                    sendSms()
-                } else {
-                    Toast.makeText(
-                        this,
-                        "SMS permission is required",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+        if (requestCode == SMS_PERMISSION_REQUEST) {
+            if (grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            ) {
+                sendSms()
+            } else {
+                Toast.makeText(
+                    this,
+                    "SMS permission is required",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }
