@@ -1,5 +1,7 @@
 package com.majidhajizade.messages
 
+import android.content.Intent
+
 import android.app.Activity
 import android.graphics.Color
 import android.graphics.Typeface
@@ -163,8 +165,9 @@ class MainActivity : Activity() {
     }
 
     private fun openNewMessage() {
-        // مرحله بعد:
-        // انتخاب مخاطب + وارد کردن شماره + ارسال SMS
+        startActivity(
+            Intent(this, NewMessageActivity::class.java)
+        )
     }
 
     private fun dp(value: Int): Int {
