@@ -1,42 +1,37 @@
 package com.majidhajizade.messages
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.telephony.SmsManager
 import android.graphics.Color
 import android.graphics.Typeface
-import android.os.Bundle
 import android.view.Gravity
-import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Space
 import android.widget.TextView
+import android.widget.Toast
 
 class NewMessageActivity : Activity() {
 
-    private val blue = Color.rgb(0, 122, 255)
-    private val background = Color.WHITE
-    private val secondaryText = Color.rgb(110, 110, 115)
+    private lateinit var phoneEditText: EditText
+    private lateinit var messageEditText: EditText
+
+    companion object {
+        private const val SMS_PERMISSION_REQUEST = 1001
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        window.statusBarColor = background
-        window.navigationBarColor = background
-        window.decorView.systemUiVisibility =
-            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-
-        setContentView(createNewMessageScreen())
-    }
-
-    private fun createNewMessageScreen(): View {
-
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
-            setPadding(dp(20), dp(12), dp(20), dp(20))
+            setBackgroundColor(Color.WHITE)
+            setPadding(dp(16), dp(12), dp(16), dp(16))
         }
 
-        // Header
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -45,140 +40,198 @@ class NewMessageActivity : Activity() {
         val cancel = TextView(this).apply {
             text = "Cancel"
             textSize = 17f
-            setTextColor(blue)
-            gravity = Gravity.CENTER_VERTICAL
-
-            setOnClickListener {
-                finish()
-            }
+            setTextColor(Color.rgb(0, 122, 255))
+            setOnClickListener { finish() }
         }
-
-        header.addView(
-            cancel,
-            LinearLayout.LayoutParams(
-                dp(80),
-                dp(52)
-            )
-        )
 
         val title = TextView(this).apply {
             text = "New Message"
-            textSize = 20f
+            textSize = 17f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
         }
 
-        header.addView(
-            title,
-            LinearLayout.LayoutParams(
-                0,
-                dp(52),
-                1f
-            )
-        )
-
         val spacer = Space(this)
 
         header.addView(
+            cancel,
+            LinearLayout.LayoutParams(dp(75), dp(48))
+        )
+
+        header.addView(
+            title,
+            LinearLayout.LayoutParams(0, dp(48), 1f)
+        )
+
+        header.addView(
             spacer,
-            LinearLayout.LayoutParams(
-                dp(80),
-                dp(52)
-            )
+            LinearLayout.LayoutParams(dp(75), dp(48))
         )
 
-        root.addView(
-            header,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(52)
-            )
-        )
+        root.addView(header)
 
-        // Recipient label
-        val recipientLabel = TextView(this).apply {
+        val toLabel = TextView(this).apply {
             text = "To:"
             textSize = 16f
-            setTextColor(secondaryText)
+            setTextColor(Color.DKGRAY)
+            setPadding(0, dp(12), 0, dp(4))
+        }
+
+        root.addView(toLabel)
+
+        phoneEditText = EditText(this).apply {
+            hint = "Phone number"
+            textSize = 17f
+            setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
         }
 
         root.addView(
-            recipientLabel,
+            phoneEditText,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(30)
-            ).apply {
-                topMargin = dp(25)
-            }
+                dp(52)
+            )
         )
 
-        // Phone number
-        val phoneNumber = EditText(this).apply {
-            hint = "Phone number"
-            textSize = 18f
-            setTextColor(Color.BLACK)
-            setSingleLine(true)
+        messageEditText = EditText(this).apply {
+            hint = "iMessage"
+            textSize = 17f
+            gravity = Gravity.TOP
+            minLines = 4
             inputType =
-                android.text.InputType.TYPE_CLASS_PHONE
-            setPadding(dp(16), 0, dp(16), 0)
-            setBackgroundColor(Color.rgb(242, 242, 247))
+                android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
         }
 
         root.addView(
-            phoneNumber,
+            messageEditText,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(130)
+            )
+        )
+
+        val sendButton = TextView(this).apply {
+            text = "Send"
+            textSize = 17f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(0, 122, 255))
+            setPadding(dp(20), dp(10), dp(20), dp(10))
+
+            setOnClickListener {
+                sendSms()
+            }
+        }
+
+        root.addView(
+            sendButton,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(50)
-            )
-        )
-
-        // Message
-        val message = EditText(this).apply {
-            hint = "Message"
-            textSize = 17f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.TOP
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            setBackgroundColor(Color.rgb(242, 242, 247))
-        }
-
-        root.addView(
-            message,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(120)
             ).apply {
                 topMargin = dp(16)
             }
         )
 
-        // Send button
-        val send = TextView(this).apply {
-            text = "Send"
-            textSize = 17f
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setBackgroundColor(blue)
+        setContentView(root)
+    }
 
-            setOnClickListener {
-                // مرحله بعد:
-                // ارسال واقعی SMS با شماره سیم‌کارت
-            }
+    private fun sendSms() {
+        val phone = phoneEditText.text.toString().trim()
+        val message = messageEditText.text.toString().trim()
+
+        if (phone.isEmpty()) {
+            phoneEditText.error = "Enter phone number"
+            phoneEditText.requestFocus()
+            return
         }
 
-        root.addView(
-            send,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(52)
-            ).apply {
-                topMargin = dp(20)
+        if (message.isEmpty()) {
+            messageEditText.error = "Enter message"
+            messageEditText.requestFocus()
+            return
+        }
+
+        if (checkSelfPermission(Manifest.permission.SEND_SMS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.SEND_SMS),
+                SMS_PERMISSION_REQUEST
+            )
+            return
+        }
+
+        sendSmsNow(phone, message)
+    }
+
+    private fun sendSmsNow(phone: String, message: String) {
+        try {
+            val smsManager = SmsManager.getDefault()
+
+            val parts = smsManager.divideMessage(message)
+
+            if (parts.size == 1) {
+                smsManager.sendTextMessage(
+                    phone,
+                    null,
+                    message,
+                    null,
+                    null
+                )
+            } else {
+                smsManager.sendMultipartTextMessage(
+                    phone,
+                    null,
+                    parts,
+                    null,
+                    null
+                )
             }
+
+            Toast.makeText(
+                this,
+                "SMS sent",
+                Toast.LENGTH_SHORT
+            ).show()
+
+        } catch (e: Exception) {
+            Toast.makeText(
+                this,
+                "SMS failed: ${e.message ?: "Unknown error"}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults
         )
 
-        return root
+        if (requestCode == SMS_PERMISSION_REQUEST) {
+            if (grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            ) {
+                sendSms()
+            } else {
+                Toast.makeText(
+                    this,
+                    "SMS permission is required",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     private fun dp(value: Int): Int {
