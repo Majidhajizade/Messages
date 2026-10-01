@@ -294,11 +294,6 @@ class ConversationActivity : Activity() {
             elevation = dp(3).toFloat()
 
             setOnClickListener {
-                Toast.makeText(
-                    this@ConversationActivity,
-                    "SEND CLICKED",
-                    Toast.LENGTH_SHORT
-                ).show()
                 sendMessage()
             }
         }
@@ -576,6 +571,8 @@ class ConversationActivity : Activity() {
         }
 
         try {
+            val normalizedPhone = normalizePhoneNumber(phone)
+
             val sentIntent = Intent("com.majidhajizade.messages.SMS_SENT").apply {
                 setPackage(packageName)
                 putExtra("message_id", messageId)
@@ -600,7 +597,7 @@ class ConversationActivity : Activity() {
 
             if (parts.size == 1) {
                 smsManager.sendTextMessage(
-                    phone,
+                    normalizedPhone,
                     null,
                     message,
                     sentPendingIntent,
@@ -628,7 +625,7 @@ class ConversationActivity : Activity() {
                 }
 
                 smsManager.sendMultipartTextMessage(
-                    phone,
+                    normalizedPhone,
                     null,
                     parts,
                     sentIntents,
@@ -663,6 +660,22 @@ class ConversationActivity : Activity() {
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         ) {
             sendMessage()
+        }
+    }
+
+    private fun normalizePhoneNumber(value: String): String {
+        val number = value.trim()
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("(", "")
+            .replace(")", "")
+
+        return when {
+            number.startsWith("+98") -> number
+            number.startsWith("0098") -> "+" + number.substring(2)
+            number.startsWith("98") -> "+" + number
+            number.startsWith("09") -> "+98" + number.substring(1)
+            else -> number
         }
     }
 

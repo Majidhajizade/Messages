@@ -10,6 +10,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Telephony
+import android.app.role.RoleManager
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -66,6 +67,25 @@ class MainActivity : Activity() {
             View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 
         setContentView(createHomeScreen())
+
+        requestDefaultSmsRole()
+    }
+
+    private fun requestDefaultSmsRole() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val roleManager = getSystemService(RoleManager::class.java)
+
+            if (
+                roleManager != null &&
+                roleManager.isRoleAvailable(RoleManager.ROLE_SMS) &&
+                !roleManager.isRoleHeld(RoleManager.ROLE_SMS)
+            ) {
+                startActivityForResult(
+                    roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS),
+                    4001
+                )
+            }
+        }
     }
 
     override fun onResume() {
