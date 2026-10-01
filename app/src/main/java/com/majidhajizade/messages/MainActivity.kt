@@ -43,6 +43,10 @@ class MainActivity : Activity() {
     private lateinit var allButton: TextView
 
     private val selectedAddresses = linkedSetOf<String>()
+
+    private var homeHeader: View? = null
+    private var homeTitle: View? = null
+    private var composeButtonView: View? = null
     private val rowViews = mutableMapOf<String, TextView>()
 
     private var selectionMode = false
@@ -139,6 +143,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
+        homeHeader = header
 
         val title = TextView(this).apply {
             text = "Messages"
@@ -146,6 +151,8 @@ class MainActivity : Activity() {
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
         }
+
+        homeTitle = title
 
         header.addView(
             title,
@@ -157,16 +164,23 @@ class MainActivity : Activity() {
         )
 
         val composeButton = TextView(this).apply {
-            text = "✎"
+            text = "+"
             textSize = 30f
-            setTextColor(blue)
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding(dp(8), 0, dp(4), 0)
+            background = GradientDrawable().apply {
+                setColor(premiumBlue)
+                shape = GradientDrawable.OVAL
+            }
+            elevation = dp(4).toFloat()
 
             setOnClickListener {
                 openNewMessage()
             }
         }
+
+        composeButtonView = composeButton
 
         header.addView(
             composeButton,
@@ -238,8 +252,12 @@ class MainActivity : Activity() {
             selectionBar,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(82)
-            )
+                dp(92)
+            ).apply {
+                leftMargin = dp(12)
+                rightMargin = dp(12)
+                bottomMargin = dp(10)
+            }
         )
 
         return root
@@ -400,8 +418,19 @@ class MainActivity : Activity() {
         val foreground = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = ColorDrawableCompat.white()
-            setPadding(0, dp(8), 0, dp(8))
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(20).toFloat()
+            }
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            clipToOutline = true
+            elevation = dp(1).toFloat()
+        }
+
+        val contactFrame = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(52), dp(52)).apply {
+                rightMargin = dp(12)
+            }
         }
 
         val contact = ImageView(this).apply {
@@ -414,12 +443,32 @@ class MainActivity : Activity() {
             setPadding(dp(10), dp(10), dp(10), dp(10))
         }
 
-        foreground.addView(
+        contactFrame.addView(
             contact,
-            LinearLayout.LayoutParams(dp(52), dp(52)).apply {
-                rightMargin = dp(12)
+            FrameLayout.LayoutParams(dp(52), dp(52))
+        )
+
+        val selectionCircle = TextView(this).apply {
+            text = ""
+            textSize = 18f
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            visibility = View.GONE
+            background = GradientDrawable().apply {
+                setColor(Color.argb(180, 35, 120, 255))
+                shape = GradientDrawable.OVAL
+            }
+        }
+
+        contactFrame.addView(
+            selectionCircle,
+            FrameLayout.LayoutParams(dp(30), dp(30)).apply {
+                gravity = Gravity.CENTER
             }
         )
+
+        foreground.addView(contactFrame)
 
         val textContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -469,28 +518,6 @@ class MainActivity : Activity() {
             )
         )
 
-        val selectionCircle = TextView(this).apply {
-            text = "✓"
-            textSize = 18f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            visibility = View.GONE
-            background = GradientDrawable().apply {
-                setColor(premiumBlue)
-                shape = GradientDrawable.OVAL
-            }
-        }
-
-        foreground.addView(
-            selectionCircle,
-            LinearLayout.LayoutParams(
-                dp(28),
-                dp(28)
-            ).apply {
-                leftMargin = dp(8)
-            }
-        )
-
         actionLayer.addView(
             foreground,
             FrameLayout.LayoutParams(
@@ -520,7 +547,12 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(76)
-            )
+            ).apply {
+                leftMargin = dp(6)
+                rightMargin = dp(6)
+                topMargin = dp(4)
+                bottomMargin = dp(4)
+            }
         )
 
         val divider = View(this).apply {
@@ -716,24 +748,48 @@ class MainActivity : Activity() {
         selectionCount.text =
             if (selectedCount == allCount) "All" else "$selectedCount"
 
+        homeTitle?.let { view ->
+            if (view is TextView) {
+                view.text = if (selectedCount == allCount) "✓" else "○"
+                view.textSize = 28f
+                view.setTextColor(premiumBlue)
+                view.gravity = Gravity.CENTER
+                view.setOnClickListener {
+                    if (selectedAddresses.size == rowViews.size) {
+                        selectedAddresses.clear()
+                    } else {
+                        selectedAddresses.clear()
+                        selectedAddresses.addAll(rowViews.keys)
+                    }
+                    updateSelectionUI()
+                }
+            }
+        }
+
+        composeButtonView?.visibility = View.GONE
+
         rowViews.forEach { (address, circle) ->
             circle.visibility = View.VISIBLE
             circle.text =
                 if (selectedAddresses.contains(address)) "✓" else ""
-            circle.setBackgroundColor(
-                if (selectedAddresses.contains(address)) {
-                    premiumBlue
-                } else {
-                    Color.rgb(225, 225, 230)
-                }
-            )
+            circle.background = GradientDrawable().apply {
+                setColor(
+                    if (selectedAddresses.contains(address)) {
+                        Color.argb(180, 35, 120, 255)
+                    } else {
+                        Color.argb(210, 225, 225, 230)
+                    }
+                )
+                shape = GradientDrawable.OVAL
+            }
         }
     }
 
     private fun createSelectionBar(): LinearLayout {
         val wrapper = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(6), dp(8), dp(6))
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(6), dp(8), dp(10))
         }
 
         val top = LinearLayout(this).apply {
@@ -803,8 +859,9 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 setColor(Color.rgb(248, 248, 250))
-                cornerRadius = dp(26).toFloat()
+                cornerRadius = dp(34).toFloat()
             }
+            elevation = dp(8).toFloat()
         }
 
         val notification = createActionButton(
@@ -1085,8 +1142,21 @@ class MainActivity : Activity() {
 
         selectionBar.visibility = View.GONE
 
+        homeTitle?.let { view ->
+            if (view is TextView) {
+                view.text = "Messages"
+                view.textSize = 34f
+                view.setTextColor(Color.BLACK)
+                view.gravity = Gravity.CENTER_VERTICAL
+                view.setOnClickListener(null)
+            }
+        }
+
+        composeButtonView?.visibility = View.VISIBLE
+
         rowViews.values.forEach {
             it.visibility = View.GONE
+            it.text = ""
         }
     }
 
