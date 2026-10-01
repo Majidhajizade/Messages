@@ -425,6 +425,7 @@ class MainActivity : Activity() {
             setPadding(dp(12), dp(8), dp(12), dp(8))
             clipToOutline = false
             elevation = 0f
+        }
 
         val contactFrame = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(52), dp(52)).apply {
