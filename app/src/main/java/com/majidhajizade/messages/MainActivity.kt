@@ -33,7 +33,7 @@ class MainActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
+            background = background
             setPadding(dp(20), dp(12), dp(20), dp(12))
         }
 
