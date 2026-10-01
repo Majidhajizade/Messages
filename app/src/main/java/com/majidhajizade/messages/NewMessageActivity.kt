@@ -2,15 +2,15 @@ package com.majidhajizade.messages
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Bundle
-import android.telephony.SmsManager
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.Bundle
+import android.telephony.SmsManager
 import android.view.Gravity
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.Space
 import android.widget.TextView
 import android.widget.Toast
 
@@ -26,6 +26,8 @@ class NewMessageActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val existingPhone = intent.getStringExtra("phone")
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
@@ -38,53 +40,54 @@ class NewMessageActivity : Activity() {
         }
 
         val cancel = TextView(this).apply {
-            text = "Cancel"
+            text = "‹  Back"
             textSize = 17f
             setTextColor(Color.rgb(0, 122, 255))
-            setOnClickListener { finish() }
+            gravity = Gravity.CENTER_VERTICAL
+
+            setOnClickListener {
+                finish()
+            }
         }
 
         val title = TextView(this).apply {
-            text = "New Message"
+            text = if (existingPhone.isNullOrBlank()) {
+                "New Message"
+            } else {
+                existingPhone
+            }
             textSize = 17f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
         }
 
-        val spacer = Space(this)
-
         header.addView(
             cancel,
-            LinearLayout.LayoutParams(dp(75), dp(48))
+            LinearLayout.LayoutParams(dp(85), dp(48))
         )
 
         header.addView(
             title,
-            LinearLayout.LayoutParams(0, dp(48), 1f)
-        )
-
-        header.addView(
-            spacer,
-            LinearLayout.LayoutParams(dp(75), dp(48))
+            LinearLayout.LayoutParams(
+                0,
+                dp(48),
+                1f
+            )
         )
 
         root.addView(header)
-
-        val toLabel = TextView(this).apply {
-            text = "To:"
-            textSize = 16f
-            setTextColor(Color.DKGRAY)
-            setPadding(0, dp(12), 0, dp(4))
-        }
-
-        root.addView(toLabel)
 
         phoneEditText = EditText(this).apply {
             hint = "Phone number"
             textSize = 17f
             setSingleLine(true)
             inputType = android.text.InputType.TYPE_CLASS_PHONE
+
+            if (!existingPhone.isNullOrBlank()) {
+                setText(existingPhone)
+                isEnabled = false
+            }
         }
 
         root.addView(
@@ -96,7 +99,7 @@ class NewMessageActivity : Activity() {
         )
 
         messageEditText = EditText(this).apply {
-            hint = "iMessage"
+            hint = "Message"
             textSize = 17f
             gravity = Gravity.TOP
             minLines = 4
@@ -172,7 +175,6 @@ class NewMessageActivity : Activity() {
     private fun sendSmsNow(phone: String, message: String) {
         try {
             val smsManager = SmsManager.getDefault()
-
             val parts = smsManager.divideMessage(message)
 
             if (parts.size == 1) {
@@ -198,6 +200,11 @@ class NewMessageActivity : Activity() {
                 "SMS sent",
                 Toast.LENGTH_SHORT
             ).show()
+
+            val intent = Intent(this, ConversationActivity::class.java)
+            intent.putExtra("phone", phone)
+            startActivity(intent)
+            finish()
 
         } catch (e: Exception) {
             Toast.makeText(
