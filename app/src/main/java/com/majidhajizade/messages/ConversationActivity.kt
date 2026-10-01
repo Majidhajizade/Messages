@@ -78,6 +78,7 @@ class ConversationActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         phone = intent.getStringExtra("phone") ?: run {
             finish()
@@ -221,6 +222,8 @@ class ConversationActivity : Activity() {
         )
 
         messageInput = EditText(this).apply {
+            isFocusable = true
+            isFocusableInTouchMode = true
             hint = "Message"
             textSize = 16f
             setSingleLine(false)
