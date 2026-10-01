@@ -359,7 +359,7 @@ class ConversationActivity : Activity() {
         messageId: String,
         success: Boolean
     ) {
-        val wrapper = messagesContainer.findViewWithTag<View>(messageId)
+        val wrapper = messagesContainer.findViewWithTag<LinearLayout>(messageId)
             ?: return
 
         if (success) {
