@@ -2,12 +2,17 @@ package com.majidhajizade.messages
 
 import android.Manifest
 import android.app.Activity
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.provider.ContactsContract
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.Build
 import android.provider.Telephony
 import android.telephony.SmsManager
 import android.view.Gravity
@@ -42,6 +47,17 @@ class ConversationActivity : Activity() {
         private const val PICK_CONTACT = 3002
     }
 
+    private val smsSentReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val messageId = intent?.getStringExtra("message_id")
+            val success = resultCode == Activity.RESULT_OK
+
+            if (messageId != null) {
+                updateMessageStatus(messageId, success)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -51,7 +67,27 @@ class ConversationActivity : Activity() {
         }
 
         setContentView(createScreen())
+
+        val filter = IntentFilter("com.majidhajizade.messages.SMS_SENT")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                smsSentReceiver,
+                filter,
+                Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(smsSentReceiver, filter)
+        }
+
         loadConversation()
+    }
+
+    override fun onDestroy() {
+        runCatching {
+            unregisterReceiver(smsSentReceiver)
+        }
+        super.onDestroy()
     }
 
     override fun onResume() {
@@ -319,6 +355,65 @@ class ConversationActivity : Activity() {
         }
     }
 
+    private fun updateMessageStatus(
+        messageId: String,
+        success: Boolean
+    ) {
+        val wrapper = messagesContainer.findViewWithTag<View>(messageId)
+            ?: return
+
+        if (success) {
+            wrapper.findViewWithTag<View>("failed_row")?.let {
+                val parent = it.parent as? LinearLayout
+                parent?.removeView(it)
+            }
+            return
+        }
+
+        if (wrapper.findViewWithTag<View>("failed_row") != null) {
+            return
+        }
+
+        val row = LinearLayout(this).apply {
+            tag = "failed_row"
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val icon = TextView(this).apply {
+            text = "!"
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.RED)
+            }
+        }
+
+        row.addView(
+            icon,
+            LinearLayout.LayoutParams(dp(24), dp(24)).apply {
+                setMargins(0, 0, dp(6), 0)
+            }
+        )
+
+        val bubble = wrapper.getChildAt(0)
+        wrapper.removeView(bubble)
+
+        row.addView(
+            bubble,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        wrapper.addView(row, 0)
+    }
+
     private fun loadConversation() {
         messagesContainer.removeAllViews()
 
@@ -369,7 +464,8 @@ class ConversationActivity : Activity() {
     private fun addMessage(
         body: String,
         date: Long,
-        incoming: Boolean
+        incoming: Boolean,
+        messageId: String? = null
     ) {
         val bubble = TextView(this).apply {
             text = body
@@ -405,6 +501,10 @@ class ConversationActivity : Activity() {
                 Gravity.END
             }
             setPadding(0, dp(4), 0, dp(4))
+
+            if (messageId != null) {
+                tag = messageId
+            }
         }
 
         wrapper.addView(
@@ -454,7 +554,42 @@ class ConversationActivity : Activity() {
             return
         }
 
+        val messageId = System.currentTimeMillis().toString()
+
+        // Show the outgoing message immediately.
+        addMessage(
+            body = message,
+            date = System.currentTimeMillis(),
+            incoming = false,
+            messageId = messageId
+        )
+
+        messageInput.text.clear()
+
+        scrollView.post {
+            scrollView.fullScroll(View.FOCUS_DOWN)
+        }
+
         try {
+            val sentIntent = Intent("com.majidhajizade.messages.SMS_SENT").apply {
+                setPackage(packageName)
+                putExtra("message_id", messageId)
+            }
+
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    PendingIntent.FLAG_IMMUTABLE
+                } else {
+                    0
+                }
+
+            val sentPendingIntent = PendingIntent.getBroadcast(
+                this,
+                messageId.hashCode(),
+                sentIntent,
+                flags
+            )
+
             val smsManager = SmsManager.getDefault()
             val parts = smsManager.divideMessage(message)
 
@@ -463,32 +598,42 @@ class ConversationActivity : Activity() {
                     phone,
                     null,
                     message,
-                    null,
+                    sentPendingIntent,
                     null
                 )
             } else {
+                val sentIntents = ArrayList<PendingIntent>()
+
+                parts.forEachIndexed { index, _ ->
+                    val partIntent = Intent(
+                        "com.majidhajizade.messages.SMS_SENT"
+                    ).apply {
+                        setPackage(packageName)
+                        putExtra("message_id", messageId)
+                    }
+
+                    sentIntents.add(
+                        PendingIntent.getBroadcast(
+                            this,
+                            messageId.hashCode() + index + 1,
+                            partIntent,
+                            flags
+                        )
+                    )
+                }
+
                 smsManager.sendMultipartTextMessage(
                     phone,
                     null,
                     parts,
-                    null,
+                    sentIntents,
                     null
                 )
             }
 
-            messageInput.text.clear()
-
-            Toast.makeText(
-                this,
-                "SMS sent",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            messagesContainer.postDelayed({
-                loadConversation()
-            }, 500)
-
         } catch (e: Exception) {
+            updateMessageStatus(messageId, false)
+
             Toast.makeText(
                 this,
                 "SMS failed: ${e.message ?: "Unknown error"}",
