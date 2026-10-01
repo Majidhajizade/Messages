@@ -75,16 +75,37 @@ class MainActivity : Activity() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             val roleManager = getSystemService(RoleManager::class.java)
 
-            if (
-                roleManager != null &&
-                roleManager.isRoleAvailable(RoleManager.ROLE_SMS) &&
-                !roleManager.isRoleHeld(RoleManager.ROLE_SMS)
-            ) {
-                startActivityForResult(
-                    roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS),
-                    4001
-                )
+            if (roleManager == null) {
+                Toast.makeText(
+                    this,
+                    "RoleManager unavailable",
+                    Toast.LENGTH_LONG
+                ).show()
+                return
             }
+
+            if (!roleManager.isRoleAvailable(RoleManager.ROLE_SMS)) {
+                Toast.makeText(
+                    this,
+                    "SMS role unavailable on this device",
+                    Toast.LENGTH_LONG
+                ).show()
+                return
+            }
+
+            if (roleManager.isRoleHeld(RoleManager.ROLE_SMS)) {
+                Toast.makeText(
+                    this,
+                    "Messages is already default SMS",
+                    Toast.LENGTH_LONG
+                ).show()
+                return
+            }
+
+            startActivityForResult(
+                roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS),
+                4001
+            )
         }
     }
 
