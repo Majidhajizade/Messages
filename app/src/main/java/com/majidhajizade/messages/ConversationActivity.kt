@@ -67,7 +67,7 @@ class ConversationActivity : Activity() {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setPadding(dp(12), dp(24), dp(12), dp(10))
         }
 
         val back = TextView(this).apply {
@@ -156,10 +156,15 @@ class ConversationActivity : Activity() {
 
         val send = TextView(this).apply {
             text = "↑"
-            textSize = 28f
-            setTextColor(blue)
+            textSize = 24f
+            setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
+
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(0, 95, 220))
+                shape = GradientDrawable.OVAL
+            }
 
             setOnClickListener {
                 sendMessage()
@@ -231,6 +236,7 @@ class ConversationActivity : Activity() {
         val bubble = TextView(this).apply {
             text = body
             textSize = 16f
+            maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
             setTextColor(
                 if (incoming) Color.BLACK else Color.WHITE
             )

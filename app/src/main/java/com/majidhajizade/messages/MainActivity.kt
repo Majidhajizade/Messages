@@ -147,31 +147,23 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
 
+        val messagesScroll = android.widget.ScrollView(this).apply {
+            isFillViewport = true
+            addView(
+                messagesContainer,
+                android.widget.ScrollView.LayoutParams(
+                    android.widget.ScrollView.LayoutParams.MATCH_PARENT,
+                    android.widget.ScrollView.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
         root.addView(
-            messagesContainer,
+            messagesScroll,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
-            )
-        )
-
-        val newMessage = TextView(this).apply {
-            text = "+  New Message"
-            textSize = 17f
-            setTextColor(blue)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setOnClickListener {
-                openNewMessage()
-            }
-        }
-
-        root.addView(
-            newMessage,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(58)
             )
         )
 
