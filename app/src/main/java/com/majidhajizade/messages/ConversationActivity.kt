@@ -6,7 +6,9 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.ContentValues
 import android.content.IntentFilter
+import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.provider.ContactsContract
 import android.graphics.Color
@@ -54,6 +56,7 @@ class ConversationActivity : Activity() {
 
             if (messageId != null) {
                 updateMessageStatus(messageId, success)
+                if (success) { saveSentMessage(intent?.getStringExtra("message") ?: return); loadConversation() }
 
                 val errorText = when (resultCode) {
                     Activity.RESULT_OK -> "SMS sent successfully"
@@ -553,6 +556,23 @@ class ConversationActivity : Activity() {
         messagesContainer.addView(wrapper)
     }
 
+    private fun saveSentMessage(message: String) {
+        val values = ContentValues().apply {
+            put(Telephony.Sms.ADDRESS, phone)
+            put(Telephony.Sms.BODY, message)
+            put(Telephony.Sms.DATE, System.currentTimeMillis())
+            put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT)
+            put(Telephony.Sms.READ, 1)
+        }
+
+        runCatching {
+            contentResolver.insert(
+                Telephony.Sms.CONTENT_URI,
+                values
+            )
+        }
+    }
+
     private fun sendMessage() {
         val message = messageInput.text.toString().trim()
 
@@ -592,6 +612,7 @@ class ConversationActivity : Activity() {
             val sentIntent = Intent("com.majidhajizade.messages.SMS_SENT").apply {
                 setPackage(packageName)
                 putExtra("message_id", messageId)
+            putExtra("message", message)
             }
 
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or
@@ -628,6 +649,7 @@ class ConversationActivity : Activity() {
                     ).apply {
                         setPackage(packageName)
                         putExtra("message_id", messageId)
+            putExtra("message", message)
                     }
 
                     sentIntents.add(
