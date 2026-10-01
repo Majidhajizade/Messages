@@ -23,14 +23,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null || true
 
       - name: Install Android SDK 36
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon
