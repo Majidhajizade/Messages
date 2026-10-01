@@ -37,15 +37,7 @@ jobs:
           ls -la "$ANDROID_HOME/build-tools" || true
 
       - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace --info 2>&1 | tee build-output.log; exit ${PIPESTATUS[0]}
-
-      - name: Upload Build Log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build-output.log
-          if-no-files-found: warn
+        run: gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
