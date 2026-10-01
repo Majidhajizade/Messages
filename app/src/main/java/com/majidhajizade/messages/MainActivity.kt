@@ -42,7 +42,7 @@ class MainActivity : Activity() {
     private lateinit var allButton: TextView
 
     private val selectedAddresses = linkedSetOf<String>()
-    private val rowViews = mutableMapOf<String, View>()
+    private val rowViews = mutableMapOf<String, TextView>()
 
     private var selectionMode = false
     private var draggingSelection = false
