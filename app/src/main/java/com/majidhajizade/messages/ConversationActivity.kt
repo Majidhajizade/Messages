@@ -294,6 +294,11 @@ class ConversationActivity : Activity() {
             elevation = dp(3).toFloat()
 
             setOnClickListener {
+                Toast.makeText(
+                    this@ConversationActivity,
+                    "SEND CLICKED",
+                    Toast.LENGTH_SHORT
+                ).show()
                 sendMessage()
             }
         }
