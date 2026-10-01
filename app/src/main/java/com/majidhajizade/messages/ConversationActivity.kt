@@ -54,6 +54,22 @@ class ConversationActivity : Activity() {
 
             if (messageId != null) {
                 updateMessageStatus(messageId, success)
+
+                val errorText = when (resultCode) {
+                    Activity.RESULT_OK -> "SMS sent successfully"
+                    SmsManager.RESULT_ERROR_GENERIC_FAILURE -> "Generic failure"
+                    SmsManager.RESULT_ERROR_RADIO_OFF -> "Radio is off"
+                    SmsManager.RESULT_ERROR_NULL_PDU -> "Null PDU"
+                    SmsManager.RESULT_ERROR_NO_SERVICE -> "No cellular service"
+                    SmsManager.RESULT_ERROR_LIMIT_EXCEEDED -> "SMS limit exceeded"
+                    else -> "SMS error code: $resultCode"
+                }
+
+                Toast.makeText(
+                    this@ConversationActivity,
+                    errorText,
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }
