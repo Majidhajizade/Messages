@@ -555,6 +555,10 @@ class MainActivity : Activity() {
             }
         )
 
+        val divider = View(this).apply {
+            setBackgroundColor(Color.rgb(235, 235, 240))
+        }
+
         messagesContainer.addView(
             divider,
             LinearLayout.LayoutParams(
