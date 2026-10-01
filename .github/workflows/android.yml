@@ -37,7 +37,7 @@ jobs:
           ls -la "$ANDROID_HOME/build-tools" || true
 
       - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon --stacktrace --info
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
