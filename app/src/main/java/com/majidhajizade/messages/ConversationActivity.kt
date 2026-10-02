@@ -338,11 +338,11 @@ class ConversationActivity : Activity() {
             val rect = android.graphics.Rect()
             root.getWindowVisibleDisplayFrame(rect)
 
-            val rootLocation = IntArray(2)
-            root.getLocationOnScreen(rootLocation)
+            val location = IntArray(2)
+            composer.getLocationOnScreen(location)
 
-            val keyboardHeight =
-                (rootLocation[1] + root.height) - rect.bottom
+            val composerBottom = location[1] + composer.height
+            val keyboardHeight = composerBottom - rect.bottom
 
             composer.translationY = if (keyboardHeight > dp(120)) {
                 -keyboardHeight.toFloat()
