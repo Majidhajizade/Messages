@@ -172,7 +172,7 @@ class ConversationActivity : Activity() {
         messagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(245, 245, 247))
-            setPadding(dp(16), dp(12), dp(16), dp(12))
+            setPadding(dp(16), dp(94), dp(16), dp(12))
         }
 
         scrollView.addView(messagesContainer)
