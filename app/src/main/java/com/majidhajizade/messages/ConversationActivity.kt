@@ -524,7 +524,7 @@ class ConversationActivity : Activity() {
             textSize = 16f
             maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
             setTextColor(
-                if (incoming) Color.BLACK else Color.WHITE
+                if (incoming) Color.BLACK else Color.BLACK
             )
             setPadding(
                 dp(14),
@@ -535,7 +535,7 @@ class ConversationActivity : Activity() {
 
             background = GradientDrawable().apply {
                 setColor(
-                    if (incoming) Color.rgb(232, 232, 237) else Color.rgb(221, 235, 255)
+                    if (incoming) Color.rgb(232, 232, 237) else Color.rgb(64, 201, 198)
                 )
                 cornerRadius = dp(22).toFloat()
             }
