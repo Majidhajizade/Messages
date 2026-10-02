@@ -414,56 +414,41 @@ class ConversationActivity : Activity() {
         val wrapper = messagesContainer.findViewWithTag<LinearLayout>(messageId)
             ?: return
 
+        val bubble = wrapper.findViewWithTag<LinearLayout>("message_bubble")
+            ?: return
+
         if (success) {
-            wrapper.findViewWithTag<View>("failed_row")?.let {
-                val parent = it.parent as? LinearLayout
-                parent?.removeView(it)
+            bubble.findViewWithTag<View>("failed_icon")?.let {
+                bubble.removeView(it)
             }
             return
         }
 
-        if (wrapper.findViewWithTag<View>("failed_row") != null) {
+        if (bubble.findViewWithTag<View>("failed_icon") != null) {
             return
         }
 
-        val row = LinearLayout(this).apply {
-            tag = "failed_row"
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
         val icon = TextView(this).apply {
+            tag = "failed_icon"
             text = "!"
-            textSize = 14f
+            textSize = 13f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
-
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.RED)
             }
         }
 
-        row.addView(
+        bubble.addView(
             icon,
-            LinearLayout.LayoutParams(dp(24), dp(24)).apply {
-                setMargins(0, 0, dp(6), 0)
+            0,
+            LinearLayout.LayoutParams(dp(22), dp(22)).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setMargins(dp(8), 0, dp(7), 0)
             }
         )
-
-        val bubble = wrapper.getChildAt(0)
-        wrapper.removeView(bubble)
-
-        row.addView(
-            bubble,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        )
-
-        wrapper.addView(row, 0)
     }
 
     private fun loadConversation() {
@@ -490,6 +475,9 @@ class ConversationActivity : Activity() {
             "${Telephony.Sms.DATE} ASC"
         )
 
+        lastMessageDate = null
+        lastTimeView = null
+
         cursor?.use {
             val bodyIndex = it.getColumnIndexOrThrow(Telephony.Sms.BODY)
             val dateIndex = it.getColumnIndexOrThrow(Telephony.Sms.DATE)
@@ -513,53 +501,64 @@ class ConversationActivity : Activity() {
         }
     }
 
+    private var lastMessageDate: Long? = null
+    private var lastTimeView: TextView? = null
+
     private fun addMessage(
         body: String,
         date: Long,
         incoming: Boolean,
         messageId: String? = null
     ) {
-        val bubble = TextView(this).apply {
-            text = body
-            textSize = 16f
-            maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
-            setTextColor(
-                if (incoming) Color.BLACK else Color.BLACK
-            )
-            setPadding(
-                dp(14),
-                dp(9),
-                dp(14),
-                dp(9)
-            )
+        val previousDate = lastMessageDate
+        val closeToPrevious = previousDate != null &&
+            date - previousDate < 60_000L
 
+        if (closeToPrevious) {
+            lastTimeView?.visibility = View.GONE
+        }
+
+        val bubble = LinearLayout(this).apply {
+            tag = "message_bubble"
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(2), 0, dp(2))
             background = GradientDrawable().apply {
                 setColor(
-                    if (incoming) Color.rgb(232, 232, 237) else Color.rgb(64, 201, 198)
+                    if (incoming) Color.rgb(232, 232, 237)
+                    else Color.rgb(64, 201, 198)
                 )
                 cornerRadius = dp(22).toFloat()
             }
-
-            addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
-                val drawable = background as? GradientDrawable
-                    ?: return@addOnLayoutChangeListener
-
-                drawable.cornerRadius = if (lineCount <= 1) {
-                    view.height / 2f
-                } else {
-                    dp(18).toFloat()
-                }
-            }
         }
+
+        val messageText = TextView(this).apply {
+            text = body
+            textSize = 16f
+            setTextColor(Color.BLACK)
+            maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
+            setPadding(dp(14), dp(7), dp(14), dp(7))
+        }
+
+        bubble.addView(
+            messageText,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         val wrapper = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = if (incoming) {
-                Gravity.START
-            } else {
-                Gravity.END
-            }
-            setPadding(0, dp(4), 0, dp(4))
+            gravity = if (incoming) Gravity.START else Gravity.END
+            setPadding(
+                0,
+                if (previousDate == null) dp(4)
+                else if (closeToPrevious) dp(2)
+                else dp(8),
+                0,
+                0
+            )
 
             if (messageId != null) {
                 tag = messageId
@@ -579,10 +578,10 @@ class ConversationActivity : Activity() {
                 "HH:mm",
                 Locale.getDefault()
             ).format(Date(date))
-
             textSize = 11f
             setTextColor(secondaryText)
             setPadding(dp(4), dp(2), dp(4), 0)
+            gravity = if (incoming) Gravity.END else Gravity.START
         }
 
         wrapper.addView(
@@ -594,6 +593,9 @@ class ConversationActivity : Activity() {
         )
 
         messagesContainer.addView(wrapper)
+
+        lastMessageDate = date
+        lastTimeView = time
     }
 
     private fun saveSentMessage(message: String) {
