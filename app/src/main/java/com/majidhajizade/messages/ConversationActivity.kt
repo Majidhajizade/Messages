@@ -335,6 +335,16 @@ class ConversationActivity : Activity() {
 
         root.addView(composer, composerParams)
 
+        root.setOnApplyWindowInsetsListener { _, insets ->
+            val imeBottom = insets.getInsets(
+                android.view.WindowInsets.Type.ime()
+            ).bottom
+            composer.translationY = -(imeBottom + dp(8)).toFloat()
+            insets
+        }
+        root.requestApplyInsets()
+
+
         return root
     }
 
