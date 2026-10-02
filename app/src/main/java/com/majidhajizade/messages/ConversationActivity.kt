@@ -208,10 +208,11 @@ class ConversationActivity : Activity() {
 
         val addContact = TextView(this).apply {
             text = "+"
-            textSize = 30f
-            setTextColor(Color.rgb(0, 95, 220))
+            textSize = 28f
+            setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            background = null
             setPadding(0, 0, 0, dp(2))
 
             setOnClickListener {
@@ -233,6 +234,8 @@ class ConversationActivity : Activity() {
             isFocusableInTouchMode = true
             hint = "Message"
             textSize = 16f
+            setTextColor(Color.BLACK)
+            setHintTextColor(Color.rgb(145, 145, 150))
             setSingleLine(false)
             minLines = 1
             maxLines = 4
@@ -339,6 +342,20 @@ class ConversationActivity : Activity() {
         }
 
         root.addView(composer, composerParams)
+
+        root.viewTreeObserver.addOnGlobalLayoutListener {
+            val rect = android.graphics.Rect()
+            root.getWindowVisibleDisplayFrame(rect)
+
+            val screenHeight = root.rootView.height
+            val keyboardHeight = screenHeight - rect.bottom
+
+            if (keyboardHeight > dp(150)) {
+                scrollView.post {
+                    scrollView.fullScroll(View.FOCUS_DOWN)
+                }
+            }
+        }
 
         return root
     }
