@@ -511,7 +511,7 @@ class ConversationActivity : Activity() {
 
             background = GradientDrawable().apply {
                 setColor(
-                    if (incoming) Color.rgb(232, 232, 237) else Color.rgb(174, 205, 255)
+                    if (incoming) Color.rgb(232, 232, 237) else Color.rgb(221, 235, 255)
                 )
                 cornerRadius = dp(22).toFloat()
             }
