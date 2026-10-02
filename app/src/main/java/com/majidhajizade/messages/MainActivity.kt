@@ -50,6 +50,7 @@ class MainActivity : Activity() {
     private lateinit var selectionSelectedText: TextView
     private lateinit var selectionAllButton: TextView
     private lateinit var selectionActionBar: LinearLayout
+    private lateinit var homeSearch: EditText
 
 
 
@@ -201,8 +202,10 @@ class MainActivity : Activity() {
             selectionHeader,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(64)
-            )
+                dp(46)
+            ).apply {
+                bottomMargin = dp(10)
+            }
         )
 
         val searchBackground = GradientDrawable().apply {
@@ -210,7 +213,7 @@ class MainActivity : Activity() {
             cornerRadius = dp(23).toFloat()
         }
 
-        val search = EditText(this).apply {
+        homeSearch = EditText(this).apply {
             hint = "Search"
             textSize = 16f
             setSingleLine(true)
@@ -221,7 +224,7 @@ class MainActivity : Activity() {
         }
 
         root.addView(
-            search,
+            homeSearch,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(46)
@@ -241,7 +244,7 @@ class MainActivity : Activity() {
                 setStroke(dp(1), Color.rgb(230, 230, 235))
             }
             clipToOutline = true
-            setPadding(0, dp(4), 0, dp(4))
+            setPadding(0, dp(4), 0, dp(82))
         }
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
@@ -258,38 +261,48 @@ class MainActivity : Activity() {
                 )
             )
 
-            scrollContent.addView(
-                selectionActionBar,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(88)
-                ).apply {
-                    leftMargin = dp(8)
-                    rightMargin = dp(8)
-                    topMargin = dp(8)
-                    bottomMargin = dp(8)
-                }
-            )
-
             addView(
                 scrollContent,
                 ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
+                    ViewGroup.LayoutParams.MATCH_PARENT
                 )
             )
         }
 
-        root.addView(
+        val chatLayer = FrameLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
+        }
+
+        chatLayer.addView(
             messagesScroll,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        chatLayer.addView(
+            selectionActionBar,
+            FrameLayout.LayoutParams(
+                dp(270),
+                dp(78)
+            ).apply {
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(18)
+            }
+        )
+
+        selectionActionBar.bringToFront()
+
+        root.addView(
+            chatLayer,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
-            ).apply {
-                leftMargin = 0
-                rightMargin = 0
-            }
+            )
         )
 
         return root
@@ -775,6 +788,12 @@ class MainActivity : Activity() {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, 0)
+        }
+
+        val allContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
         }
 
         selectionAllButton = TextView(this).apply {
@@ -782,6 +801,7 @@ class MainActivity : Activity() {
             textSize = 28f
             setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT
             setOnClickListener {
                 if (selectedAddresses.size == rowViews.size) {
                     selectedAddresses.clear()
@@ -793,36 +813,30 @@ class MainActivity : Activity() {
             }
         }
 
-        val allBox = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-        }
-
-        allBox.addView(
+        allContainer.addView(
             selectionAllButton,
-            LinearLayout.LayoutParams(dp(42), dp(42))
+            LinearLayout.LayoutParams(dp(38), dp(34))
         )
 
-        val allText = TextView(this).apply {
-            text = "All"
-            textSize = 12f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER
-        }
-
-        allBox.addView(
-            allText,
-            LinearLayout.LayoutParams(dp(42), dp(18))
+        allContainer.addView(
+            TextView(this).apply {
+                text = "All"
+                textSize = 13f
+                setTextColor(Color.rgb(35, 35, 38))
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+            },
+            LinearLayout.LayoutParams(dp(38), dp(22))
         )
 
         header.addView(
-            allBox,
-            LinearLayout.LayoutParams(dp(58), dp(64))
+            allContainer,
+            LinearLayout.LayoutParams(dp(58), dp(46))
         )
 
         selectionSelectedText = TextView(this).apply {
             text = "1 Selected"
-            textSize = 17f
+            textSize = 19f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER_VERTICAL
@@ -830,13 +844,20 @@ class MainActivity : Activity() {
 
         header.addView(
             selectionSelectedText,
-            LinearLayout.LayoutParams(0, dp(64), 1f)
+            LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1f
+            ).apply {
+                leftMargin = dp(8)
+            }
         )
 
         val cancel = TextView(this).apply {
             text = "Cancel"
-            textSize = 16f
-            setTextColor(blue)
+            textSize = 17f
+            setTextColor(Color.rgb(0, 122, 255))
+            typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setOnClickListener {
                 exitSelectionMode()
@@ -845,7 +866,7 @@ class MainActivity : Activity() {
 
         header.addView(
             cancel,
-            LinearLayout.LayoutParams(dp(80), dp(64))
+            LinearLayout.LayoutParams(dp(78), dp(46))
         )
 
         return header
@@ -855,41 +876,41 @@ class MainActivity : Activity() {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(8), dp(6), dp(8), dp(6))
+            setPadding(dp(10), dp(7), dp(10), dp(7))
             background = GradientDrawable().apply {
-                setColor(Color.argb(220, 245, 245, 247))
-                cornerRadius = dp(38).toFloat()
-                setStroke(dp(1), Color.argb(70, 255, 255, 255))
+                setColor(Color.argb(238, 250, 250, 252))
+                cornerRadius = dp(39).toFloat()
+                setStroke(dp(1), Color.argb(120, 255, 255, 255))
             }
-            elevation = dp(8).toFloat()
+            elevation = dp(12).toFloat()
         }
 
         bar.addView(
-            createSelectionAction("♢", "Notifications") {
+            createSelectionAction(0, "Notifications") {
                 toggleNotifications()
             },
-            LinearLayout.LayoutParams(0, dp(72), 1f)
+            LinearLayout.LayoutParams(0, dp(64), 1f)
         )
 
         bar.addView(
-            createSelectionAction("⌫", "Delete") {
+            createSelectionAction(1, "Delete") {
                 deleteSelected()
             },
-            LinearLayout.LayoutParams(0, dp(72), 1f)
+            LinearLayout.LayoutParams(0, dp(64), 1f)
         )
 
         bar.addView(
-            createSelectionAction("▱", "Pin") {
+            createSelectionAction(2, "Pin") {
                 pinSelected()
             },
-            LinearLayout.LayoutParams(0, dp(72), 1f)
+            LinearLayout.LayoutParams(0, dp(64), 1f)
         )
 
         return bar
     }
 
     private fun createSelectionAction(
-        icon: String,
+        iconType: Int,
         label: String,
         action: () -> Unit
     ): View {
@@ -899,31 +920,100 @@ class MainActivity : Activity() {
             setOnClickListener { action() }
 
             addView(
-                TextView(this@MainActivity).apply {
-                    text = icon
-                    textSize = 25f
-                    setTextColor(Color.BLACK)
-                    gravity = Gravity.CENTER
-                    typeface = Typeface.DEFAULT_BOLD
-                },
+                SelectionIconView(this@MainActivity, iconType),
                 LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(38)
+                    dp(30),
+                    dp(34)
                 )
             )
 
             addView(
                 TextView(this@MainActivity).apply {
                     text = label
-                    textSize = 11f
-                    setTextColor(Color.BLACK)
+                    textSize = 10.5f
+                    setTextColor(Color.rgb(35, 35, 38))
+                    includeFontPadding = false
                     gravity = Gravity.CENTER
+                    typeface = Typeface.DEFAULT_BOLD
                 },
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(24)
+                    dp(22)
                 )
             )
+        }
+    }
+
+    private class SelectionIconView(
+        context: android.content.Context,
+        private val type: Int
+    ) : View(context) {
+
+        private val paint = android.graphics.Paint(
+            android.graphics.Paint.ANTI_ALIAS_FLAG
+        ).apply {
+            color = Color.BLACK
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = dpLocal(2f)
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            strokeJoin = android.graphics.Paint.Join.ROUND
+        }
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            super.onDraw(canvas)
+
+            val w = width.toFloat()
+            val h = height.toFloat()
+            val cx = w / 2f
+
+            when (type) {
+                0 -> {
+                    // Bell
+                    val path = android.graphics.Path()
+                    path.moveTo(cx - 9f, h * .62f)
+                    path.lineTo(cx - 7f, h * .58f)
+                    path.lineTo(cx - 7f, h * .39f)
+                    path.quadTo(cx - 7f, h * .18f, cx, h * .16f)
+                    path.quadTo(cx + 7f, h * .18f, cx + 7f, h * .39f)
+                    path.lineTo(cx + 7f, h * .58f)
+                    path.lineTo(cx + 9f, h * .62f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+                    canvas.drawLine(cx - 3f, h * .72f, cx + 3f, h * .72f, paint)
+                    canvas.drawCircle(cx, h * .77f, 1.8f, paint)
+                }
+
+                1 -> {
+                    // Trash
+                    canvas.drawRoundRect(
+                        cx - 7f, h * .30f, cx + 7f, h * .78f,
+                        2.5f, 2.5f, paint
+                    )
+                    canvas.drawLine(cx - 9f, h * .24f, cx + 9f, h * .24f, paint)
+                    canvas.drawLine(cx - 4f, h * .18f, cx + 4f, h * .18f, paint)
+                    canvas.drawLine(cx - 3f, h * .39f, cx - 3f, h * .68f, paint)
+                    canvas.drawLine(cx + 3f, h * .39f, cx + 3f, h * .68f, paint)
+                }
+
+                2 -> {
+                    // Angled pin
+                    val path = android.graphics.Path()
+                    path.moveTo(cx - 7f, h * .24f)
+                    path.lineTo(cx + 5f, h * .36f)
+                    path.lineTo(cx + 2f, h * .48f)
+                    path.lineTo(cx + 7f, h * .53f)
+                    path.lineTo(cx + 3f, h * .70f)
+                    path.lineTo(cx - 1f, h * .48f)
+                    path.lineTo(cx - 10f, h * .40f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+                    canvas.drawLine(cx + 1f, h * .70f, cx - 7f, h * .88f, paint)
+                }
+            }
+        }
+
+        private fun dpLocal(value: Float): Float {
+            return value * resources.displayMetrics.density
         }
     }
 
@@ -933,6 +1023,7 @@ class MainActivity : Activity() {
         selectedAddresses.add(address)
 
         homeHeader?.visibility = View.GONE
+        homeSearch.visibility = View.GONE
 
         updateSelectionUI()
     }
@@ -1069,6 +1160,7 @@ class MainActivity : Activity() {
         selectionHeader.visibility = View.GONE
         selectionActionBar.visibility = View.GONE
         homeHeader?.visibility = View.VISIBLE
+        homeSearch.visibility = View.VISIBLE
 
         for (i in 0 until messagesContainer.childCount) {
             val child = messagesContainer.getChildAt(i)
