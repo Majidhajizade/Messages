@@ -38,21 +38,20 @@ class MainActivity : Activity() {
 
     private lateinit var messagesContainer: LinearLayout
     private lateinit var messagesScroll: android.widget.ScrollView
-    private lateinit var selectionBar: LinearLayout
-    private lateinit var selectionCount: TextView
-    private lateinit var allButton: TextView
 
-    private val selectedAddresses = linkedSetOf<String>()
 
     private var homeHeader: View? = null
     private var homeTitle: View? = null
     private var composeButtonView: View? = null
     private val rowViews = mutableMapOf<String, TextView>()
-
+    private val selectedAddresses = linkedSetOf<String>()
     private var selectionMode = false
-    private var draggingSelection = false
-    private var dragSelectState = true
-    private var lastDragAddress: String? = null
+    private lateinit var selectionHeader: LinearLayout
+    private lateinit var selectionSelectedText: TextView
+    private lateinit var selectionAllButton: TextView
+    private lateinit var selectionActionBar: LinearLayout
+
+
 
     companion object {
         private const val SMS_PERMISSION_REQUEST = 2001
@@ -139,6 +138,12 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(18), dp(20), dp(12))
         }
 
+        selectionHeader = createSelectionHeader()
+        selectionHeader.visibility = View.GONE
+
+        selectionActionBar = createSelectionActionBar()
+        selectionActionBar.visibility = View.GONE
+
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -192,6 +197,14 @@ class MainActivity : Activity() {
             )
         )
 
+        root.addView(
+            selectionHeader,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(64)
+            )
+        )
+
         val searchBackground = GradientDrawable().apply {
             setColor(Color.rgb(242, 242, 247))
             cornerRadius = dp(23).toFloat()
@@ -232,8 +245,34 @@ class MainActivity : Activity() {
         }
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
-            addView(
+
+            val scrollContent = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+            }
+
+            scrollContent.addView(
                 messagesContainer,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+
+            scrollContent.addView(
+                selectionActionBar,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(88)
+                ).apply {
+                    leftMargin = dp(8)
+                    rightMargin = dp(8)
+                    topMargin = dp(8)
+                    bottomMargin = dp(8)
+                }
+            )
+
+            addView(
+                scrollContent,
                 ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
@@ -250,21 +289,6 @@ class MainActivity : Activity() {
             ).apply {
                 leftMargin = 0
                 rightMargin = 0
-            }
-        )
-
-        selectionBar = createSelectionBar()
-        selectionBar.visibility = View.GONE
-
-        root.addView(
-            selectionBar,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(92)
-            ).apply {
-                leftMargin = dp(12)
-                rightMargin = dp(12)
-                bottomMargin = dp(10)
             }
         )
 
@@ -374,7 +398,9 @@ class MainActivity : Activity() {
         date: Long,
         type: Int
     ) {
-        val actionLayer = FrameLayout(this)
+        val actionLayer = FrameLayout(this).apply {
+            tag = address
+        }
 
         val actionBackground = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -453,24 +479,23 @@ class MainActivity : Activity() {
             FrameLayout.LayoutParams(dp(52), dp(52))
         )
 
-        val selectionCircle = TextView(this).apply {
-            text = ""
-            textSize = 18f
+        val selectionOverlay = TextView(this).apply {
+            textSize = 22f
             setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT_BOLD
             visibility = View.GONE
             background = GradientDrawable().apply {
-                setColor(Color.argb(180, 35, 120, 255))
+                setColor(Color.argb(155, 0, 122, 255))
                 shape = GradientDrawable.OVAL
             }
         }
 
+        selectionOverlay.tag = 1001
+
         contactFrame.addView(
-            selectionCircle,
-            FrameLayout.LayoutParams(dp(30), dp(30)).apply {
-                gravity = Gravity.CENTER
-            }
+            selectionOverlay,
+            FrameLayout.LayoutParams(dp(52), dp(52))
         )
 
         foreground.addView(contactFrame)
@@ -532,8 +557,6 @@ class MainActivity : Activity() {
             )
         )
 
-        rowViews[address] = selectionCircle
-
         callAction.setOnClickListener {
             callNumber(address)
         }
@@ -547,7 +570,8 @@ class MainActivity : Activity() {
             foreground,
             address,
             callAction,
-            deleteAction
+            deleteAction,
+            selectionOverlay
         )
 
         messagesContainer.addView(
@@ -584,7 +608,8 @@ class MainActivity : Activity() {
         foreground: View,
         address: String,
         callAction: TextView,
-        deleteAction: TextView
+        deleteAction: TextView,
+        selectionOverlay: TextView
     ) {
         val callBackground = GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
@@ -605,12 +630,6 @@ class MainActivity : Activity() {
         var longPressed = false
 
         val handler = android.os.Handler(mainLooper)
-        val longPressRunnable = Runnable {
-            if (!moved && !selectionMode) {
-                longPressed = true
-                enterSelectionMode(address)
-            }
-        }
 
         foreground.setOnTouchListener { _, event ->
             when (event.actionMasked) {
@@ -622,12 +641,7 @@ class MainActivity : Activity() {
                     moved = false
                     longPressed = false
 
-                    if (selectionMode) {
-                        draggingSelection = true
-                        lastDragAddress = address
-                    } else {
-                        handler.postDelayed(longPressRunnable, 500)
-                    }
+                    handler.postDelayed(longPressRunnable, 500)
 
                     true
                 }
@@ -639,16 +653,6 @@ class MainActivity : Activity() {
                     if (abs(dx) > dp(10) || abs(dy) > dp(10)) {
                         moved = true
                         handler.removeCallbacks(longPressRunnable)
-                    }
-
-                    if (selectionMode) {
-                        if (abs(dy) > dp(8)) {
-                            val location = IntArray(2)
-                            messagesContainer.getLocationOnScreen(location)
-                            val y = event.rawY - location[1]
-                            selectRowsByY(y, dy > 0)
-                        }
-                        return@setOnTouchListener true
                     }
 
                     if (abs(dx) > abs(dy)) {
@@ -711,11 +715,8 @@ class MainActivity : Activity() {
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
 
-                    if (selectionMode) {
-                        if (!moved && !longPressed && abs(dy) < dp(12)) {
-                            toggleSelection(address)
-                        }
-                        draggingSelection = false
+                    if (selectionMode && !longPressed && !moved) {
+                        toggleSelection(address)
                         foreground.animate()
                             .translationX(0f)
                             .setDuration(180)
@@ -755,7 +756,6 @@ class MainActivity : Activity() {
                     deleteBackground.setColor(Color.TRANSPARENT)
                     callAction.setTextColor(Color.TRANSPARENT)
                     deleteAction.setTextColor(Color.TRANSPARENT)
-                    draggingSelection = false
                     true
                 }
 
@@ -764,14 +764,175 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun createSelectionHeader(): LinearLayout {
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        selectionAllButton = TextView(this).apply {
+            text = "○"
+            textSize = 28f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                if (selectedAddresses.size == rowViews.size) {
+                    selectedAddresses.clear()
+                } else {
+                    selectedAddresses.clear()
+                    selectedAddresses.addAll(rowViews.keys)
+                }
+                updateSelectionUI()
+            }
+        }
+
+        val allBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+        }
+
+        allBox.addView(
+            selectionAllButton,
+            LinearLayout.LayoutParams(dp(42), dp(42))
+        )
+
+        val allText = TextView(this).apply {
+            text = "All"
+            textSize = 12f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER
+        }
+
+        allBox.addView(
+            allText,
+            LinearLayout.LayoutParams(dp(42), dp(18))
+        )
+
+        header.addView(
+            allBox,
+            LinearLayout.LayoutParams(dp(58), dp(64))
+        )
+
+        selectionSelectedText = TextView(this).apply {
+            text = "1 Selected"
+            textSize = 17f
+            setTextColor(Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        header.addView(
+            selectionSelectedText,
+            LinearLayout.LayoutParams(0, dp(64), 1f)
+        )
+
+        val cancel = TextView(this).apply {
+            text = "Cancel"
+            textSize = 16f
+            setTextColor(blue)
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                exitSelectionMode()
+            }
+        }
+
+        header.addView(
+            cancel,
+            LinearLayout.LayoutParams(dp(80), dp(64))
+        )
+
+        return header
+    }
+
+    private fun createSelectionActionBar(): LinearLayout {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+            background = GradientDrawable().apply {
+                setColor(Color.argb(220, 245, 245, 247))
+                cornerRadius = dp(38).toFloat()
+                setStroke(dp(1), Color.argb(70, 255, 255, 255))
+            }
+            elevation = dp(8).toFloat()
+        }
+
+        bar.addView(
+            createSelectionAction("♢", "Notifications") {
+                toggleNotifications()
+            },
+            LinearLayout.LayoutParams(0, dp(72), 1f)
+        )
+
+        bar.addView(
+            createSelectionAction("⌫", "Delete") {
+                deleteSelected()
+            },
+            LinearLayout.LayoutParams(0, dp(72), 1f)
+        )
+
+        bar.addView(
+            createSelectionAction("▱", "Pin") {
+                pinSelected()
+            },
+            LinearLayout.LayoutParams(0, dp(72), 1f)
+        )
+
+        return bar
+    }
+
+    private fun createSelectionAction(
+        icon: String,
+        label: String,
+        action: () -> Unit
+    ): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setOnClickListener { action() }
+
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = icon
+                    textSize = 25f
+                    setTextColor(Color.BLACK)
+                    gravity = Gravity.CENTER
+                    typeface = Typeface.DEFAULT_BOLD
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(38)
+                )
+            )
+
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = label
+                    textSize = 11f
+                    setTextColor(Color.BLACK)
+                    gravity = Gravity.CENTER
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(24)
+                )
+            )
+        }
+    }
+
     private fun enterSelectionMode(address: String) {
         selectionMode = true
         selectedAddresses.clear()
         selectedAddresses.add(address)
+
+        homeHeader?.visibility = View.GONE
+
         updateSelectionUI()
     }
 
     private fun toggleSelection(address: String) {
+        if (!selectionMode) return
+
         if (selectedAddresses.contains(address)) {
             selectedAddresses.remove(address)
         } else {
@@ -785,458 +946,95 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun selectRowsByY(y: Float, selecting: Boolean) {
-        var currentTop = 0
+    private fun updateSelectionUI() {
+        selectionHeader.visibility = View.VISIBLE
+        selectionActionBar.visibility = View.VISIBLE
 
+        selectionSelectedText.text = "${selectedAddresses.size} Selected"
+
+        selectionAllButton.text =
+            if (selectedAddresses.size == rowViews.size) "●" else "○"
+
+        rowViews.forEach { (address, _) ->
+            val row = findRowByAddress(address)
+            val overlay = row?.getTag(1001) as? TextView
+
+            if (overlay != null) {
+                overlay.visibility = View.VISIBLE
+                overlay.text =
+                    if (selectedAddresses.contains(address)) "✓" else ""
+                overlay.background = GradientDrawable().apply {
+                    setColor(
+                        if (selectedAddresses.contains(address)) {
+                            Color.argb(155, 0, 122, 255)
+                        } else {
+                            Color.argb(110, 245, 245, 247)
+                        }
+                    )
+                    shape = GradientDrawable.OVAL
+                }
+            }
+        }
+    }
+
+    private fun findRowByAddress(address: String): View? {
         for (i in 0 until messagesContainer.childCount) {
             val child = messagesContainer.getChildAt(i)
-
-            if (child is FrameLayout) {
-                val bottom = currentTop + child.height
-
-                if (y >= currentTop && y <= bottom) {
-                    val address = rowViews.entries
-                        .firstOrNull { it.value.parent?.parent === child }
-                        ?.key
-
-                    if (address != null && address != lastDragAddress) {
-                        if (selecting) {
-                            selectedAddresses.add(address)
-                        } else {
-                            selectedAddresses.remove(address)
-                        }
-
-                        lastDragAddress = address
-                        updateSelectionUI()
-                    }
-                }
-
-                currentTop = bottom + dp(1)
+            if (child is FrameLayout && child.tag == address) {
+                return child
             }
         }
+        return null
     }
 
-    private fun updateSelectionUI() {
-        selectionBar.visibility = View.VISIBLE
-
-        val allCount = rowViews.size
-        val selectedCount = selectedAddresses.size
-
-        allButton.text =
-            if (selectedCount == allCount) "✓" else "○"
-
-        selectionCount.text =
-            if (selectedCount == allCount) "All" else "$selectedCount"
-
-        homeTitle?.let { view ->
-            if (view is TextView) {
-                view.text = if (selectedCount == allCount) "✓" else "○"
-                view.textSize = 28f
-                view.setTextColor(premiumBlue)
-                view.gravity = Gravity.CENTER
-                view.setOnClickListener {
-                    if (selectedAddresses.size == rowViews.size) {
-                        selectedAddresses.clear()
-                    } else {
-                        selectedAddresses.clear()
-                        selectedAddresses.addAll(rowViews.keys)
-                    }
-                    updateSelectionUI()
-                }
-            }
+    private fun deleteSelected() {
+        selectedAddresses.toList().forEach {
+            deleteConversationFromProvider(it)
         }
-
-        composeButtonView?.visibility = View.GONE
-
-        rowViews.forEach { (address, circle) ->
-            circle.visibility = View.VISIBLE
-            circle.text =
-                if (selectedAddresses.contains(address)) "✓" else ""
-            circle.background = GradientDrawable().apply {
-                setColor(
-                    if (selectedAddresses.contains(address)) {
-                        Color.argb(180, 35, 120, 255)
-                    } else {
-                        Color.argb(210, 225, 225, 230)
-                    }
-                )
-                shape = GradientDrawable.OVAL
-            }
-        }
-    }
-
-    private fun createSelectionBar(): LinearLayout {
-        val wrapper = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(8), dp(6), dp(8), dp(10))
-        }
-
-        val top = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        allButton = TextView(this).apply {
-            text = "○"
-            textSize = 28f
-            setTextColor(premiumBlue)
-            gravity = Gravity.CENTER
-            setOnClickListener {
-                if (selectedAddresses.size == rowViews.size) {
-                    selectedAddresses.clear()
-                } else {
-                    selectedAddresses.clear()
-                    selectedAddresses.addAll(rowViews.keys)
-                }
-                updateSelectionUI()
-            }
-        }
-
-        top.addView(
-            allButton,
-            LinearLayout.LayoutParams(dp(48), dp(48))
-        )
-
-        selectionCount = TextView(this).apply {
-            text = "All"
-            textSize = 17f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER_VERTICAL
-            typeface = Typeface.DEFAULT_BOLD
-        }
-
-        top.addView(
-            selectionCount,
-            LinearLayout.LayoutParams(0, dp(48), 1f)
-        )
-
-        val cancel = TextView(this).apply {
-            text = "Cancel"
-            textSize = 16f
-            setTextColor(premiumBlue)
-            gravity = Gravity.CENTER
-            setOnClickListener {
-                exitSelectionMode()
-            }
-        }
-
-        top.addView(
-            cancel,
-            LinearLayout.LayoutParams(dp(80), dp(48))
-        )
-
-        wrapper.addView(
-            top,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
-            )
-        )
-
-        val actions = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                setColor(Color.rgb(248, 248, 250))
-                cornerRadius = dp(34).toFloat()
-            }
-            elevation = dp(8).toFloat()
-        }
-
-        val notification = createActionButton(
-            "♢",
-            "Notifications"
-        ) {
-            toggleNotifications()
-        }
-
-        val delete = createActionButton(
-            "⌫",
-            "Delete"
-        ) {
-            deleteSelected()
-        }
-
-        val more = createActionButton(
-            "⋮",
-            "More"
-        ) {
-            showMorePopup()
-        }
-
-        actions.addView(
-            notification,
-            LinearLayout.LayoutParams(0, dp(66), 1f)
-        )
-
-        actions.addView(
-            delete,
-            LinearLayout.LayoutParams(0, dp(66), 1f)
-        )
-
-        actions.addView(
-            more,
-            LinearLayout.LayoutParams(0, dp(66), 1f)
-        )
-
-        wrapper.addView(
-            actions,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(66)
-            )
-        )
-
-        return wrapper
-    }
-
-    private fun createActionButton(
-        icon: String,
-        label: String,
-        action: () -> Unit
-    ): View {
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setOnClickListener {
-                action()
-            }
-        }
-
-        val iconView = TextView(this).apply {
-            text = icon
-            textSize = 22f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-        }
-
-        val text = TextView(this).apply {
-            this.text = label
-            textSize = 11f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER
-        }
-
-        box.addView(
-            iconView,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(34)
-            )
-        )
-
-        box.addView(
-            text,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(24)
-            )
-        )
-
-        return box
+        exitSelectionMode()
+        loadMessages()
     }
 
     private fun toggleNotifications() {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val muted = prefs.getStringSet(MUTED, emptySet())
-            ?.toMutableSet() ?: mutableSetOf()
+        val muted = prefs.getStringSet(MUTED, emptySet())?.toMutableSet()
+            ?: mutableSetOf()
 
         selectedAddresses.forEach {
-            if (muted.contains(it)) {
-                muted.remove(it)
-            } else {
-                muted.add(it)
-            }
+            if (muted.contains(it)) muted.remove(it) else muted.add(it)
         }
 
         prefs.edit().putStringSet(MUTED, muted).apply()
-
-        Toast.makeText(
-            this,
-            "Notifications updated",
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    private fun deleteSelected() {
-        val numbers = selectedAddresses.toList()
-
-        numbers.forEach {
-            deleteConversationFromProvider(it)
-        }
-
-        exitSelectionMode()
-        loadMessages()
-    }
-
-    private fun deleteConversation(address: String) {
-        deleteConversationFromProvider(address)
-        Toast.makeText(
-            this,
-            "Deleted",
-            Toast.LENGTH_SHORT
-        ).show()
-        loadMessages()
-    }
-
-    private fun deleteConversationFromProvider(address: String) {
-        try {
-            contentResolver.delete(
-                Telephony.Sms.CONTENT_URI,
-                "${Telephony.Sms.ADDRESS} = ?",
-                arrayOf(address)
-            )
-        } catch (_: Exception) {
-        }
-    }
-
-    private fun callNumber(address: String) {
-        try {
-            val intent = Intent(
-                Intent.ACTION_DIAL,
-                Uri.parse("tel:${Uri.encode(address)}")
-            )
-            startActivity(intent)
-        } catch (_: Exception) {
-            Toast.makeText(
-                this,
-                "Cannot call this number",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-    private fun showMorePopup() {
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(18).toFloat()
-            }
-        }
-
-        val pin = createPopupItem("pin to top") {
-            pinSelected()
-        }
-
-        val block = createPopupItem("Block") {
-            blockSelected()
-        }
-
-        box.addView(pin)
-        box.addView(block)
-
-        val popup = PopupWindow(
-            box,
-            dp(190),
-            dp(112),
-            true
-        )
-
-        popup.elevation = dp(10).toFloat()
-        popup.setBackgroundDrawable(
-            GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(18).toFloat()
-            }
-        )
-
-        popup.showAtLocation(
-            window.decorView,
-            Gravity.CENTER,
-            0,
-            0
-        )
-    }
-
-    private fun createPopupItem(
-        text: String,
-        action: () -> Unit
-    ): TextView {
-        return TextView(this).apply {
-            this.text = text
-            textSize = 16f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(18), 0, dp(18), 0)
-
-            setOnClickListener {
-                action()
-            }
-
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
-            )
-        }
+        Toast.makeText(this, "Notifications updated", Toast.LENGTH_SHORT).show()
     }
 
     private fun pinSelected() {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val pinned = prefs.getStringSet(PINNED, emptySet())
-            ?.toMutableSet() ?: mutableSetOf()
+        val pinned = prefs.getStringSet(PINNED, emptySet())?.toMutableSet()
+            ?: mutableSetOf()
 
         selectedAddresses.forEach {
-            if (pinned.contains(it)) {
-                pinned.remove(it)
-            } else {
-                pinned.add(it)
-            }
+            if (pinned.contains(it)) pinned.remove(it) else pinned.add(it)
         }
 
         prefs.edit().putStringSet(PINNED, pinned).apply()
-
         exitSelectionMode()
         loadMessages()
-    }
-
-    private fun blockSelected() {
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val blocked = prefs.getStringSet(BLOCKED, emptySet())
-            ?.toMutableSet() ?: mutableSetOf()
-
-        selectedAddresses.forEach {
-            blocked.add(it)
-        }
-
-        prefs.edit().putStringSet(BLOCKED, blocked).apply()
-
-        exitSelectionMode()
-        loadMessages()
-
-        Toast.makeText(
-            this,
-            "Blocked",
-            Toast.LENGTH_SHORT
-        ).show()
     }
 
     private fun exitSelectionMode() {
         selectionMode = false
-        draggingSelection = false
         selectedAddresses.clear()
-        lastDragAddress = null
 
-        selectionBar.visibility = View.GONE
+        selectionHeader.visibility = View.GONE
+        selectionActionBar.visibility = View.GONE
+        homeHeader?.visibility = View.VISIBLE
 
-        homeTitle?.let { view ->
-            if (view is TextView) {
-                view.text = "Messages"
-                view.textSize = 34f
-                view.setTextColor(Color.BLACK)
-                view.gravity = Gravity.CENTER_VERTICAL
-                view.setOnClickListener(null)
+        for (i in 0 until messagesContainer.childCount) {
+            val child = messagesContainer.getChildAt(i)
+            if (child is FrameLayout) {
+                child.findViewWithTag<TextView>(1001)?.visibility = View.GONE
             }
-        }
-
-        composeButtonView?.visibility = View.VISIBLE
-
-        rowViews.values.forEach {
-            it.visibility = View.GONE
-            it.text = ""
         }
     }
 
@@ -1253,9 +1051,6 @@ class MainActivity : Activity() {
     }
 
     private fun openConversation(address: String) {
-        if (selectionMode) {
-            toggleSelection(address)
-            return
         }
 
         val intent = Intent(
