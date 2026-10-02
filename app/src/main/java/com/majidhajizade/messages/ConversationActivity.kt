@@ -329,27 +329,11 @@ class ConversationActivity : Activity() {
             android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
             android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
         ).apply {
+            gravity = Gravity.BOTTOM
             setMargins(dp(12), dp(6), dp(12), dp(8))
         }
 
         root.addView(composer, composerParams)
-
-        root.viewTreeObserver.addOnGlobalLayoutListener {
-            val rect = android.graphics.Rect()
-            root.getWindowVisibleDisplayFrame(rect)
-
-            val location = IntArray(2)
-            composer.getLocationOnScreen(location)
-
-            val composerBottom = location[1] + composer.height
-            val keyboardHeight = composerBottom - rect.bottom
-
-            composer.translationY = if (keyboardHeight > dp(120)) {
-                -keyboardHeight.toFloat()
-            } else {
-                0f
-            }
-        }
 
         return root
     }
