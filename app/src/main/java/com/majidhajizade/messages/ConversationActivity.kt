@@ -123,19 +123,18 @@ class ConversationActivity : Activity() {
     private fun createScreen(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(245, 245, 247))
         }
 
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(24), dp(12), dp(10))
+        val header = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            setPadding(0, dp(24), 0, dp(8))
         }
 
         val back = TextView(this).apply {
             text = "‹"
             textSize = 38f
-            setTextColor(blue)
+            setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
 
             setOnClickListener {
@@ -145,7 +144,10 @@ class ConversationActivity : Activity() {
 
         header.addView(
             back,
-            LinearLayout.LayoutParams(dp(50), dp(50))
+            android.widget.FrameLayout.LayoutParams(dp(42), dp(50)).apply {
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                leftMargin = dp(2)
+            }
         )
 
         val title = TextView(this).apply {
@@ -158,14 +160,19 @@ class ConversationActivity : Activity() {
 
         header.addView(
             title,
-            LinearLayout.LayoutParams(
-                0,
-                dp(50),
-                1f
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(50)
             )
         )
 
-        root.addView(header)
+        root.addView(
+            header,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(82)
+            )
+        )
 
         scrollView = ScrollView(this).apply {
             isFillViewport = true
@@ -173,6 +180,7 @@ class ConversationActivity : Activity() {
 
         messagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.rgb(245, 245, 247))
             setPadding(dp(16), dp(12), dp(16), dp(12))
         }
 
@@ -190,12 +198,11 @@ class ConversationActivity : Activity() {
         val composer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(6), dp(6), dp(6), dp(6))
+            setPadding(dp(6), dp(5), dp(6), dp(5))
 
             background = GradientDrawable().apply {
-                setColor(Color.rgb(242, 242, 247))
-                cornerRadius = dp(25).toFloat()
-                setStroke(dp(1), Color.rgb(225, 225, 230))
+                setColor(Color.WHITE)
+                cornerRadius = dp(28).toFloat()
             }
         }
 
@@ -218,7 +225,7 @@ class ConversationActivity : Activity() {
 
         composer.addView(
             addContact,
-            LinearLayout.LayoutParams(dp(46), dp(46))
+            LinearLayout.LayoutParams(dp(40), dp(40))
         )
 
         messageInput = EditText(this).apply {
@@ -229,8 +236,8 @@ class ConversationActivity : Activity() {
             setSingleLine(false)
             minLines = 1
             maxLines = 4
-            minHeight = dp(46)
-            setPadding(dp(8), dp(7), dp(8), dp(7))
+            minHeight = dp(40)
+            setPadding(dp(7), dp(5), dp(7), dp(5))
             background = null
             gravity = Gravity.CENTER_VERTICAL
         }
@@ -302,17 +309,17 @@ class ConversationActivity : Activity() {
 
         val send = TextView(this).apply {
             text = "↑"
-            textSize = 25f
+            textSize = 21f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
 
             background = GradientDrawable().apply {
-                setColor(Color.rgb(0, 95, 220))
+                setColor(Color.rgb(0, 122, 255))
                 shape = GradientDrawable.OVAL
             }
 
-            elevation = dp(3).toFloat()
+            elevation = dp(2).toFloat()
 
             setOnClickListener {
                 sendMessage()
@@ -321,14 +328,14 @@ class ConversationActivity : Activity() {
 
         composer.addView(
             send,
-            LinearLayout.LayoutParams(dp(46), dp(46))
+            LinearLayout.LayoutParams(dp(36), dp(36))
         )
 
         val composerParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply {
-            setMargins(dp(12), dp(6), dp(12), dp(10))
+            setMargins(dp(12), dp(6), dp(12), dp(8))
         }
 
         root.addView(composer, composerParams)
@@ -504,13 +511,20 @@ class ConversationActivity : Activity() {
 
             background = GradientDrawable().apply {
                 setColor(
-                    if (incoming) {
-                        Color.rgb(242, 242, 247)
-                    } else {
-                        blue
-                    }
+                    if (incoming) Color.rgb(232, 232, 237) else Color.rgb(174, 205, 255)
                 )
-                cornerRadius = dp(18).toFloat()
+                cornerRadius = dp(22).toFloat()
+            }
+
+            addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                val drawable = background as? GradientDrawable
+                    ?: return@addOnLayoutChangeListener
+
+                drawable.cornerRadius = if (lineCount <= 1) {
+                    view.height / 2f
+                } else {
+                    dp(18).toFloat()
+                }
             }
         }
 

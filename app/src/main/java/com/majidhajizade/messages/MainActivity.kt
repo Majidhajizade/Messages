@@ -135,7 +135,7 @@ class MainActivity : Activity() {
     private fun createHomeScreen(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = background
+            setBackgroundColor(Color.rgb(245, 245, 247))
             setPadding(dp(20), dp(18), dp(20), dp(12))
         }
 
