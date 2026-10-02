@@ -349,13 +349,7 @@ class ConversationActivity : Activity() {
             val imeBottom = insets.getInsets(
                 android.view.WindowInsets.Type.ime()
             ).bottom
-            val params = composer.layoutParams as android.widget.FrameLayout.LayoutParams
-            params.bottomMargin = if (imeBottom > 0) {
-                (0.5f * resources.displayMetrics.density).toInt()
-            } else {
-                dp(24)
-            }
-            composer.layoutParams = params
+            composer.translationY = -(imeBottom + dp(1)).toFloat()
             insets
         }
         root.requestApplyInsets()
