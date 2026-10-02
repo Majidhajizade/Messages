@@ -335,37 +335,34 @@ class ConversationActivity : Activity() {
 
         root.addView(composer, composerParams)
 
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val ime = insets.getInsets(
-                androidx.core.view.WindowInsetsCompat.Type.ime()
-            )
+        root.viewTreeObserver.addOnGlobalLayoutListener {
+            val rect = android.graphics.Rect()
+            root.getWindowVisibleDisplayFrame(rect)
 
-            val keyboardVisible = insets.isVisible(
-                androidx.core.view.WindowInsetsCompat.Type.ime()
-            )
+            val screenHeight = root.rootView.height
+            val keyboardHeight = screenHeight - rect.bottom
+            val keyboardVisible = keyboardHeight > dp(150)
 
-            val keyboardOffset = if (keyboardVisible) {
-                -(ime.bottom - dp(8)).coerceAtLeast(0)
+            val targetOffset = if (keyboardVisible) {
+                -(keyboardHeight - dp(8)).coerceAtLeast(0)
             } else {
                 0
             }
 
-            composer.animate()
-                .translationY(keyboardOffset.toFloat())
-                .setDuration(180L)
-                .setInterpolator(DecelerateInterpolator())
-                .start()
+            if (composer.translationY != targetOffset.toFloat()) {
+                composer.animate()
+                    .translationY(targetOffset.toFloat())
+                    .setDuration(180L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
 
             if (keyboardVisible) {
                 scrollView.post {
                     scrollView.fullScroll(View.FOCUS_DOWN)
                 }
             }
-
-            insets
         }
-
-        androidx.core.view.ViewCompat.requestApplyInsets(root)
 
         return root
     }
