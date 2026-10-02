@@ -631,6 +631,13 @@ class MainActivity : Activity() {
 
         val handler = android.os.Handler(mainLooper)
 
+        val longPressRunnable = Runnable {
+            if (!moved && !selectionMode) {
+                longPressed = true
+                enterSelectionMode(address)
+            }
+        }
+
         foreground.setOnTouchListener { _, event ->
             when (event.actionMasked) {
 
