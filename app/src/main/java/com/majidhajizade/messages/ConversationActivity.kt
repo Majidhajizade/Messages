@@ -691,7 +691,7 @@ class ConversationActivity : Activity() {
                     ).apply {
                         setPackage(packageName)
                         putExtra("message_id", messageId)
-            putExtra("message", message)
+                        putExtra("message", message)
                     }
 
                     sentIntents.add(
