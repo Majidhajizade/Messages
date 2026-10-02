@@ -381,7 +381,7 @@ class MainActivity : Activity() {
             textSize = 16f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            background = solidDrawable(blue, 0f)
+            background = solidDrawable(Color.TRANSPARENT, 0f)
         }
 
         val deleteAction = TextView(this).apply {
@@ -389,7 +389,7 @@ class MainActivity : Activity() {
             textSize = 16f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            background = solidDrawable(deleteRed, 0f)
+            background = solidDrawable(Color.TRANSPARENT, 0f)
         }
 
         actionBackground.addView(
@@ -539,7 +539,9 @@ class MainActivity : Activity() {
         setupRowTouch(
             actionLayer,
             foreground,
-            address
+            address,
+            callAction,
+            deleteAction
         )
 
         messagesContainer.addView(
@@ -571,8 +573,22 @@ class MainActivity : Activity() {
     private fun setupRowTouch(
         container: FrameLayout,
         foreground: View,
-        address: String
+        address: String,
+        callAction: TextView,
+        deleteAction: TextView
     ) {
+        val callBackground = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+        }
+
+        val deleteBackground = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+        }
+
+        callAction.background = callBackground
+        deleteAction.background = deleteBackground
+        callAction.setTextColor(Color.TRANSPARENT)
+        deleteAction.setTextColor(Color.TRANSPARENT)
         var downX = 0f
         var downY = 0f
         var startTranslation = 0f
@@ -627,9 +643,54 @@ class MainActivity : Activity() {
                     }
 
                     if (abs(dx) > abs(dy)) {
-                        foreground.translationX =
+                        val translation =
                             (startTranslation + dx)
                                 .coerceIn(-dp(110).toFloat(), dp(110).toFloat())
+
+                        foreground.translationX = translation
+
+                        val progress =
+                            (abs(translation) / dp(110).toFloat())
+                                .coerceIn(0f, 1f)
+
+                        val alpha = (progress * 140f).toInt()
+
+                        if (translation > 0f) {
+                            callBackground.setColor(
+                                Color.argb(
+                                    alpha,
+                                    Color.red(blue),
+                                    Color.green(blue),
+                                    Color.blue(blue)
+                                )
+                            )
+                            callAction.setTextColor(
+                                Color.argb(alpha, Color.WHITE, Color.WHITE, Color.WHITE)
+                            )
+
+                            deleteBackground.setColor(Color.TRANSPARENT)
+                            deleteAction.setTextColor(Color.TRANSPARENT)
+                        } else if (translation < 0f) {
+                            deleteBackground.setColor(
+                                Color.argb(
+                                    alpha,
+                                    Color.red(deleteRed),
+                                    Color.green(deleteRed),
+                                    Color.blue(deleteRed)
+                                )
+                            )
+                            deleteAction.setTextColor(
+                                Color.argb(alpha, Color.WHITE, Color.WHITE, Color.WHITE)
+                            )
+
+                            callBackground.setColor(Color.TRANSPARENT)
+                            callAction.setTextColor(Color.TRANSPARENT)
+                        } else {
+                            callBackground.setColor(Color.TRANSPARENT)
+                            deleteBackground.setColor(Color.TRANSPARENT)
+                            callAction.setTextColor(Color.TRANSPARENT)
+                            deleteAction.setTextColor(Color.TRANSPARENT)
+                        }
                     }
 
                     true
@@ -666,6 +727,11 @@ class MainActivity : Activity() {
                         .setDuration(180)
                         .start()
 
+                    callBackground.setColor(Color.TRANSPARENT)
+                    deleteBackground.setColor(Color.TRANSPARENT)
+                    callAction.setTextColor(Color.TRANSPARENT)
+                    deleteAction.setTextColor(Color.TRANSPARENT)
+
                     true
                 }
 
@@ -675,6 +741,11 @@ class MainActivity : Activity() {
                         .translationX(0f)
                         .setDuration(180)
                         .start()
+
+                    callBackground.setColor(Color.TRANSPARENT)
+                    deleteBackground.setColor(Color.TRANSPARENT)
+                    callAction.setTextColor(Color.TRANSPARENT)
+                    deleteAction.setTextColor(Color.TRANSPARENT)
                     draggingSelection = false
                     true
                 }
