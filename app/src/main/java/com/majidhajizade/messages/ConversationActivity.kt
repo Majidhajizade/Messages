@@ -296,17 +296,9 @@ class ConversationActivity : Activity() {
 
         messageInput.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                composer.animate()
-                    .translationY(-dp(3).toFloat())
-                    .setDuration(180L)
-                    .setInterpolator(DecelerateInterpolator())
-                    .start()
-            } else {
-                composer.animate()
-                    .translationY(0f)
-                    .setDuration(180L)
-                    .setInterpolator(DecelerateInterpolator())
-                    .start()
+                messageInput.postDelayed({
+                    scrollView.fullScroll(View.FOCUS_DOWN)
+                }, 120L)
             }
         }
 
@@ -343,19 +335,37 @@ class ConversationActivity : Activity() {
 
         root.addView(composer, composerParams)
 
-        root.viewTreeObserver.addOnGlobalLayoutListener {
-            val rect = android.graphics.Rect()
-            root.getWindowVisibleDisplayFrame(rect)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val ime = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.ime()
+            )
 
-            val screenHeight = root.rootView.height
-            val keyboardHeight = screenHeight - rect.bottom
+            val keyboardVisible = insets.isVisible(
+                androidx.core.view.WindowInsetsCompat.Type.ime()
+            )
 
-            if (keyboardHeight > dp(150)) {
+            val keyboardOffset = if (keyboardVisible) {
+                -(ime.bottom - dp(8)).coerceAtLeast(0)
+            } else {
+                0
+            }
+
+            composer.animate()
+                .translationY(keyboardOffset.toFloat())
+                .setDuration(180L)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+
+            if (keyboardVisible) {
                 scrollView.post {
                     scrollView.fullScroll(View.FOCUS_DOWN)
                 }
             }
+
+            insets
         }
+
+        androidx.core.view.ViewCompat.requestApplyInsets(root)
 
         return root
     }
