@@ -132,6 +132,14 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onBackPressed() {
+        if (selectionMode) {
+            exitSelectionMode()
+            return
+        }
+        super.onBackPressed()
+    }
+
     private fun createHomeScreen(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -202,9 +210,9 @@ class MainActivity : Activity() {
             selectionHeader,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(46)
+                dp(64)
             ).apply {
-                bottomMargin = dp(10)
+                bottomMargin = dp(0)
             }
         )
 
@@ -788,7 +796,7 @@ class MainActivity : Activity() {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, 0)
+            setPadding(0, dp(24), 0, 0)
         }
 
         val allContainer = LinearLayout(this).apply {
@@ -878,11 +886,11 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(dp(10), dp(7), dp(10), dp(7))
             background = GradientDrawable().apply {
-                setColor(Color.argb(238, 250, 250, 252))
+                setColor(Color.WHITE)
                 cornerRadius = dp(39).toFloat()
-                setStroke(dp(1), Color.argb(120, 255, 255, 255))
+                setStroke(dp(1), Color.rgb(225, 225, 230))
             }
-            elevation = dp(12).toFloat()
+            elevation = dp(16).toFloat()
         }
 
         bar.addView(
