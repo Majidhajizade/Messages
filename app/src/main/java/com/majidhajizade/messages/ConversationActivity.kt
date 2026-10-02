@@ -330,7 +330,7 @@ class ConversationActivity : Activity() {
             android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
         ).apply {
             gravity = Gravity.BOTTOM
-            setMargins(dp(12), dp(6), dp(12), dp(8))
+            setMargins(dp(12), dp(6), dp(12), dp(24))
         }
 
         root.addView(composer, composerParams)
@@ -616,7 +616,9 @@ class ConversationActivity : Activity() {
         messageInput.text.clear()
 
         scrollView.post {
-            scrollView.fullScroll(View.FOCUS_DOWN)
+            if (scrollView.canScrollVertically(1)) {
+                scrollView.fullScroll(View.FOCUS_DOWN)
+            }
         }
 
         try {
