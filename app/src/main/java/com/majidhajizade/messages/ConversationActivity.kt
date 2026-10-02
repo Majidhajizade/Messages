@@ -127,7 +127,7 @@ class ConversationActivity : Activity() {
         }
 
         val header = android.widget.FrameLayout(this).apply {
-            setBackgroundColor(Color.TRANSPARENT)
+            setBackgroundColor(Color.argb(13, 245, 245, 247))
             setPadding(0, dp(24), 0, dp(8))
         }
 
