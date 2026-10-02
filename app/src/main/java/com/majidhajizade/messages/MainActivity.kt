@@ -213,8 +213,8 @@ class MainActivity : Activity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(46)
             ).apply {
-                leftMargin = -dp(14)
-                rightMargin = -dp(14)
+                leftMargin = 0
+                rightMargin = 0
                 topMargin = dp(10)
                 bottomMargin = dp(14)
             }
@@ -248,8 +248,8 @@ class MainActivity : Activity() {
                 0,
                 1f
             ).apply {
-                leftMargin = -dp(14)
-                rightMargin = -dp(14)
+                leftMargin = 0
+                rightMargin = 0
             }
         )
 
