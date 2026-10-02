@@ -338,28 +338,12 @@ class ConversationActivity : Activity() {
             val rect = android.graphics.Rect()
             root.getWindowVisibleDisplayFrame(rect)
 
-            val screenHeight = root.rootView.height
-            val keyboardHeight = screenHeight - rect.bottom
-            val keyboardVisible = keyboardHeight > dp(150)
+            val keyboardHeight = root.height - rect.bottom
 
-            val targetOffset = if (keyboardVisible) {
-                -(keyboardHeight - dp(8)).coerceAtLeast(0)
+            composer.translationY = if (keyboardHeight > dp(120)) {
+                -keyboardHeight.toFloat()
             } else {
-                0
-            }
-
-            if (composer.translationY != targetOffset.toFloat()) {
-                composer.animate()
-                    .translationY(targetOffset.toFloat())
-                    .setDuration(180L)
-                    .setInterpolator(DecelerateInterpolator())
-                    .start()
-            }
-
-            if (keyboardVisible) {
-                scrollView.post {
-                    scrollView.fullScroll(View.FOCUS_DOWN)
-                }
+                0f
             }
         }
 
