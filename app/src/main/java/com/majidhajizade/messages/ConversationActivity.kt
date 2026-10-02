@@ -334,12 +334,22 @@ class ConversationActivity : Activity() {
         }
 
         root.addView(composer, composerParams)
+        composer.post {
+            val bottomPadding = composer.height + dp(2) + dp(24)
+            messagesContainer.setPadding(
+                dp(16),
+                dp(94),
+                dp(16),
+                bottomPadding
+            )
+        }
+
 
         root.setOnApplyWindowInsetsListener { _, insets ->
             val imeBottom = insets.getInsets(
                 android.view.WindowInsets.Type.ime()
             ).bottom
-            composer.translationY = -(imeBottom + dp(8)).toFloat()
+            composer.translationY = -(imeBottom + dp(2)).toFloat()
             insets
         }
         root.requestApplyInsets()
