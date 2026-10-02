@@ -222,7 +222,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp(24).toFloat()
+                cornerRadius = dp(28).toFloat()
                 setStroke(dp(1), Color.rgb(230, 230, 235))
             }
             clipToOutline = true
@@ -245,7 +245,10 @@ class MainActivity : Activity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
-            )
+            ).apply {
+                leftMargin = -dp(12)
+                rightMargin = -dp(12)
+            }
         )
 
         selectionBar = createSelectionBar()
@@ -505,9 +508,10 @@ class MainActivity : Activity() {
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
             textSize = 13f
-            setTextColor(secondaryText)
+            setTextColor(Color.rgb(165, 165, 170))
             gravity = Gravity.TOP or Gravity.END
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            setPadding(0, dp(2), 0, 0)
         }
 
         foreground.addView(
@@ -566,7 +570,10 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(1)
-            )
+            ).apply {
+                leftMargin = dp(76)
+                rightMargin = dp(12)
+            }
         )
     }
 
