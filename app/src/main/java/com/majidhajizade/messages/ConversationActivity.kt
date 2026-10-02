@@ -121,8 +121,7 @@ class ConversationActivity : Activity() {
     }
 
     private fun createScreen(): View {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+        val root = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.rgb(245, 245, 247))
         }
 
@@ -166,14 +165,6 @@ class ConversationActivity : Activity() {
             )
         )
 
-        root.addView(
-            header,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(82)
-            )
-        )
-
         scrollView = ScrollView(this).apply {
             isFillViewport = true
         }
@@ -188,18 +179,26 @@ class ConversationActivity : Activity() {
 
         root.addView(
             scrollView,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
             )
+        )
+
+        root.addView(
+            header,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(82)
+            ).apply {
+                gravity = Gravity.TOP
+            }
         )
 
         val composer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(6), dp(5), dp(6), dp(5))
-
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
                 cornerRadius = dp(28).toFloat()
@@ -326,9 +325,9 @@ class ConversationActivity : Activity() {
             LinearLayout.LayoutParams(dp(36), dp(36))
         )
 
-        val composerParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
+        val composerParams = android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
         ).apply {
             setMargins(dp(12), dp(6), dp(12), dp(8))
         }
