@@ -349,7 +349,7 @@ class ConversationActivity : Activity() {
             val imeBottom = insets.getInsets(
                 android.view.WindowInsets.Type.ime()
             ).bottom
-            composer.translationY = -(imeBottom + dp(0.5f)).toFloat()
+            composer.translationY = -(imeBottom + (0.5f * resources.displayMetrics.density)).toFloat()
             insets
         }
         root.requestApplyInsets()
