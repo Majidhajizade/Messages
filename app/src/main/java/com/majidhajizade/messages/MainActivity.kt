@@ -1029,6 +1029,39 @@ class MainActivity : Activity() {
         loadMessages()
     }
 
+    private fun deleteConversation(address: String) {
+        deleteConversationFromProvider(address)
+        Toast.makeText(this, "Deleted", Toast.LENGTH_SHORT).show()
+        loadMessages()
+    }
+
+    private fun deleteConversationFromProvider(address: String) {
+        try {
+            contentResolver.delete(
+                Telephony.Sms.CONTENT_URI,
+                "${Telephony.Sms.ADDRESS} = ?",
+                arrayOf(address)
+            )
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun callNumber(address: String) {
+        try {
+            val intent = Intent(
+                Intent.ACTION_DIAL,
+                Uri.parse("tel:${Uri.encode(address)}")
+            )
+            startActivity(intent)
+        } catch (_: Exception) {
+            Toast.makeText(
+                this,
+                "Cannot call this number",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     private fun exitSelectionMode() {
         selectionMode = false
         selectedAddresses.clear()
@@ -1058,8 +1091,6 @@ class MainActivity : Activity() {
     }
 
     private fun openConversation(address: String) {
-        }
-
         val intent = Intent(
             this,
             ConversationActivity::class.java
