@@ -172,20 +172,39 @@ class ConversationActivity : Activity() {
             }
         )
 
+        val titleLayer = android.widget.FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                setColor(Color.argb(185, 255, 255, 255))
+                cornerRadius = dp(18).toFloat()
+            }
+            elevation = dp(3).toFloat()
+        }
+
         val title = TextView(this).apply {
             text = phone
             textSize = 18f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
+            setPadding(dp(14), 0, dp(14), 0)
         }
 
-        header.addView(
+        titleLayer.addView(
             title,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(50)
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
             )
+        )
+
+        header.addView(
+            titleLayer,
+            android.widget.FrameLayout.LayoutParams(
+                dp(190),
+                dp(42)
+            ).apply {
+                gravity = Gravity.CENTER
+            }
         )
 
         scrollView = ScrollView(this).apply {
