@@ -296,7 +296,7 @@ class NewMessageActivity : Activity() {
             return
         }
 
-        scroll.visibility = View.VISIBLE
+        contactsScroll.visibility = View.VISIBLE
         contactsContainer.visibility = View.VISIBLE
         plusButton.text = "×"
 
@@ -355,7 +355,7 @@ class NewMessageActivity : Activity() {
                         phoneEditText.setSelection(phoneEditText.length())
                         scroll.visibility = View.GONE
                         contactsContainer.visibility = View.GONE
-                        plusButtonAfterSelection()
+                        plusButtonAfterSelection(scroll, plusButton)
                     }
                 }
 
@@ -395,7 +395,7 @@ class NewMessageActivity : Activity() {
         }
     }
 
-    private fun plusButtonAfterSelection() {
+    private fun plusButtonAfterSelection(scroll, plusButton) {
         val root = phoneEditText.parent?.parent
         if (root is LinearLayout) {
             val row = root.getChildAt(0)
