@@ -72,12 +72,12 @@ class NewMessageActivity : Activity() {
 
         header.addView(
             back,
-            LinearLayout.LayoutParams(dp(85), dp(48))
+            android.widget.LinearLayout.LayoutParams(dp(85), dp(48))
         )
 
         header.addView(
             title,
-            LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams(
                 0,
                 dp(48),
                 1f
@@ -86,13 +86,13 @@ class NewMessageActivity : Activity() {
 
         header.addView(
             TextView(this),
-            LinearLayout.LayoutParams(dp(85), dp(48))
+            android.widget.LinearLayout.LayoutParams(dp(85), dp(48))
         )
 
         root.addView(
             header,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(48)
             )
         )
@@ -121,7 +121,7 @@ class NewMessageActivity : Activity() {
 
         recipientHeader.addView(
             recipientTitle,
-            LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams(
                 0,
                 dp(48),
                 1f
@@ -130,13 +130,13 @@ class NewMessageActivity : Activity() {
 
         recipientHeader.addView(
             plus,
-            LinearLayout.LayoutParams(dp(48), dp(48))
+            android.widget.LinearLayout.LayoutParams(dp(48), dp(48))
         )
 
         root.addView(
             recipientHeader,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(48)
             ).apply {
                 topMargin = dp(12)
@@ -162,8 +162,8 @@ class NewMessageActivity : Activity() {
 
         recipientInputContainer.addView(
             phoneEditText,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(52)
             )
         )
@@ -208,8 +208,8 @@ class NewMessageActivity : Activity() {
 
         recipientInputContainer.addView(
             recipientSearch,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(48)
             ).apply {
                 topMargin = dp(6)
@@ -218,9 +218,9 @@ class NewMessageActivity : Activity() {
 
         root.addView(
             recipientInputContainer,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
 
@@ -237,8 +237,8 @@ class NewMessageActivity : Activity() {
 
         root.addView(
             messageEditText,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(130)
             ).apply {
                 topMargin = dp(8)
@@ -266,8 +266,8 @@ class NewMessageActivity : Activity() {
 
         root.addView(
             sendButton,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(50)
             ).apply {
                 topMargin = dp(16)
@@ -287,8 +287,8 @@ class NewMessageActivity : Activity() {
 
         root.addView(
             contactsContainer,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
             ).apply {
@@ -408,24 +408,24 @@ class NewMessageActivity : Activity() {
 
                 row.addView(
                     nameView,
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                         dp(28)
                     )
                 )
 
                 row.addView(
                     numberView,
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                         dp(24)
                     )
                 )
 
                 contactsContainer.addView(
                     row,
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                         dp(58)
                     )
                 )
@@ -466,8 +466,8 @@ class NewMessageActivity : Activity() {
         recipientInputContainer.addView(
             capsule,
             0,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(44)
             )
         )
