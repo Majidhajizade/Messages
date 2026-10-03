@@ -176,40 +176,21 @@ class ConversationActivity : Activity() {
             }
         )
 
-        val titleLayer = android.widget.FrameLayout(this).apply {
-            background = GradientDrawable().apply {
-                setColor(Color.argb(185, 255, 255, 255))
-                cornerRadius = dp(18).toFloat()
-            }
-            elevation = dp(3).toFloat()
-        }
-
         val title = TextView(this).apply {
             text = phone
             textSize = 18f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding(dp(14), 0, dp(14), 0)
         }
 
-        titleLayer.addView(
+        header.addView(
             title,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        )
-
-        header.addView(
-            titleLayer,
-            android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(42)
+                dp(50)
             ).apply {
                 gravity = Gravity.CENTER
-                leftMargin = dp(52)
-                rightMargin = dp(12)
             }
         )
 
