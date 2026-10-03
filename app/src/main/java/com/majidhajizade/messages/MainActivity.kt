@@ -136,10 +136,11 @@ class MainActivity : Activity() {
     }
 
     override fun onBackPressed() {
-        if (selectionMode) {
+        if (selectionMode || selectionHeader.visibility == View.VISIBLE) {
             exitSelectionMode()
             return
         }
+
         super.onBackPressed()
     }
 
@@ -579,8 +580,12 @@ class MainActivity : Activity() {
             selectionOverlay,
             FrameLayout.LayoutParams(dp(18), dp(18)).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
+                rightMargin = dp(1)
+                bottomMargin = dp(1)
             }
         )
+
+        selectionOverlay.bringToFront()
 
         foreground.addView(contactFrame)
 
@@ -898,7 +903,7 @@ class MainActivity : Activity() {
                 textSize = 13f
                 setTextColor(Color.rgb(35, 35, 38))
                 gravity = Gravity.CENTER
-                translationY = dp(-2).toFloat()
+                translationY = dp(-3).toFloat()
                 typeface = Typeface.DEFAULT_BOLD
             },
             LinearLayout.LayoutParams(dp(38), dp(22))
