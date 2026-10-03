@@ -535,14 +535,24 @@ class MainActivity : Activity() {
             }
         }
 
-        val contact = ImageView(this).apply {
-            setImageResource(android.R.drawable.ic_menu_myplaces)
-            setColorFilter(Color.rgb(145, 145, 150))
+        val contactName = getContactName(address)
+        val avatarLetter = contactName
+            ?.trim()
+            ?.firstOrNull()
+            ?.uppercaseChar()
+            ?.toString()
+            ?: "U"
+
+        val contact = TextView(this).apply {
+            text = avatarLetter
+            textSize = 21f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.rgb(242, 242, 247))
+                setColor(Color.rgb(232, 232, 234))
                 shape = GradientDrawable.OVAL
             }
-            setPadding(dp(10), dp(10), dp(10), dp(10))
         }
 
         contactFrame.addView(
@@ -576,7 +586,7 @@ class MainActivity : Activity() {
         }
 
         val name = TextView(this).apply {
-            text = getContactName(address) ?: address
+            text = contactName ?: address
             textSize = 17f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
@@ -591,11 +601,13 @@ class MainActivity : Activity() {
             setPadding(0, dp(4), 0, 0)
         }
 
-        textContainer.addView(name)
-        textContainer.addView(preview)
+        val topRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
 
-        foreground.addView(
-            textContainer,
+        topRow.addView(
+            name,
             LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -607,16 +619,28 @@ class MainActivity : Activity() {
             text = formatShortDate(date)
             textSize = 13f
             setTextColor(Color.rgb(165, 165, 170))
-            gravity = Gravity.TOP or Gravity.END
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            setPadding(0, dp(2), 0, 0)
+            setPadding(0, 0, 0, 0)
         }
 
-        foreground.addView(
+        topRow.addView(
             dateText,
             LinearLayout.LayoutParams(
-                dp(62),
+                dp(54),
                 LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        textContainer.addView(topRow)
+        textContainer.addView(preview)
+
+        foreground.addView(
+            textContainer,
+            LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
             )
         )
 
