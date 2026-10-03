@@ -73,6 +73,8 @@ class MainActivity : Activity() {
         setContentView(createHomeScreen())
 
         requestDefaultSmsRole()
+        requestContactsPermission()
+        requestNotificationPermission()
     }
 
     private fun requestDefaultSmsRole() {
@@ -125,7 +127,8 @@ class MainActivity : Activity() {
                 arrayOf(
                     Manifest.permission.READ_SMS,
                     Manifest.permission.RECEIVE_SMS,
-                    Manifest.permission.SEND_SMS
+                    Manifest.permission.SEND_SMS,
+                    Manifest.permission.READ_CONTACTS
                 ),
                 SMS_PERMISSION_REQUEST
             )
@@ -394,6 +397,54 @@ class MainActivity : Activity() {
             }
     }
 
+
+    private fun requestContactsPermission() {
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.READ_CONTACTS),
+                5001
+            )
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >=
+            android.os.Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                5002
+            )
+        }
+    }
+
+    private fun getContactName(phone: String): String? {
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            return null
+        }
+
+        val uri = android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI
+            .buildUpon()
+            .appendPath(phone)
+            .build()
+
+        return contentResolver.query(
+            uri,
+            arrayOf(android.provider.ContactsContract.PhoneLookup.DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    }
+
     private fun showEmptyState() {
         val empty = TextView(this).apply {
             text = "No Messages"
@@ -526,7 +577,7 @@ class MainActivity : Activity() {
         }
 
         val name = TextView(this).apply {
-            text = address
+            text = getContactName(address) ?: address
             textSize = 17f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
