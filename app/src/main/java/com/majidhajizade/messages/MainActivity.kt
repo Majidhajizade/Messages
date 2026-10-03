@@ -147,7 +147,6 @@ class MainActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
-            setBackgroundColor(Color.rgb(245, 245, 247))
             setPadding(dp(20), dp(18), dp(20), dp(12))
         }
 
