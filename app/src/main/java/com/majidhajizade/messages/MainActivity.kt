@@ -249,12 +249,8 @@ class MainActivity : Activity() {
 
         messagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(28).toFloat()
-                setStroke(dp(1), Color.rgb(230, 230, 235))
-            }
-            clipToOutline = true
+            setBackgroundColor(Color.WHITE)
+            clipToOutline = false
             setPadding(0, dp(4), 0, dp(82))
         }
         messagesScroll = android.widget.ScrollView(this).apply {
