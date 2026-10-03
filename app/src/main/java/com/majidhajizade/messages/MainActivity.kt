@@ -658,11 +658,6 @@ class MainActivity : Activity() {
             }
         )
 
-            ).apply {
-                leftMargin = dp(76)
-                rightMargin = dp(12)
-            }
-        )
     }
 
     private fun setupRowTouch(
