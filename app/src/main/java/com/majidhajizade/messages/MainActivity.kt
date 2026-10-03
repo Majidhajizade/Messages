@@ -578,10 +578,10 @@ class MainActivity : Activity() {
 
         contactFrame.addView(
             selectionOverlay,
-            FrameLayout.LayoutParams(dp(18), dp(18)).apply {
+            FrameLayout.LayoutParams(dp(20), dp(20)).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
-                rightMargin = dp(1)
-                bottomMargin = dp(1)
+                rightMargin = dp(0)
+                bottomMargin = dp(0)
             }
         )
 
@@ -882,12 +882,15 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT
             setOnClickListener {
+                if (rowViews.isEmpty()) return@setOnClickListener
+
                 if (selectedAddresses.size == rowViews.size) {
                     selectedAddresses.clear()
                 } else {
                     selectedAddresses.clear()
                     selectedAddresses.addAll(rowViews.keys)
                 }
+
                 updateSelectionUI()
             }
         }
@@ -903,7 +906,7 @@ class MainActivity : Activity() {
                 textSize = 13f
                 setTextColor(Color.rgb(35, 35, 38))
                 gravity = Gravity.CENTER
-                translationY = dp(-3).toFloat()
+                translationY = dp(-4).toFloat()
                 typeface = Typeface.DEFAULT_BOLD
             },
             LinearLayout.LayoutParams(dp(38), dp(22))
@@ -1157,13 +1160,20 @@ class MainActivity : Activity() {
     }
 
     private fun findRowByAddress(address: String): View? {
-        for (i in 0 until messagesContainer.childCount) {
-            val child = messagesContainer.getChildAt(i)
-            if (child is FrameLayout && child.tag == address) {
-                return child
+        fun find(view: View): View? {
+            if (view.tag == address) return view
+
+            if (view is ViewGroup) {
+                for (i in 0 until view.childCount) {
+                    val result = find(view.getChildAt(i))
+                    if (result != null) return result
+                }
             }
+
+            return null
         }
-        return null
+
+        return find(messagesContainer)
     }
 
     private fun deleteSelected() {
