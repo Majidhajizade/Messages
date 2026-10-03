@@ -149,7 +149,11 @@ class ConversationActivity : Activity() {
         }
 
         val header = android.widget.FrameLayout(this).apply {
-            setBackgroundColor(Color.argb(13, 245, 245, 247))
+            background = GradientDrawable().apply {
+                setColor(Color.argb(235, 255, 255, 255))
+                cornerRadius = 0f
+            }
+            elevation = dp(4).toFloat()
             setPadding(0, dp(24), 0, dp(8))
         }
 
@@ -200,10 +204,12 @@ class ConversationActivity : Activity() {
         header.addView(
             titleLayer,
             android.widget.FrameLayout.LayoutParams(
-                dp(190),
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 dp(42)
             ).apply {
                 gravity = Gravity.CENTER
+                leftMargin = dp(52)
+                rightMargin = dp(12)
             }
         )
 
