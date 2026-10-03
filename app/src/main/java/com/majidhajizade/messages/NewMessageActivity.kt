@@ -300,10 +300,14 @@ class NewMessageActivity : Activity() {
         contactsContainer.visibility = View.VISIBLE
         plusButton.text = "×"
 
-        filterContacts(phoneEditText.text.toString())
+        filterContacts(phoneEditText.text.toString(), scroll, plusButton)
     }
 
-    private fun filterContacts(query: String) {
+    private fun filterContacts(
+        query: String,
+        scroll: ScrollView,
+        plusButton: TextView
+    ) {
         if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
             != PackageManager.PERMISSION_GRANTED
         ) return
