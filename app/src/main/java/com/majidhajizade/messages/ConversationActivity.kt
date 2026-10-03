@@ -46,6 +46,16 @@ class ConversationActivity : Activity() {
     companion object {
         private const val SEND_PERMISSION = 3001
         private const val PICK_CONTACT = 3002
+        private const val ACTION_DELIVERED = "com.majidhajizade.messages.SMS_DELIVERED"
+    }
+
+    private val smsDeliveredReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val messageId = intent?.getStringExtra("message_id")
+            if (messageId != null && resultCode == Activity.RESULT_OK) {
+                updateMessageDelivered(messageId)
+            }
+        }
     }
 
     private val smsSentReceiver = object : BroadcastReceiver() {
@@ -88,15 +98,25 @@ class ConversationActivity : Activity() {
         setContentView(createScreen())
 
         val filter = IntentFilter("com.majidhajizade.messages.SMS_SENT")
+        val deliveredFilter = IntentFilter(ACTION_DELIVERED)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(
                 smsSentReceiver,
                 filter,
                 Context.RECEIVER_NOT_EXPORTED
             )
+            registerReceiver(
+                smsDeliveredReceiver,
+                deliveredFilter,
+                Context.RECEIVER_NOT_EXPORTED
+            )
         } else {
             @Suppress("DEPRECATION")
             registerReceiver(smsSentReceiver, filter)
+
+            @Suppress("DEPRECATION")
+            registerReceiver(smsDeliveredReceiver, deliveredFilter)
         }
 
         loadConversation()
@@ -105,6 +125,9 @@ class ConversationActivity : Activity() {
     override fun onDestroy() {
         runCatching {
             unregisterReceiver(smsSentReceiver)
+        }
+        runCatching {
+            unregisterReceiver(smsDeliveredReceiver)
         }
         super.onDestroy()
     }
@@ -412,6 +435,27 @@ class ConversationActivity : Activity() {
             bubble.findViewWithTag<View>("failed_icon")?.let {
                 bubble.removeView(it)
             }
+
+            if (bubble.findViewWithTag<View>("status_icon") == null) {
+                val icon = TextView(this).apply {
+                    tag = "status_icon"
+                    text = "✓"
+                    textSize = 13f
+                    setTextColor(secondaryText)
+                    gravity = Gravity.CENTER
+                    typeface = Typeface.DEFAULT_BOLD
+                }
+
+                bubble.addView(
+                    icon,
+                    0,
+                    LinearLayout.LayoutParams(dp(20), dp(22)).apply {
+                        gravity = Gravity.CENTER_VERTICAL
+                        setMargins(dp(7), 0, dp(2), 0)
+                    }
+                )
+            }
+
             return
         }
 
@@ -440,6 +484,23 @@ class ConversationActivity : Activity() {
                 setMargins(dp(8), 0, dp(7), 0)
             }
         )
+    }
+
+    private fun updateMessageDelivered(messageId: String) {
+        val wrapper =
+            messagesContainer.findViewWithTag<LinearLayout>(messageId)
+                ?: return
+
+        val bubble =
+            wrapper.findViewWithTag<LinearLayout>("message_bubble")
+                ?: return
+
+        val icon =
+            bubble.findViewWithTag<TextView>("status_icon")
+                ?: return
+
+        icon.text = "✓"
+        icon.setTextColor(blue)
     }
 
     private fun loadConversation() {
@@ -664,6 +725,18 @@ class ConversationActivity : Activity() {
                 flags
             )
 
+            val deliveredIntent = Intent(ACTION_DELIVERED).apply {
+                setPackage(packageName)
+                putExtra("message_id", messageId)
+            }
+
+            val deliveredPendingIntent = PendingIntent.getBroadcast(
+                this,
+                messageId.hashCode() + 100000,
+                deliveredIntent,
+                flags
+            )
+
             val smsManager = SmsManager.getDefault()
             val parts = smsManager.divideMessage(message)
 
@@ -673,10 +746,11 @@ class ConversationActivity : Activity() {
                     null,
                     message,
                     sentPendingIntent,
-                    null
+                    deliveredPendingIntent
                 )
             } else {
                 val sentIntents = ArrayList<PendingIntent>()
+                val deliveryIntents = ArrayList<PendingIntent>()
 
                 parts.forEachIndexed { index, _ ->
                     val partIntent = Intent(
@@ -695,6 +769,20 @@ class ConversationActivity : Activity() {
                             flags
                         )
                     )
+
+                    val partDeliveredIntent = Intent(ACTION_DELIVERED).apply {
+                        setPackage(packageName)
+                        putExtra("message_id", messageId)
+                    }
+
+                    deliveryIntents.add(
+                        PendingIntent.getBroadcast(
+                            this,
+                            messageId.hashCode() + 100001 + index,
+                            partDeliveredIntent,
+                            flags
+                        )
+                    )
                 }
 
                 smsManager.sendMultipartTextMessage(
@@ -702,7 +790,7 @@ class ConversationActivity : Activity() {
                     null,
                     parts,
                     sentIntents,
-                    null
+                    deliveryIntents
                 )
             }
 
