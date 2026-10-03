@@ -27,6 +27,8 @@ class NewMessageActivity : Activity() {
     private lateinit var contactsContainer: LinearLayout
     private lateinit var recipientInputContainer: LinearLayout
     private lateinit var recipientSearch: EditText
+    private lateinit var contactsScroll: ScrollView
+    private lateinit var plusButton: TextView
 
     private var selectedContact: String? = null
 
@@ -108,7 +110,7 @@ class NewMessageActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
         }
 
-        val plusButton = TextView(this).apply {
+        plusButton = TextView(this).apply {
             text = "+"
             textSize = 28f
             setTextColor(Color.BLACK)
@@ -166,7 +168,7 @@ class NewMessageActivity : Activity() {
             visibility = View.GONE
         }
 
-        val contactsScroll = ScrollView(this).apply {
+        contactsScroll = ScrollView(this).apply {
             visibility = View.GONE
             isFillViewport = true
         }
@@ -256,18 +258,6 @@ class NewMessageActivity : Activity() {
             ).apply {
                 topMargin = dp(16)
             }
-        )
-
-        val fixedContent = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
-        fixedContent.addView(
-            header,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
-            )
         )
 
         setContentView(root)
