@@ -168,6 +168,7 @@ class MainActivity : Activity() {
             textSize = 34f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
+            translationY = dp(4).toFloat()
         }
 
         homeTitle = title
@@ -297,7 +298,7 @@ class MainActivity : Activity() {
             selectionActionBar,
             FrameLayout.LayoutParams(
                 dp(270),
-                dp(78)
+                dp(52)
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
                 bottomMargin = dp(18)
@@ -561,13 +562,13 @@ class MainActivity : Activity() {
         )
 
         val selectionOverlay = TextView(this).apply {
-            textSize = 22f
+            textSize = 12f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             visibility = View.GONE
             background = GradientDrawable().apply {
-                setColor(Color.argb(155, 0, 122, 255))
+                setColor(Color.rgb(105, 105, 110))
                 shape = GradientDrawable.OVAL
             }
         }
@@ -576,7 +577,9 @@ class MainActivity : Activity() {
 
         contactFrame.addView(
             selectionOverlay,
-            FrameLayout.LayoutParams(dp(52), dp(52))
+            FrameLayout.LayoutParams(dp(18), dp(18)).apply {
+                gravity = Gravity.BOTTOM or Gravity.END
+            }
         )
 
         foreground.addView(contactFrame)
@@ -715,6 +718,9 @@ class MainActivity : Activity() {
         val longPressRunnable = Runnable {
             if (!moved && !selectionMode) {
                 longPressed = true
+                foreground.performHapticFeedback(
+                    android.view.HapticFeedbackConstants.LONG_PRESS
+                )
                 enterSelectionMode(address)
             }
         }
@@ -892,6 +898,7 @@ class MainActivity : Activity() {
                 textSize = 13f
                 setTextColor(Color.rgb(35, 35, 38))
                 gravity = Gravity.CENTER
+                translationY = dp(-2).toFloat()
                 typeface = Typeface.DEFAULT_BOLD
             },
             LinearLayout.LayoutParams(dp(38), dp(22))
@@ -924,7 +931,7 @@ class MainActivity : Activity() {
         val cancel = TextView(this).apply {
             text = "Cancel"
             textSize = 17f
-            setTextColor(Color.rgb(0, 122, 255))
+            setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setOnClickListener {
@@ -957,21 +964,21 @@ class MainActivity : Activity() {
             createSelectionAction(0, "Notifications") {
                 toggleNotifications()
             },
-            LinearLayout.LayoutParams(0, dp(64), 1f)
+            LinearLayout.LayoutParams(0, dp(38), 1f)
         )
 
         bar.addView(
             createSelectionAction(1, "Delete") {
                 deleteSelected()
             },
-            LinearLayout.LayoutParams(0, dp(64), 1f)
+            LinearLayout.LayoutParams(0, dp(38), 1f)
         )
 
         bar.addView(
             createSelectionAction(2, "Pin") {
                 pinSelected()
             },
-            LinearLayout.LayoutParams(0, dp(64), 1f)
+            LinearLayout.LayoutParams(0, dp(38), 1f)
         )
 
         return bar
@@ -990,8 +997,8 @@ class MainActivity : Activity() {
             addView(
                 SelectionIconView(this@MainActivity, iconType),
                 LinearLayout.LayoutParams(
-                    dp(30),
-                    dp(34)
+                    dp(26),
+                    dp(25)
                 )
             )
 
@@ -1006,7 +1013,7 @@ class MainActivity : Activity() {
                 },
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(22)
+                    dp(17)
                 )
             )
         }
@@ -1132,8 +1139,13 @@ class MainActivity : Activity() {
                 overlay.background = GradientDrawable().apply {
                     setColor(
                         if (selectedAddresses.contains(address)) {
-                            Color.argb(155, 0, 122, 255)
+                            Color.rgb(105, 105, 110)
                         } else {
+                            Color.TRANSPARENT
+                        }
+                    )
+                    shape = GradientDrawable.OVAL
+                } else {
                             Color.argb(110, 245, 245, 247)
                         }
                     )
