@@ -56,10 +56,7 @@ class NewMessageActivity : Activity() {
             textSize = 17f
             setTextColor(Color.BLACK)
             gravity = Gravity.CENTER_VERTICAL
-
-            setOnClickListener {
-                finish()
-            }
+            setOnClickListener { finish() }
         }
 
         val title = TextView(this).apply {
@@ -77,11 +74,7 @@ class NewMessageActivity : Activity() {
 
         header.addView(
             title,
-            android.widget.LinearLayout.LayoutParams(
-                0,
-                dp(48),
-                1f
-            )
+            android.widget.LinearLayout.LayoutParams(0, dp(48), 1f)
         )
 
         header.addView(
@@ -97,61 +90,58 @@ class NewMessageActivity : Activity() {
             )
         )
 
-        val recipientHeader = LinearLayout(this).apply {
+        val recipientBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = roundedBackground(Color.rgb(247, 247, 249), 18)
+            setPadding(dp(12), dp(4), dp(8), dp(4))
+        }
+
+        val recipientRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        val recipientTitle = TextView(this).apply {
+        val recipientLabel = TextView(this).apply {
             text = "Recipient"
-            textSize = 18f
+            textSize = 17f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
         }
 
-        val plus = TextView(this).apply {
+        val plusButton = TextView(this).apply {
             text = "+"
             textSize = 28f
             setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
-            setOnClickListener {
-                showContacts()
-            }
         }
 
-        recipientHeader.addView(
-            recipientTitle,
+        recipientRow.addView(
+            recipientLabel,
             android.widget.LinearLayout.LayoutParams(
                 0,
-                dp(48),
+                dp(52),
                 1f
             )
         )
 
-        recipientHeader.addView(
-            plus,
-            android.widget.LinearLayout.LayoutParams(dp(48), dp(48))
+        recipientRow.addView(
+            plusButton,
+            android.widget.LinearLayout.LayoutParams(dp(48), dp(52))
         )
 
-        root.addView(
-            recipientHeader,
+        recipientBox.addView(
+            recipientRow,
             android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
-            ).apply {
-                topMargin = dp(12)
-            }
+                dp(52)
+            )
         )
 
-        recipientInputContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
         phoneEditText = EditText(this).apply {
-            hint = "Phone number"
-            textSize = 17f
+            hint = "Phone number or contact name"
+            textSize = 16f
             setSingleLine(true)
-            inputType = InputType.TYPE_CLASS_PHONE
+            inputType = InputType.TYPE_CLASS_TEXT
             setPadding(dp(4), 0, dp(4), 0)
 
             if (!existingPhone.isNullOrBlank()) {
@@ -160,68 +150,64 @@ class NewMessageActivity : Activity() {
             }
         }
 
-        recipientInputContainer.addView(
+        recipientBox.addView(
             phoneEditText,
             android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(52)
+                dp(48)
             )
         )
 
-        recipientSearch = EditText(this).apply {
-            hint = "Search contacts"
-            textSize = 16f
-            setSingleLine(true)
-            inputType = InputType.TYPE_CLASS_TEXT
+        contactsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            background = roundedBackground(Color.WHITE, 18)
+            elevation = dp(3).toFloat()
             visibility = View.GONE
-            setPadding(dp(16), 0, dp(16), 0)
-
-            background = roundedBackground(
-                Color.rgb(245, 245, 247),
-                24
-            )
-
-            addTextChangedListener(
-                object : android.text.TextWatcher {
-                    override fun beforeTextChanged(
-                        s: CharSequence?,
-                        start: Int,
-                        count: Int,
-                        after: Int
-                    ) = Unit
-
-                    override fun onTextChanged(
-                        s: CharSequence?,
-                        start: Int,
-                        before: Int,
-                        count: Int
-                    ) {
-                        filterContacts(s?.toString().orEmpty())
-                    }
-
-                    override fun afterTextChanged(
-                        s: android.text.Editable?
-                    ) = Unit
-                }
-            )
         }
 
-        recipientInputContainer.addView(
-            recipientSearch,
+        val contactsScroll = ScrollView(this).apply {
+            visibility = View.GONE
+            isFillViewport = true
+        }
+
+        contactsScroll.addView(
+            contactsContainer,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        recipientBox.addView(
+            contactsScroll,
             android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
+                0,
+                1f
             ).apply {
                 topMargin = dp(6)
             }
         )
 
+        plusButton.setOnClickListener {
+            if (contactsScroll.visibility == View.VISIBLE) {
+                contactsScroll.visibility = View.GONE
+                contactsContainer.visibility = View.GONE
+                plusButton.text = "+"
+            } else {
+                showContacts(contactsScroll, plusButton)
+            }
+        }
+
         root.addView(
-            recipientInputContainer,
+            recipientBox,
             android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            )
+                dp(108)
+            ).apply {
+                topMargin = dp(12)
+            }
         )
 
         messageEditText = EditText(this).apply {
@@ -252,16 +238,14 @@ class NewMessageActivity : Activity() {
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             setBackground(
-                roundedBackground(
-                    Color.rgb(0, 122, 255),
-                    28
-                )
+                GradientDrawable().apply {
+                    setColor(Color.rgb(0, 122, 255))
+                    cornerRadius = dp(28).toFloat()
+                    setStroke(dp(1), Color.rgb(218, 218, 223))
+                }
             )
             setPadding(dp(20), dp(10), dp(20), dp(10))
-
-            setOnClickListener {
-                sendSms()
-            }
+            setOnClickListener { sendSms() }
         }
 
         root.addView(
@@ -274,41 +258,19 @@ class NewMessageActivity : Activity() {
             }
         )
 
-        contactsContainer = LinearLayout(this).apply {
+        val fixedContent = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            background = roundedBackground(
-                Color.WHITE,
-                24
-            )
-            elevation = dp(4).toFloat()
-            visibility = View.GONE
         }
 
-        root.addView(
-            contactsContainer,
+        fixedContent.addView(
+            header,
             android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            ).apply {
-                topMargin = dp(14)
-            }
-        )
-
-        val scroll = ScrollView(this).apply {
-            isFillViewport = true
-        }
-
-        scroll.addView(
-            root,
-            android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+                dp(48)
             )
         )
 
-        setContentView(scroll)
+        setContentView(root)
 
         if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
             != PackageManager.PERMISSION_GRANTED
@@ -320,7 +282,10 @@ class NewMessageActivity : Activity() {
         }
     }
 
-    private fun showContacts() {
+    private fun showContacts(
+        scroll: ScrollView,
+        plusButton: TextView
+    ) {
         if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -331,11 +296,11 @@ class NewMessageActivity : Activity() {
             return
         }
 
-        recipientSearch.visibility = View.VISIBLE
+        scroll.visibility = View.VISIBLE
         contactsContainer.visibility = View.VISIBLE
-        recipientSearch.requestFocus()
+        plusButton.text = "×"
 
-        filterContacts("")
+        filterContacts(phoneEditText.text.toString())
     }
 
     private fun filterContacts(query: String) {
@@ -345,7 +310,7 @@ class NewMessageActivity : Activity() {
 
         contactsContainer.removeAllViews()
 
-        val normalizedQuery = query.trim().lowercase()
+        val q = query.trim().lowercase()
 
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
@@ -361,7 +326,6 @@ class NewMessageActivity : Activity() {
         )?.use { cursor ->
 
             val seen = mutableSetOf<String>()
-
             val nameIndex = cursor.getColumnIndex(
                 ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
             )
@@ -376,49 +340,47 @@ class NewMessageActivity : Activity() {
                 if (!seen.add(number)) continue
 
                 if (
-                    normalizedQuery.isNotEmpty() &&
-                    !name.lowercase().contains(normalizedQuery) &&
-                    !number.contains(normalizedQuery)
-                ) {
-                    continue
-                }
+                    q.isNotEmpty() &&
+                    !name.lowercase().contains(q) &&
+                    !number.contains(q)
+                ) continue
 
                 val row = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding(dp(12), dp(8), dp(12), dp(8))
+                    setPadding(dp(12), dp(6), dp(12), dp(6))
 
                     setOnClickListener {
-                        selectContact(name, number)
+                        phoneEditText.setText(number)
+                        phoneEditText.setSelection(phoneEditText.length())
+                        scroll.visibility = View.GONE
+                        contactsContainer.visibility = View.GONE
+                        plusButtonAfterSelection()
                     }
                 }
 
-                val nameView = TextView(this).apply {
-                    text = name
-                    textSize = 17f
-                    setTextColor(Color.BLACK)
-                    typeface = Typeface.DEFAULT_BOLD
-                }
-
-                val numberView = TextView(this).apply {
-                    text = number
-                    textSize = 14f
-                    setTextColor(Color.GRAY)
-                }
-
                 row.addView(
-                    nameView,
+                    TextView(this).apply {
+                        text = name
+                        textSize = 16f
+                        setTextColor(Color.BLACK)
+                        typeface = Typeface.DEFAULT_BOLD
+                    },
                     android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                        dp(28)
+                        dp(27)
                     )
                 )
 
                 row.addView(
-                    numberView,
+                    TextView(this).apply {
+                        text = number
+                        textSize = 14f
+                        setTextColor(Color.GRAY)
+                    },
                     android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                        dp(24)
+                        dp(23)
                     )
                 )
 
@@ -426,51 +388,24 @@ class NewMessageActivity : Activity() {
                     row,
                     android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                        dp(58)
+                        dp(54)
                     )
                 )
             }
         }
     }
 
-    private fun selectContact(name: String, number: String) {
-        selectedContact = number
-        phoneEditText.setText(number)
-        phoneEditText.isEnabled = false
-
-        recipientSearch.visibility = View.GONE
-        contactsContainer.visibility = View.GONE
-
-        val capsule = TextView(this).apply {
-            text = "$name   ×"
-            textSize = 16f
-            setTextColor(Color.DKGRAY)
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), 0, dp(16), 0)
-            background = roundedBackground(
-                Color.rgb(232, 232, 235),
-                22
-            )
-
-            setOnClickListener {
-                selectedContact = null
-                phoneEditText.setText("")
-                phoneEditText.isEnabled = true
-                visibility = View.GONE
-                phoneEditText.visibility = View.VISIBLE
+    private fun plusButtonAfterSelection() {
+        val root = phoneEditText.parent?.parent
+        if (root is LinearLayout) {
+            val row = root.getChildAt(0)
+            if (row is LinearLayout && row.childCount > 1) {
+                val button = row.getChildAt(1)
+                if (button is TextView) {
+                    button.text = "+"
+                }
             }
         }
-
-        phoneEditText.visibility = View.GONE
-
-        recipientInputContainer.addView(
-            capsule,
-            0,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(44)
-            )
-        )
     }
 
     private fun sendSms() {
