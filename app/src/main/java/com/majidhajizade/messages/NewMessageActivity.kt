@@ -353,9 +353,8 @@ class NewMessageActivity : Activity() {
                     setOnClickListener {
                         phoneEditText.setText(number)
                         phoneEditText.setSelection(phoneEditText.length())
-                        scroll.visibility = View.GONE
                         contactsContainer.visibility = View.GONE
-                        plusButton.text = "+"
+                        plusButtonAfterSelection(contactsScroll, plusButton)
                     }
                 }
 
@@ -402,6 +401,52 @@ class NewMessageActivity : Activity() {
         scroll.visibility = View.GONE
         contactsContainer.visibility = View.GONE
         plusButton.text = "+"
+    }
+
+    private fun sendSms() {
+        val phone = phoneEditText.text.toString().trim()
+        val message = messageEditText.text.toString().trim()
+
+        if (phone.isEmpty() || message.isEmpty()) {
+            Toast.makeText(
+                this,
+                "Recipient and message are required",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        if (checkSelfPermission(Manifest.permission.SEND_SMS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.SEND_SMS),
+                SMS_PERMISSION_REQUEST
+            )
+            return
+        }
+
+        try {
+            SmsManager.getDefault().sendTextMessage(
+                phone,
+                null,
+                message,
+                null,
+                null
+            )
+            Toast.makeText(
+                this,
+                "Message sent",
+                Toast.LENGTH_SHORT
+            ).show()
+            finish()
+        } catch (e: Exception) {
+            Toast.makeText(
+                this,
+                "Failed to send message",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun roundedBackground(
