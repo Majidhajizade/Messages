@@ -1133,20 +1133,16 @@ class MainActivity : Activity() {
             val overlay = row?.getTag(1001) as? TextView
 
             if (overlay != null) {
+                val selected = selectedAddresses.contains(address)
+
                 overlay.visibility = View.VISIBLE
-                overlay.text =
-                    if (selectedAddresses.contains(address)) "✓" else ""
+                overlay.text = if (selected) "✓" else ""
                 overlay.background = GradientDrawable().apply {
                     setColor(
-                        if (selectedAddresses.contains(address)) {
+                        if (selected) {
                             Color.rgb(105, 105, 110)
                         } else {
                             Color.TRANSPARENT
-                        }
-                    )
-                    shape = GradientDrawable.OVAL
-                } else {
-                            Color.argb(110, 245, 245, 247)
                         }
                     )
                     shape = GradientDrawable.OVAL
