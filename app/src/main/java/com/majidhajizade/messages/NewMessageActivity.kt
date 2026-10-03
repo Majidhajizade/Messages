@@ -296,7 +296,7 @@ class NewMessageActivity : Activity() {
             return
         }
 
-        contactsScroll.visibility = View.VISIBLE
+        scroll.visibility = View.VISIBLE
         contactsContainer.visibility = View.VISIBLE
         plusButton.text = "×"
 
@@ -355,7 +355,7 @@ class NewMessageActivity : Activity() {
                         phoneEditText.setSelection(phoneEditText.length())
                         scroll.visibility = View.GONE
                         contactsContainer.visibility = View.GONE
-                        plusButtonAfterSelection(scroll, plusButton)
+                        plusButton.text = "+"
                     }
                 }
 
@@ -395,122 +395,13 @@ class NewMessageActivity : Activity() {
         }
     }
 
-    private fun plusButtonAfterSelection(scroll, plusButton) {
-        val root = phoneEditText.parent?.parent
-        if (root is LinearLayout) {
-            val row = root.getChildAt(0)
-            if (row is LinearLayout && row.childCount > 1) {
-                val button = row.getChildAt(1)
-                if (button is TextView) {
-                    button.text = "+"
-                }
-            }
-        }
-    }
-
-    private fun sendSms() {
-        val phone = phoneEditText.text.toString().trim()
-        val message = messageEditText.text.toString().trim()
-
-        if (phone.isEmpty()) {
-            phoneEditText.error = "Enter recipient"
-            phoneEditText.requestFocus()
-            return
-        }
-
-        if (message.isEmpty()) {
-            messageEditText.error = "Enter message"
-            messageEditText.requestFocus()
-            return
-        }
-
-        if (checkSelfPermission(Manifest.permission.SEND_SMS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(
-                arrayOf(Manifest.permission.SEND_SMS),
-                SMS_PERMISSION_REQUEST
-            )
-            return
-        }
-
-        sendSmsNow(phone, message)
-    }
-
-    private fun sendSmsNow(phone: String, message: String) {
-        try {
-            val smsManager = SmsManager.getDefault()
-            val parts = smsManager.divideMessage(message)
-
-            if (parts.size == 1) {
-                smsManager.sendTextMessage(
-                    phone,
-                    null,
-                    message,
-                    null,
-                    null
-                )
-            } else {
-                smsManager.sendMultipartTextMessage(
-                    phone,
-                    null,
-                    parts,
-                    null,
-                    null
-                )
-            }
-
-            Toast.makeText(
-                this,
-                "SMS sent",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            val intent = Intent(this, ConversationActivity::class.java)
-            intent.putExtra("phone", phone)
-            startActivity(intent)
-            finish()
-
-        } catch (e: Exception) {
-            Toast.makeText(
-                this,
-                "SMS failed: ${e.message ?: "Unknown error"}",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+    private fun plusButtonAfterSelection(
+        scroll: ScrollView,
+        plusButton: TextView
     ) {
-        super.onRequestPermissionsResult(
-            requestCode,
-            permissions,
-            grantResults
-        )
-
-        if (requestCode == SMS_PERMISSION_REQUEST) {
-            if (grantResults.isNotEmpty() &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED
-            ) {
-                sendSms()
-            } else {
-                Toast.makeText(
-                    this,
-                    "SMS permission is required",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-
-        if (requestCode == CONTACTS_PERMISSION_REQUEST &&
-            grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
-        ) {
-            showContacts()
-        }
+        scroll.visibility = View.GONE
+        contactsContainer.visibility = View.GONE
+        plusButton.text = "+"
     }
 
     private fun roundedBackground(
