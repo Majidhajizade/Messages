@@ -146,6 +146,7 @@ class MainActivity : Activity() {
     private fun createHomeScreen(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
             setBackgroundColor(Color.rgb(245, 245, 247))
             setPadding(dp(20), dp(18), dp(20), dp(12))
         }
@@ -159,6 +160,7 @@ class MainActivity : Activity() {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(Color.WHITE)
         }
         homeHeader = header
 
@@ -255,9 +257,11 @@ class MainActivity : Activity() {
         }
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
+            setBackgroundColor(Color.WHITE)
 
             val scrollContent = LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
+                setBackgroundColor(Color.WHITE)
             }
 
             scrollContent.addView(
