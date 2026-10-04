@@ -272,26 +272,6 @@ class MainActivity : Activity() {
             )
 
         }
-                    } else if (delta > 0) {
-                        homeSearch.animate()
-                            .alpha(0f)
-                            .setDuration(220L)
-                            .withEndAction {
-                                val params =
-                                    homeSearch.layoutParams as LinearLayout.LayoutParams
-                                params.height = 0
-                                params.bottomMargin = 0
-                                homeSearch.layoutParams = params
-                                homeSearch.visibility = View.GONE
-                            }
-                            .start()
-                    }
-
-                    homeSearch.translationY = 0f
-                }
-            }
-        }
-
         var lastScrollY = 0
 
         messagesScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
