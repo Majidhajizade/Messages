@@ -641,13 +641,7 @@ companion object {
             )
         )
 
-        callAction.setOnClickListener {
-            callNumber(address)
-        }
 
-        deleteAction.setOnClickListener {
-            deleteConversation(address)
-        }
 
         setupRowTouch(
             actionLayer,
@@ -681,26 +675,12 @@ companion object {
         deleteAction: TextView,
         selectionOverlay: TextView
     ) {
-        val callBackground = GradientDrawable().apply {
-            setColor(Color.TRANSPARENT)
-        }
-
-        val deleteBackground = GradientDrawable().apply {
-            setColor(Color.TRANSPARENT)
-        }
-
-        callAction.background = callBackground
-        deleteAction.background = deleteBackground
-        callAction.setTextColor(Color.TRANSPARENT)
-        deleteAction.setTextColor(Color.TRANSPARENT)
         var downX = 0f
         var downY = 0f
-        var startTranslation = 0f
         var moved = false
         var longPressed = false
 
         val handler = android.os.Handler(mainLooper)
-
         val longPressRunnable = Runnable {
             if (!moved && !selectionMode) {
                 longPressed = true
@@ -713,16 +693,12 @@ companion object {
 
         foreground.setOnTouchListener { _, event ->
             when (event.actionMasked) {
-
                 MotionEvent.ACTION_DOWN -> {
                     downX = event.rawX
                     downY = event.rawY
-                    startTranslation = foreground.translationX
                     moved = false
                     longPressed = false
-
                     handler.postDelayed(longPressRunnable, 500)
-
                     true
                 }
 
@@ -735,107 +711,26 @@ companion object {
                         handler.removeCallbacks(longPressRunnable)
                     }
 
-                    if (abs(dx) > abs(dy)) {
-                        val translation =
-                            (startTranslation + dx)
-                                .coerceIn(-dp(110).toFloat(), dp(110).toFloat())
-
-                        foreground.translationX = translation
-
-                        val progress =
-                            (abs(translation) / dp(110).toFloat())
-                                .coerceIn(0f, 1f)
-
-                        val alpha = (progress * 140f).toInt()
-
-                        if (translation > 0f) {
-                            callBackground.setColor(
-                                Color.argb(
-                                    alpha,
-                                    Color.red(blue),
-                                    Color.green(blue),
-                                    Color.blue(blue)
-                                )
-                            )
-                            callAction.setTextColor(
-                                Color.argb(alpha, Color.WHITE, Color.WHITE, Color.WHITE)
-                            )
-
-                            deleteBackground.setColor(Color.TRANSPARENT)
-                            deleteAction.setTextColor(Color.TRANSPARENT)
-                        } else if (translation < 0f) {
-                            deleteBackground.setColor(
-                                Color.argb(
-                                    alpha,
-                                    Color.red(deleteRed),
-                                    Color.green(deleteRed),
-                                    Color.blue(deleteRed)
-                                )
-                            )
-                            deleteAction.setTextColor(
-                                Color.argb(alpha, Color.WHITE, Color.WHITE, Color.WHITE)
-                            )
-
-                            callBackground.setColor(Color.TRANSPARENT)
-                            callAction.setTextColor(Color.TRANSPARENT)
-                        } else {
-                            callBackground.setColor(Color.TRANSPARENT)
-                            deleteBackground.setColor(Color.TRANSPARENT)
-                            callAction.setTextColor(Color.TRANSPARENT)
-                            deleteAction.setTextColor(Color.TRANSPARENT)
-                        }
-                    }
-
                     true
                 }
 
                 MotionEvent.ACTION_UP -> {
                     handler.removeCallbacks(longPressRunnable)
 
-                    val dx = event.rawX - downX
-                    val dy = event.rawY - downY
-
                     if (selectionMode && !longPressed && !moved) {
                         toggleSelection(address)
-                        foreground.animate()
-                            .translationX(0f)
-                            .setDuration(180)
-                            .start()
                         return@setOnTouchListener true
                     }
 
                     if (!longPressed && !moved) {
                         openConversation(address)
-                    } else if (!longPressed && dx < -dp(70)) {
-                        deleteConversation(address)
-                    } else if (!longPressed && dx > dp(70)) {
-                        callNumber(address)
                     }
-
-                    foreground.animate()
-                        .translationX(0f)
-                        .setDuration(180)
-                        .start()
-
-                    callBackground.setColor(Color.TRANSPARENT)
-                    deleteBackground.setColor(Color.TRANSPARENT)
-                    callAction.setTextColor(Color.TRANSPARENT)
-                    deleteAction.setTextColor(Color.TRANSPARENT)
 
                     true
                 }
 
                 MotionEvent.ACTION_CANCEL -> {
                     handler.removeCallbacks(longPressRunnable)
-                    foreground.animate()
-                        .translationX(0f)
-                        .setDuration(180)
-                        .start()
-
-                    callBackground.setColor(Color.TRANSPARENT)
-                    deleteBackground.setColor(Color.TRANSPARENT)
-                    callAction.setTextColor(Color.TRANSPARENT)
-                    deleteAction.setTextColor(Color.TRANSPARENT)
                     true
                 }
 
