@@ -213,7 +213,13 @@ companion object {
                 dp(72)
             )
         )
-
+        root.addView(
+            headerLayer,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(72)
+            )
+        )
 
         root.addView(
             selectionHeader,
