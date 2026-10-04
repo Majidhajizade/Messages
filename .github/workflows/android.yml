@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -53,3 +53,17 @@ jobs:
           name: Messages-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish Latest APK Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view latest --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload latest app/build/outputs/apk/debug/app-debug.apk --repo "${{ github.repository }}" --clobber
+          else
+            gh release create latest app/build/outputs/apk/debug/app-debug.apk \
+              --repo "${{ github.repository }}" \
+              --title "Latest APK" \
+              --notes "Latest debug APK from the main branch." \
+              --target "${{ github.sha }}"
+          fi
