@@ -269,16 +269,20 @@ companion object {
         selectionActionBar.bringToFront()
 
         val floatingButton = FrameLayout(this).apply {
-            setBackgroundColor(Color.TRANSPARENT)
-            elevation = dp(14).toFloat()
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.WHITE)
+                setStroke(dp(1), Color.rgb(218, 218, 223))
+            }
+            elevation = dp(18).toFloat()
             isClickable = true
             isFocusable = true
 
             addView(
                 MessengerComposeIcon(this@MainActivity),
                 FrameLayout.LayoutParams(
-                    dp(58),
-                    dp(58),
+                    dp(64),
+                    dp(64),
                     Gravity.CENTER
                 )
             )
@@ -297,11 +301,11 @@ companion object {
         chatLayer.addView(
             floatingButton,
             FrameLayout.LayoutParams(
-                dp(58),
-                dp(58)
+                dp(64),
+                dp(64)
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
-                rightMargin = dp(20)
+                rightMargin = dp(18)
                 bottomMargin = dp(84)
             }
         )
@@ -317,26 +321,25 @@ companion object {
             }
 
             if (scrollY > lastScrollY + dp(2)) {
-                if (floatingButton.visibility != View.VISIBLE) {
-                    floatingButton.visibility = View.VISIBLE
-                    floatingButton.animate()
-                        .alpha(1f)
-                        .translationY(0f)
-                        .setDuration(260L)
-                        .setInterpolator(android.view.animation.DecelerateInterpolator())
-                        .start()
-                }
-            } else if (scrollY < lastScrollY - dp(2)) {
+                floatingButton.animate()
+                    .cancel()
+
                 floatingButton.animate()
                     .alpha(0f)
-                    .translationY(dp(18).toFloat())
-                    .setDuration(260L)
-                    .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
-                    .withEndAction {
-                        if (floatingButton.alpha == 0f) {
-                            floatingButton.visibility = View.GONE
-                        }
-                    }
+                    .translationY(dp(22).toFloat())
+                    .setDuration(300L)
+                    .setInterpolator(android.view.animation.FastOutSlowInInterpolator())
+                    .start()
+
+            } else if (scrollY < lastScrollY - dp(2)) {
+                floatingButton.animate()
+                    .cancel()
+
+                floatingButton.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(300L)
+                    .setInterpolator(android.view.animation.FastOutSlowInInterpolator())
                     .start()
             }
 
@@ -1184,9 +1187,10 @@ companion object {
         selectionHeader.visibility = View.GONE
         selectionActionBar.visibility = View.GONE
         homeHeader?.visibility = View.VISIBLE
-        floatingComposeButton?.alpha = 0f
-        floatingComposeButton?.translationY = dp(18).toFloat()
-        floatingComposeButton?.visibility = View.GONE
+        floatingComposeButton?.animate()?.cancel()
+        floatingComposeButton?.alpha = 1f
+        floatingComposeButton?.translationY = 0f
+        floatingComposeButton?.visibility = View.VISIBLE
 
         for (i in 0 until messagesContainer.childCount) {
             val child = messagesContainer.getChildAt(i)
@@ -1223,46 +1227,50 @@ companion object {
 
         private val paint = android.graphics.Paint(
             android.graphics.Paint.ANTI_ALIAS_FLAG
-        ).apply {
-            color = Color.rgb(205, 205, 210)
-            style = android.graphics.Paint.Style.FILL
-        }
+        )
 
         override fun onDraw(canvas: android.graphics.Canvas) {
             super.onDraw(canvas)
 
             val cx = width / 2f
             val cy = height / 2f
-            val r = width * 0.48f
+            val scale = width / 64f
 
-            paint.color = Color.WHITE
-            canvas.drawCircle(cx, cy, r, paint)
-
-            paint.color = Color.rgb(205, 205, 210)
+            paint.style = android.graphics.Paint.Style.FILL
+            paint.color = Color.rgb(190, 190, 196)
 
             val bubble = android.graphics.Path().apply {
-                moveTo(cx - r * 0.43f, cy - r * 0.18f)
+                moveTo(cx - 17f * scale, cy - 9f * scale)
                 cubicTo(
-                    cx - r * 0.43f, cy - r * 0.48f,
-                    cx - r * 0.18f, cy - r * 0.58f,
-                    cx + r * 0.18f, cy - r * 0.58f
+                    cx - 17f * scale, cy - 17f * scale,
+                    cx - 10f * scale, cy - 21f * scale,
+                    cx, cy - 21f * scale
                 )
                 cubicTo(
-                    cx + r * 0.52f, cy - r * 0.58f,
-                    cx + r * 0.60f, cy - r * 0.32f,
-                    cx + r * 0.60f, cy - r * 0.02f
+                    cx + 11f * scale, cy - 21f * scale,
+                    cx + 18f * scale, cy - 15f * scale,
+                    cx + 18f * scale, cy - 5f * scale
                 )
                 cubicTo(
-                    cx + r * 0.60f, cy + r * 0.30f,
-                    cx + r * 0.38f, cy + r * 0.50f,
-                    cx + r * 0.02f, cy + r * 0.50f
+                    cx + 18f * scale, cy + 6f * scale,
+                    cx + 10f * scale, cy + 13f * scale,
+                    cx - 1f * scale, cy + 13f * scale
                 )
-                lineTo(cx - r * 0.28f, cy + r * 0.68f)
-                lineTo(cx - r * 0.18f, cy + r * 0.42f)
+                lineTo(
+                    cx - 11f * scale,
+                    cy + 21f * scale
+                )
+                lineTo(
+                    cx - 9f * scale,
+                    cy + 10f * scale
+                )
                 cubicTo(
-                    cx - r * 0.40f, cy + r * 0.30f,
-                    cx - r * 0.43f, cy + r * 0.08f,
-                    cx - r * 0.43f, cy - r * 0.18f
+                    cx - 14f * scale,
+                    cy + 7f * scale,
+                    cx - 17f * scale,
+                    cy + 1f * scale,
+                    cx - 17f * scale,
+                    cy - 9f * scale
                 )
                 close()
             }
@@ -1270,23 +1278,23 @@ companion object {
             canvas.drawPath(bubble, paint)
 
             paint.color = Color.WHITE
-            paint.strokeWidth = r * 0.11f
+            paint.strokeWidth = 2.8f * scale
             paint.style = android.graphics.Paint.Style.STROKE
             paint.strokeCap = android.graphics.Paint.Cap.ROUND
 
             canvas.drawLine(
-                cx - r * 0.18f,
-                cy,
-                cx + r * 0.22f,
-                cy,
+                cx - 8f * scale,
+                cy - 1f * scale,
+                cx + 8f * scale,
+                cy - 1f * scale,
                 paint
             )
 
             canvas.drawLine(
-                cx + r * 0.02f,
-                cy - r * 0.20f,
-                cx + r * 0.02f,
-                cy + r * 0.20f,
+                cx,
+                cy - 9f * scale,
+                cx,
+                cy + 7f * scale,
                 paint
             )
 
