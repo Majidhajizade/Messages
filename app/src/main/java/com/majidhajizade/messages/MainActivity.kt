@@ -313,19 +313,6 @@ class MainActivity : Activity() {
         )
 
         chatLayer.addView(
-            homeSearch,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(46)
-            ).apply {
-                leftMargin = 0
-                rightMargin = 0
-                topMargin = dp(10)
-                bottomMargin = 0
-            }
-        )
-
-        chatLayer.addView(
             selectionActionBar,
             FrameLayout.LayoutParams(
                 dp(270),
@@ -337,6 +324,19 @@ class MainActivity : Activity() {
         )
 
         selectionActionBar.bringToFront()
+
+        root.addView(
+            homeSearch,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(46)
+            ).apply {
+                leftMargin = dp(12)
+                rightMargin = dp(12)
+                topMargin = dp(6)
+                bottomMargin = dp(8)
+            }
+        )
 
         root.addView(
             chatLayer,
