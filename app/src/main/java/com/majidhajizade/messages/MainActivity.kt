@@ -297,20 +297,25 @@ class MainActivity : Activity() {
                     if (delta < 0 && scrollY > 0) {
                         homeSearch.visibility = View.VISIBLE
 
-                        if (searchParams.height != dp(46)) {
-                            searchParams.height = dp(46)
-                            searchParams.bottomMargin = dp(14)
-                            homeSearch.layoutParams = searchParams
-                        }
+                        val targetHeight = dp(46)
+                        val targetMargin = dp(14)
+
+                        homeSearch.alpha = 0f
 
                         homeSearch.animate()
                             .alpha(1f)
-                            .setDuration(180L)
+                            .setDuration(220L)
                             .start()
+
+                        if (searchParams.height != targetHeight) {
+                            searchParams.height = targetHeight
+                            searchParams.bottomMargin = targetMargin
+                            homeSearch.layoutParams = searchParams
+                        }
                     } else if (delta > 0) {
                         homeSearch.animate()
                             .alpha(0f)
-                            .setDuration(180L)
+                            .setDuration(220L)
                             .withEndAction {
                                 val params =
                                     homeSearch.layoutParams as LinearLayout.LayoutParams
