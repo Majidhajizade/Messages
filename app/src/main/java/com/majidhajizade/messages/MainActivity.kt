@@ -208,7 +208,7 @@ class MainActivity : Activity() {
             header,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(54)
+                dp(64)
             )
         )
 
@@ -228,6 +228,7 @@ class MainActivity : Activity() {
         }
 
         homeSearch = EditText(this).apply {
+            visibility = View.GONE
             hint = "Search"
             textSize = 16f
             setSingleLine(true)
