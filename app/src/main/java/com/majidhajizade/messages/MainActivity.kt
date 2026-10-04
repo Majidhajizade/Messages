@@ -256,19 +256,6 @@ class MainActivity : Activity() {
             }
 
             scrollContent.addView(
-                homeSearch,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(46)
-                ).apply {
-                    leftMargin = 0
-                    rightMargin = 0
-                    topMargin = 0
-                    bottomMargin = dp(14)
-                }
-            )
-
-            scrollContent.addView(
                 messagesContainer,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -284,34 +271,7 @@ class MainActivity : Activity() {
                 )
             )
 
-            var lastScrollY = 0
-
-            setOnScrollChangeListener { _, _, scrollY, _, _ ->
-                if (!selectionMode) {
-                    val delta = scrollY - lastScrollY
-                    lastScrollY = scrollY
-
-                    val searchParams =
-                        homeSearch.layoutParams as LinearLayout.LayoutParams
-
-                    if (delta < 0 && scrollY > 0) {
-                        homeSearch.visibility = View.VISIBLE
-
-                        val targetHeight = dp(46)
-                        val targetMargin = dp(14)
-
-                        homeSearch.alpha = 0f
-
-                        homeSearch.animate()
-                            .alpha(1f)
-                            .setDuration(220L)
-                            .start()
-
-                        if (searchParams.height != targetHeight) {
-                            searchParams.height = targetHeight
-                            searchParams.bottomMargin = targetMargin
-                            homeSearch.layoutParams = searchParams
-                        }
+        }
                     } else if (delta > 0) {
                         homeSearch.animate()
                             .alpha(0f)
@@ -332,6 +292,33 @@ class MainActivity : Activity() {
             }
         }
 
+        var lastScrollY = 0
+
+        messagesScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            if (!selectionMode) {
+                val delta = scrollY - lastScrollY
+                lastScrollY = scrollY
+
+                if (delta < 0 && scrollY > 0) {
+                    homeSearch.visibility = View.VISIBLE
+                    homeSearch.animate()
+                        .alpha(1f)
+                        .setDuration(220L)
+                        .start()
+                } else if (delta > 0) {
+                    homeSearch.animate()
+                        .alpha(0f)
+                        .setDuration(220L)
+                        .withEndAction {
+                            if (!selectionMode) {
+                                homeSearch.visibility = View.GONE
+                            }
+                        }
+                        .start()
+                }
+            }
+        }
+
         val chatLayer = FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
@@ -343,6 +330,19 @@ class MainActivity : Activity() {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+        )
+
+        chatLayer.addView(
+            homeSearch,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(46)
+            ).apply {
+                leftMargin = 0
+                rightMargin = 0
+                topMargin = dp(10)
+                bottomMargin = 0
+            }
         )
 
         chatLayer.addView(
