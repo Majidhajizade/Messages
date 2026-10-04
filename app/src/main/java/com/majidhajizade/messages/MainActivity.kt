@@ -771,7 +771,7 @@ companion object {
 
         allContainer.addView(
             selectionAllButton,
-            LinearLayout.LayoutParams(dp(38), dp(34))
+            LinearLayout.LayoutParams(dp(38), dp(38))
         )
 
         allContainer.addView(
@@ -780,7 +780,6 @@ companion object {
                 textSize = 13f
                 setTextColor(Color.rgb(35, 35, 38))
                 gravity = Gravity.CENTER
-                translationY = dp(-4).toFloat()
                 typeface = Typeface.DEFAULT_BOLD
             },
             LinearLayout.LayoutParams(dp(38), dp(22))
@@ -788,7 +787,7 @@ companion object {
 
         header.addView(
             allContainer,
-            LinearLayout.LayoutParams(dp(58), dp(46))
+            LinearLayout.LayoutParams(dp(58), dp(72))
         )
 
         selectionSelectedText = TextView(this).apply {
@@ -823,7 +822,7 @@ companion object {
 
         header.addView(
             cancel,
-            LinearLayout.LayoutParams(dp(78), dp(46))
+            LinearLayout.LayoutParams(dp(78), dp(72))
         )
 
         return header
