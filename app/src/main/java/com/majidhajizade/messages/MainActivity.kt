@@ -254,7 +254,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
             clipToOutline = false
-            setPadding(0, dp(4), 0, dp(82))
+            setPadding(0, dp(4), 0, 0)
         }
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
