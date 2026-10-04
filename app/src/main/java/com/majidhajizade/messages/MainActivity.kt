@@ -263,7 +263,7 @@ class MainActivity : Activity() {
                 ).apply {
                     leftMargin = 0
                     rightMargin = 0
-                    topMargin = dp(10)
+                    topMargin = 0
                     bottomMargin = dp(14)
                 }
             )
