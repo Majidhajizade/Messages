@@ -204,13 +204,26 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(dp(50), dp(50))
         )
 
-        root.addView(
+        val headerLayer = FrameLayout(this).apply {
+            setBackgroundColor(Color.WHITE)
+            clipChildren = false
+            clipToPadding = false
+        }
+
+        headerLayer.addView(
             header,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
                 dp(72)
             )
         )
+
+        val headerLayerParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            dp(72)
+        )
+
+        root.addView(headerLayer, headerLayerParams)
 
         root.addView(
             selectionHeader,
@@ -239,6 +252,18 @@ class MainActivity : Activity() {
             setPadding(dp(18), 0, dp(18), 0)
             background = searchBackground
         }
+
+        headerLayer.addView(
+            homeSearch,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(46)
+            ).apply {
+                leftMargin = 0
+                rightMargin = 0
+                topMargin = dp(26)
+            }
+        )
 
         messagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -280,14 +305,20 @@ class MainActivity : Activity() {
                 lastScrollY = scrollY
 
                 if (delta < 0 && scrollY > 0) {
+
                     homeSearch.visibility = View.VISIBLE
+                    homeSearch.alpha = 0f
+                    homeSearch.translationY = -dp(46).toFloat()
+
                     homeSearch.animate()
                         .alpha(1f)
+                        .translationY(0f)
                         .setDuration(220L)
                         .start()
                 } else if (delta > 0) {
                     homeSearch.animate()
                         .alpha(0f)
+                        .translationY(-dp(46).toFloat())
                         .setDuration(220L)
                         .withEndAction {
                             if (!selectionMode) {
@@ -324,19 +355,6 @@ class MainActivity : Activity() {
         )
 
         selectionActionBar.bringToFront()
-
-        root.addView(
-            homeSearch,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(46)
-            ).apply {
-                leftMargin = dp(12)
-                rightMargin = dp(12)
-                topMargin = dp(6)
-                bottomMargin = dp(8)
-            }
-        )
 
         root.addView(
             chatLayer,
