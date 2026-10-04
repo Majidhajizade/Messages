@@ -228,7 +228,7 @@ class MainActivity : Activity() {
         }
 
         homeSearch = EditText(this).apply {
-            visibility = View.VISIBLE
+            visibility = View.GONE
             alpha = 0f
             translationY = 0f
             hint = "Search"
@@ -291,7 +291,18 @@ class MainActivity : Activity() {
                     val delta = scrollY - lastScrollY
                     lastScrollY = scrollY
 
-                    if (delta < 0) {
+                    val searchParams =
+                        homeSearch.layoutParams as LinearLayout.LayoutParams
+
+                    if (delta < 0 && scrollY > 0) {
+                        homeSearch.visibility = View.VISIBLE
+
+                        if (searchParams.height != dp(46)) {
+                            searchParams.height = dp(46)
+                            searchParams.bottomMargin = dp(14)
+                            homeSearch.layoutParams = searchParams
+                        }
+
                         homeSearch.animate()
                             .alpha(1f)
                             .setDuration(180L)
@@ -300,6 +311,14 @@ class MainActivity : Activity() {
                         homeSearch.animate()
                             .alpha(0f)
                             .setDuration(180L)
+                            .withEndAction {
+                                val params =
+                                    homeSearch.layoutParams as LinearLayout.LayoutParams
+                                params.height = 0
+                                params.bottomMargin = 0
+                                homeSearch.layoutParams = params
+                                homeSearch.visibility = View.GONE
+                            }
                             .start()
                     }
 
