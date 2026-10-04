@@ -169,7 +169,7 @@ class MainActivity : Activity() {
             textSize = 34f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
-            translationY = dp(4).toFloat()
+            translationY = dp(7).toFloat()
         }
 
         homeTitle = title
@@ -208,7 +208,7 @@ class MainActivity : Activity() {
             header,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(64)
+                dp(54)
             )
         )
 
@@ -237,19 +237,6 @@ class MainActivity : Activity() {
             background = searchBackground
         }
 
-        root.addView(
-            homeSearch,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(46)
-            ).apply {
-                leftMargin = 0
-                rightMargin = 0
-                topMargin = dp(10)
-                bottomMargin = dp(14)
-            }
-        )
-
         messagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
@@ -260,27 +247,23 @@ class MainActivity : Activity() {
             isFillViewport = true
             setBackgroundColor(Color.WHITE)
 
-            setOnScrollChangeListener { _, _, scrollY, _, _ ->
-                val collapseDistance = dp(56).toFloat()
-                val progress =
-                    (scrollY / collapseDistance).coerceIn(0f, 1f)
-
-                homeSearch.translationY =
-                    -collapseDistance * progress
-
-                homeSearch.alpha = 1f - progress
-
-                if (progress >= 1f) {
-                    homeSearch.visibility = View.INVISIBLE
-                } else {
-                    homeSearch.visibility = View.VISIBLE
-                }
-            }
-
             val scrollContent = LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 setBackgroundColor(Color.WHITE)
             }
+
+            scrollContent.addView(
+                homeSearch,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(46)
+                ).apply {
+                    leftMargin = 0
+                    rightMargin = 0
+                    topMargin = dp(10)
+                    bottomMargin = dp(14)
+                }
+            )
 
             scrollContent.addView(
                 messagesContainer,
