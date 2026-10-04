@@ -260,6 +260,23 @@ class MainActivity : Activity() {
             isFillViewport = true
             setBackgroundColor(Color.WHITE)
 
+            setOnScrollChangeListener { _, _, scrollY, _, _ ->
+                val collapseDistance = dp(56).toFloat()
+                val progress =
+                    (scrollY / collapseDistance).coerceIn(0f, 1f)
+
+                homeSearch.translationY =
+                    -collapseDistance * progress
+
+                homeSearch.alpha = 1f - progress
+
+                if (progress >= 1f) {
+                    homeSearch.visibility = View.INVISIBLE
+                } else {
+                    homeSearch.visibility = View.VISIBLE
+                }
+            }
+
             val scrollContent = LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 setBackgroundColor(Color.WHITE)
