@@ -225,10 +225,8 @@ companion object {
             selectionHeader,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(64)
-            ).apply {
-                bottomMargin = dp(0)
-            }
+                dp(72)
+            )
         )
 
         messagesContainer = LinearLayout(this).apply {
@@ -743,7 +741,7 @@ companion object {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(24), 0, 0)
+            setPadding(0, 0, 0, 0)
         }
 
         val allContainer = LinearLayout(this).apply {
