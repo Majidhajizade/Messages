@@ -50,11 +50,7 @@ class MainActivity : Activity() {
     private lateinit var selectionSelectedText: TextView
     private lateinit var selectionAllButton: TextView
     private lateinit var selectionActionBar: LinearLayout
-    private lateinit var homeSearch: EditText
-
-
-
-    companion object {
+companion object {
         private const val SMS_PERMISSION_REQUEST = 2001
         private const val PREFS = "messages_settings"
         private const val PINNED = "pinned_numbers"
@@ -218,12 +214,6 @@ class MainActivity : Activity() {
             )
         )
 
-        val headerLayerParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(72)
-        )
-
-        root.addView(headerLayer, headerLayerParams)
 
         root.addView(
             selectionHeader,
@@ -232,36 +222,6 @@ class MainActivity : Activity() {
                 dp(64)
             ).apply {
                 bottomMargin = dp(0)
-            }
-        )
-
-        val searchBackground = GradientDrawable().apply {
-            setColor(Color.rgb(242, 242, 247))
-            cornerRadius = dp(23).toFloat()
-        }
-
-        homeSearch = EditText(this).apply {
-            visibility = View.GONE
-            alpha = 0f
-            translationY = 0f
-            hint = "Search"
-            textSize = 16f
-            setSingleLine(true)
-            setTextColor(Color.BLACK)
-            setHintTextColor(secondaryText)
-            setPadding(dp(18), 0, dp(18), 0)
-            background = searchBackground
-        }
-
-        headerLayer.addView(
-            homeSearch,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(46)
-            ).apply {
-                leftMargin = 0
-                rightMargin = 0
-                topMargin = dp(26)
             }
         )
 
@@ -297,39 +257,6 @@ class MainActivity : Activity() {
             )
 
         }
-        var lastScrollY = 0
-
-        messagesScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            if (!selectionMode) {
-                val delta = scrollY - lastScrollY
-                lastScrollY = scrollY
-
-                if (delta < 0 && scrollY > 0) {
-
-                    homeSearch.visibility = View.VISIBLE
-                    homeSearch.alpha = 0f
-                    homeSearch.translationY = -dp(46).toFloat()
-
-                    homeSearch.animate()
-                        .alpha(1f)
-                        .translationY(0f)
-                        .setDuration(220L)
-                        .start()
-                } else if (delta > 0) {
-                    homeSearch.animate()
-                        .alpha(0f)
-                        .translationY(-dp(46).toFloat())
-                        .setDuration(220L)
-                        .withEndAction {
-                            if (!selectionMode) {
-                                homeSearch.visibility = View.GONE
-                            }
-                        }
-                        .start()
-                }
-            }
-        }
-
         val chatLayer = FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
@@ -1154,7 +1081,6 @@ class MainActivity : Activity() {
         selectedAddresses.add(address)
 
         homeHeader?.visibility = View.GONE
-        homeSearch.visibility = View.GONE
 
         updateSelectionUI()
     }
@@ -1299,7 +1225,6 @@ class MainActivity : Activity() {
         selectionHeader.visibility = View.GONE
         selectionActionBar.visibility = View.GONE
         homeHeader?.visibility = View.VISIBLE
-        homeSearch.visibility = View.VISIBLE
 
         for (i in 0 until messagesContainer.childCount) {
             val child = messagesContainer.getChildAt(i)
