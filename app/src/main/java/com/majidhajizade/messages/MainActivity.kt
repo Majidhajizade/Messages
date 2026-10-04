@@ -43,6 +43,7 @@ class MainActivity : Activity() {
     private var homeHeader: View? = null
     private var homeTitle: View? = null
     private var composeButtonView: View? = null
+    private var floatingComposeButton: View? = null
     private val rowViews = mutableMapOf<String, TextView>()
     private val selectedAddresses = linkedSetOf<String>()
     private var selectionMode = false
@@ -179,27 +180,6 @@ companion object {
             )
         )
 
-        val composeButton = TextView(this).apply {
-            text = "+"
-            textSize = 30f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            background = null
-            elevation = 0f
-
-            setOnClickListener {
-                openNewMessage()
-            }
-        }
-
-        composeButtonView = composeButton
-
-        header.addView(
-            composeButton,
-            LinearLayout.LayoutParams(dp(50), dp(50))
-        )
-
         val headerLayer = FrameLayout(this).apply {
             setBackgroundColor(Color.WHITE)
             clipChildren = false
@@ -213,16 +193,17 @@ companion object {
                 dp(72)
             )
         )
-        root.addView(
-            headerLayer,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+
+        headerLayer.addView(
+            selectionHeader,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
                 dp(72)
             )
         )
 
         root.addView(
-            selectionHeader,
+            headerLayer,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(72)
@@ -286,6 +267,81 @@ companion object {
         )
 
         selectionActionBar.bringToFront()
+
+        val floatingButton = FrameLayout(this).apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            elevation = dp(14).toFloat()
+            isClickable = true
+            isFocusable = true
+
+            addView(
+                MessengerComposeIcon(this@MainActivity),
+                FrameLayout.LayoutParams(
+                    dp(58),
+                    dp(58),
+                    Gravity.CENTER
+                )
+            )
+
+            setOnClickListener {
+                openNewMessage()
+            }
+
+            visibility = View.GONE
+            alpha = 0f
+            translationY = dp(18).toFloat()
+        }
+
+        floatingComposeButton = floatingButton
+
+        chatLayer.addView(
+            floatingButton,
+            FrameLayout.LayoutParams(
+                dp(58),
+                dp(58)
+            ).apply {
+                gravity = Gravity.BOTTOM or Gravity.END
+                rightMargin = dp(20)
+                bottomMargin = dp(84)
+            }
+        )
+
+        var lastScrollY = 0
+        var scrollInitialized = false
+
+        messagesScroll.setOnScrollChangeListener { _, scrollY, _, _, _ ->
+            if (!scrollInitialized) {
+                lastScrollY = scrollY
+                scrollInitialized = true
+                return@setOnScrollChangeListener
+            }
+
+            if (scrollY > lastScrollY + dp(2)) {
+                if (floatingButton.visibility != View.VISIBLE) {
+                    floatingButton.visibility = View.VISIBLE
+                    floatingButton.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(260L)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator())
+                        .start()
+                }
+            } else if (scrollY < lastScrollY - dp(2)) {
+                floatingButton.animate()
+                    .alpha(0f)
+                    .translationY(dp(18).toFloat())
+                    .setDuration(260L)
+                    .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+                    .withEndAction {
+                        if (floatingButton.alpha == 0f) {
+                            floatingButton.visibility = View.GONE
+                        }
+                    }
+                    .start()
+            }
+
+            lastScrollY = scrollY
+        }
 
         root.addView(
             chatLayer,
@@ -979,6 +1035,11 @@ companion object {
         selectedAddresses.add(address)
 
         homeHeader?.visibility = View.GONE
+        selectionHeader.visibility = View.VISIBLE
+        floatingComposeButton?.animate()?.cancel()
+        floatingComposeButton?.visibility = View.GONE
+        floatingComposeButton?.alpha = 0f
+        floatingComposeButton?.translationY = dp(18).toFloat()
 
         updateSelectionUI()
     }
@@ -1123,6 +1184,9 @@ companion object {
         selectionHeader.visibility = View.GONE
         selectionActionBar.visibility = View.GONE
         homeHeader?.visibility = View.VISIBLE
+        floatingComposeButton?.alpha = 0f
+        floatingComposeButton?.translationY = dp(18).toFloat()
+        floatingComposeButton?.visibility = View.GONE
 
         for (i in 0 until messagesContainer.childCount) {
             val child = messagesContainer.getChildAt(i)
@@ -1151,6 +1215,83 @@ companion object {
         )
         intent.putExtra("phone", address)
         startActivity(intent)
+    }
+
+    private class MessengerComposeIcon(
+        context: android.content.Context
+    ) : View(context) {
+
+        private val paint = android.graphics.Paint(
+            android.graphics.Paint.ANTI_ALIAS_FLAG
+        ).apply {
+            color = Color.rgb(205, 205, 210)
+            style = android.graphics.Paint.Style.FILL
+        }
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            super.onDraw(canvas)
+
+            val cx = width / 2f
+            val cy = height / 2f
+            val r = width * 0.48f
+
+            paint.color = Color.WHITE
+            canvas.drawCircle(cx, cy, r, paint)
+
+            paint.color = Color.rgb(205, 205, 210)
+
+            val bubble = android.graphics.Path().apply {
+                moveTo(cx - r * 0.43f, cy - r * 0.18f)
+                cubicTo(
+                    cx - r * 0.43f, cy - r * 0.48f,
+                    cx - r * 0.18f, cy - r * 0.58f,
+                    cx + r * 0.18f, cy - r * 0.58f
+                )
+                cubicTo(
+                    cx + r * 0.52f, cy - r * 0.58f,
+                    cx + r * 0.60f, cy - r * 0.32f,
+                    cx + r * 0.60f, cy - r * 0.02f
+                )
+                cubicTo(
+                    cx + r * 0.60f, cy + r * 0.30f,
+                    cx + r * 0.38f, cy + r * 0.50f,
+                    cx + r * 0.02f, cy + r * 0.50f
+                )
+                lineTo(cx - r * 0.28f, cy + r * 0.68f)
+                lineTo(cx - r * 0.18f, cy + r * 0.42f)
+                cubicTo(
+                    cx - r * 0.40f, cy + r * 0.30f,
+                    cx - r * 0.43f, cy + r * 0.08f,
+                    cx - r * 0.43f, cy - r * 0.18f
+                )
+                close()
+            }
+
+            canvas.drawPath(bubble, paint)
+
+            paint.color = Color.WHITE
+            paint.strokeWidth = r * 0.11f
+            paint.style = android.graphics.Paint.Style.STROKE
+            paint.strokeCap = android.graphics.Paint.Cap.ROUND
+
+            canvas.drawLine(
+                cx - r * 0.18f,
+                cy,
+                cx + r * 0.22f,
+                cy,
+                paint
+            )
+
+            canvas.drawLine(
+                cx + r * 0.02f,
+                cy - r * 0.20f,
+                cx + r * 0.02f,
+                cy + r * 0.20f,
+                paint
+            )
+
+            paint.style = android.graphics.Paint.Style.FILL
+        }
     }
 
     private fun openNewMessage() {
