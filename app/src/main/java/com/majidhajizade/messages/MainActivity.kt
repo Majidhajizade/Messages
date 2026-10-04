@@ -281,6 +281,19 @@ class MainActivity : Activity() {
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
             )
+
+            setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+                if (!selectionMode) {
+                    homeSearch.visibility =
+                        if (scrollY > oldScrollY && scrollY > dp(20)) {
+                            View.GONE
+                        } else if (scrollY < oldScrollY) {
+                            View.VISIBLE
+                        } else {
+                            homeSearch.visibility
+                        }
+                }
+            }
         }
 
         val chatLayer = FrameLayout(this).apply {
