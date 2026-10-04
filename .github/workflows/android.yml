@@ -59,7 +59,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view latest --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release upload latest app/build/outputs/apk/debug/app-debug.apk --repo "${{ github.repository }}" --clobber
+            gh release edit latest \
+              --repo "${{ github.repository }}" \
+              --target "${{ github.sha }}"
+            gh release upload latest app/build/outputs/apk/debug/app-debug.apk \
+              --repo "${{ github.repository }}" \
+              --clobber
           else
             gh release create latest app/build/outputs/apk/debug/app-debug.apk \
               --repo "${{ github.repository }}" \
