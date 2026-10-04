@@ -328,7 +328,7 @@ companion object {
                     .alpha(0f)
                     .translationY(dp(22).toFloat())
                     .setDuration(300L)
-                    .setInterpolator(android.view.animation.FastOutSlowInInterpolator())
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
                     .start()
 
             } else if (scrollY < lastScrollY - dp(2)) {
@@ -339,7 +339,7 @@ companion object {
                     .alpha(1f)
                     .translationY(0f)
                     .setDuration(300L)
-                    .setInterpolator(android.view.animation.FastOutSlowInInterpolator())
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
                     .start()
             }
 
