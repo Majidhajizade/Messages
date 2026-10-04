@@ -526,7 +526,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = null
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setPadding(0, dp(8), 0, dp(8))
             clipToOutline = false
             elevation = 0f
         }
