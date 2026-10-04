@@ -287,9 +287,9 @@ companion object {
                 openNewMessage()
             }
 
-            visibility = View.GONE
-            alpha = 0f
-            translationY = dp(18).toFloat()
+            visibility = View.VISIBLE
+            alpha = 1f
+            translationY = 0f
         }
 
         floatingComposeButton = floatingButton
