@@ -169,7 +169,7 @@ class MainActivity : Activity() {
             textSize = 34f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
-            translationY = dp(7).toFloat()
+            translationY = dp(13).toFloat()
         }
 
         homeTitle = title
@@ -208,7 +208,7 @@ class MainActivity : Activity() {
             header,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(64)
+                dp(72)
             )
         )
 
@@ -229,7 +229,7 @@ class MainActivity : Activity() {
 
         homeSearch = EditText(this).apply {
             visibility = View.VISIBLE
-            alpha = 1f
+            alpha = 0f
             translationY = 0f
             hint = "Search"
             textSize = 16f
@@ -284,23 +284,26 @@ class MainActivity : Activity() {
                 )
             )
 
+            var lastScrollY = 0
+
             setOnScrollChangeListener { _, _, scrollY, _, _ ->
                 if (!selectionMode) {
-                    val moveDistance = dp(42).toFloat()
-                    val fadeStart = dp(28).toFloat()
-                    val fadeDistance = dp(38).toFloat()
+                    val delta = scrollY - lastScrollY
+                    lastScrollY = scrollY
 
-                    val moveProgress =
-                        (scrollY / moveDistance).coerceIn(0f, 1f)
+                    if (delta < 0) {
+                        homeSearch.animate()
+                            .alpha(1f)
+                            .setDuration(180L)
+                            .start()
+                    } else if (delta > 0) {
+                        homeSearch.animate()
+                            .alpha(0f)
+                            .setDuration(180L)
+                            .start()
+                    }
 
-                    val fadeProgress =
-                        ((scrollY - fadeStart) / fadeDistance)
-                            .coerceIn(0f, 1f)
-
-                    homeSearch.visibility = View.VISIBLE
-                    homeSearch.translationY =
-                        -moveDistance * moveProgress
-                    homeSearch.alpha = 1f - fadeProgress
+                    homeSearch.translationY = 0f
                 }
             }
         }
