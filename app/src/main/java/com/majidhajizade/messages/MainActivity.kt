@@ -228,7 +228,9 @@ class MainActivity : Activity() {
         }
 
         homeSearch = EditText(this).apply {
-            visibility = View.GONE
+            visibility = View.VISIBLE
+            alpha = 1f
+            translationY = 0f
             hint = "Search"
             textSize = 16f
             setSingleLine(true)
@@ -282,16 +284,23 @@ class MainActivity : Activity() {
                 )
             )
 
-            setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+            setOnScrollChangeListener { _, _, scrollY, _, _ ->
                 if (!selectionMode) {
-                    homeSearch.visibility =
-                        if (scrollY > oldScrollY && scrollY > dp(20)) {
-                            View.GONE
-                        } else if (scrollY < oldScrollY) {
-                            View.VISIBLE
-                        } else {
-                            homeSearch.visibility
-                        }
+                    val moveDistance = dp(42).toFloat()
+                    val fadeStart = dp(28).toFloat()
+                    val fadeDistance = dp(38).toFloat()
+
+                    val moveProgress =
+                        (scrollY / moveDistance).coerceIn(0f, 1f)
+
+                    val fadeProgress =
+                        ((scrollY - fadeStart) / fadeDistance)
+                            .coerceIn(0f, 1f)
+
+                    homeSearch.visibility = View.VISIBLE
+                    homeSearch.translationY =
+                        -moveDistance * moveProgress
+                    homeSearch.alpha = 1f - fadeProgress
                 }
             }
         }
