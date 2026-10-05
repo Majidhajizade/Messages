@@ -557,11 +557,17 @@ companion object {
 
                 override fun onError(message: String) {
                     runOnUiThread {
-                        meshStatusText?.text = "Connection unavailable"
+                        meshStatusText?.text = message
                         meshStatusText?.setTextColor(
                             Color.rgb(190, 55, 55)
                         )
+                        Toast.makeText(
+                            this@MainActivity,
+                            message,
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
+                }
                 }
             }
         )
