@@ -72,6 +72,7 @@ class MainActivity : Activity() {
     private var meshStatusText: TextView? = null
     private var meshDevicesContainer: LinearLayout? = null
     private val meshDevices = linkedMapOf<String, TextView>()
+    private var selectedMeshId: String? = null
     private val rowViews = mutableMapOf<String, TextView>()
     private val selectedAddresses = linkedSetOf<String>()
     private var selectionMode = false
@@ -635,6 +636,61 @@ companion object {
         }
     }
 
+    private fun saveMeshDevice(meshId: String) {
+        val saved = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getStringSet("saved_mesh_devices", emptySet())
+            ?.toMutableSet()
+            ?: mutableSetOf()
+
+        saved.add(meshId)
+
+        getSharedPreferences(PREFS, MODE_PRIVATE)
+            .edit()
+            .putStringSet("saved_mesh_devices", saved)
+            .apply()
+    }
+
+    private fun selectMeshDevice(meshId: String) {
+        val normalized = meshId.trim().uppercase(Locale.US)
+
+        if (!normalized.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+            return
+        }
+
+        selectedMeshId = normalized
+        saveMeshDevice(normalized)
+        meshManager?.setTargetMeshId(normalized)
+
+        meshDevices.values.forEach { device ->
+            val deviceId = device.text
+                .toString()
+                .substringBefore(" •")
+                .trim()
+                .uppercase(Locale.US)
+
+            device.setBackgroundColor(
+                if (deviceId == normalized) {
+                    Color.rgb(225, 240, 255)
+                } else {
+                    Color.rgb(248, 248, 250)
+                }
+            )
+        }
+
+        meshStatusText?.text =
+            "Selected destination  •  $normalized"
+    }
+
+    private fun loadSavedMeshDevices(): Set<String> {
+        return getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getStringSet("saved_mesh_devices", emptySet())
+            ?.filter {
+                it.matches(Regex("MJ-[A-Z0-9]{6}"))
+            }
+            ?.toSet()
+            ?: emptySet()
+    }
+
     private fun addMeshDevice(
         endpointId: String,
         name: String
@@ -657,7 +713,7 @@ companion object {
             isClickable = true
 
             setOnClickListener {
-                openMeshConversation(endpointId)
+                selectMeshDevice(name)
             }
         }
 
@@ -728,6 +784,13 @@ companion object {
             settings,
             LinearLayout.LayoutParams(dp(250), dp(64))
         )
+
+        val savedMeshDevices = loadSavedMeshDevices()
+
+        if (selectedMeshId == null && savedMeshDevices.isNotEmpty()) {
+            selectedMeshId = savedMeshDevices.first()
+            meshManager?.setTargetMeshId(selectedMeshId)
+        }
 
         meshPopup = PopupWindow(
             card,
