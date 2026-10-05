@@ -294,6 +294,8 @@ class ConversationActivity : Activity() {
                 checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) ==
                 PackageManager.PERMISSION_GRANTED &&
                 checkSelfPermission(Manifest.permission.BLUETOOTH_ADVERTISE) ==
+                PackageManager.PERMISSION_GRANTED &&
+            checkSelfPermission(Manifest.permission.NEARBY_WIFI_DEVICES) ==
                 PackageManager.PERMISSION_GRANTED
         } else {
             checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==

@@ -143,10 +143,6 @@ companion object {
     override fun onResume() {
         super.onResume()
 
-        if (hasNearbyPermissions()) {
-            meshManager?.start()
-        }
-
         if (checkSelfPermission(Manifest.permission.READ_SMS)
             == PackageManager.PERMISSION_GRANTED
         ) {
