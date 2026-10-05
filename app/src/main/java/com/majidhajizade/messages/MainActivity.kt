@@ -831,6 +831,26 @@ companion object {
             )
         )
 
+        val myMeshId = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getString(MESH_ID, null)
+            ?: "Unknown"
+
+        val myMeshIdText = TextView(this).apply {
+            text = "My Mesh ID  •  $myMeshId"
+            textSize = 14f
+            setTextColor(Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, dp(2), 0, dp(10))
+        }
+
+        card.addView(
+            myMeshIdText,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(34)
+            )
+        )
+
         val searchInput = EditText(this).apply {
             hint = "Search Mesh ID  •  MJ-XXXXXX"
             textSize = 14f
