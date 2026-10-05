@@ -320,26 +320,34 @@ companion object {
                 return@setOnScrollChangeListener
             }
 
-            if (scrollY > lastScrollY + dp(2)) {
-                floatingButton.animate()
-                    .cancel()
+            if (scrollY < lastScrollY - dp(2)) {
+                // Scrolling up: smoothly shrink and hide.
+                floatingButton.animate().cancel()
 
                 floatingButton.animate()
                     .alpha(0f)
-                    .translationY(dp(22).toFloat())
-                    .setDuration(300L)
-                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .scaleX(0.72f)
+                    .scaleY(0.72f)
+                    .translationY(dp(10).toFloat())
+                    .setDuration(320L)
+                    .setInterpolator(
+                        android.view.animation.AccelerateDecelerateInterpolator()
+                    )
                     .start()
 
-            } else if (scrollY < lastScrollY - dp(2)) {
-                floatingButton.animate()
-                    .cancel()
+            } else if (scrollY > lastScrollY + dp(2)) {
+                // Scrolling down: smoothly grow and show.
+                floatingButton.animate().cancel()
 
                 floatingButton.animate()
                     .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
                     .translationY(0f)
-                    .setDuration(300L)
-                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .setDuration(360L)
+                    .setInterpolator(
+                        android.view.animation.DecelerateInterpolator()
+                    )
                     .start()
             }
 
