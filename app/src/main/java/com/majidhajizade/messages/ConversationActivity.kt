@@ -127,7 +127,18 @@ class ConversationActivity : Activity() {
         offlineMeshManager = OfflineMeshManager(
             this,
             object : OfflineMeshManager.Listener {
-                override fun onPeerConnected(endpointId: String, name: String) {
+                override fun onPeerDiscovered(
+                endpointId: String,
+                name: String
+            ) {
+            }
+
+            override fun onPeerLost(
+                endpointId: String
+            ) {
+            }
+
+            override fun onPeerConnected(endpointId: String, name: String) {
                     offlinePeerConnected = true
                     runOnUiThread {
                         Toast.makeText(
@@ -957,25 +968,6 @@ class ConversationActivity : Activity() {
                 "SMS failed: ${e.message ?: "Unknown error"}",
                 Toast.LENGTH_LONG
             ).show()
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(
-            requestCode,
-            permissions,
-            grantResults
-        )
-
-        if (requestCode == SEND_PERMISSION &&
-            grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
-        ) {
-            sendMessage()
         }
     }
 
