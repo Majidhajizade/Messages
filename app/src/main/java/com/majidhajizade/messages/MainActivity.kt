@@ -1988,6 +1988,18 @@ companion object {
     }
 
 
+    override fun onPause() {
+        meshManager?.stop()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (hasNearbyPermissions()) {
+            meshManager?.start()
+        }
+    }
+
     override fun onDestroy() {
         meshPopup?.dismiss()
         meshManager?.stop()
