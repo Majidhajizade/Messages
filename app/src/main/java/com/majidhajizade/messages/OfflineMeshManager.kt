@@ -5,14 +5,17 @@ import android.os.Handler
 import android.os.Looper
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.ConnectionInfo
-import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback
 import com.google.android.gms.nearby.connection.ConnectionResolution
 import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback
+import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback
 import com.google.android.gms.nearby.connection.Payload
 import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
+import java.util.Locale
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class OfflineMeshManager(
     context: Context,
@@ -34,7 +37,14 @@ class OfflineMeshManager(
             "com.majidhajizade.messages.offline"
 
         private const val HANDSHAKE_PREFIX =
-            "MESSAGES_MESH_HANDSHAKE|v1|"
+            "MESSAGES_MESH_HANDSHAKE|v2|"
+
+        private const val MESSAGE_PREFIX =
+            "MESSAGES_MESH_MESSAGE|v1|"
+
+        private const val MAX_TTL = 6
+
+        private const val SEEN_LIMIT = 2000
 
         private val STRATEGY = Strategy.P2P_CLUSTER
     }
@@ -42,42 +52,60 @@ class OfflineMeshManager(
     private val connectionsClient =
         Nearby.getConnectionsClient(context.applicationContext)
 
-    private val handler = Handler(Looper.getMainLooper())
+    private val handler =
+        Handler(Looper.getMainLooper())
 
-    private val connectedEndpoints = mutableSetOf<String>()
-    private val connectingEndpoints = mutableSetOf<String>()
-    private val handshakeEndpoints = mutableSetOf<String>()
-    private val endpointNames = mutableMapOf<String, String>()
+    private val connectedEndpoints =
+        ConcurrentHashMap.newKeySet<String>()
+
+    private val connectingEndpoints =
+        ConcurrentHashMap.newKeySet<String>()
+
+    private val handshakeEndpoints =
+        ConcurrentHashMap.newKeySet<String>()
+
+    private val endpointNames =
+        ConcurrentHashMap<String, String>()
+
+    private val handshakeTimeouts =
+        ConcurrentHashMap<String, Runnable>()
+
+    private val seenMessages =
+        object : LinkedHashSet<String>() {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<String, Boolean>?
+            ): Boolean = size > SEEN_LIMIT
+        }
+
+    private val seenLock = Any()
 
     @Volatile
     private var targetMeshId: String? = null
 
+    @Volatile
+    private var started = false
+
     fun setTargetMeshId(meshId: String?) {
         targetMeshId = meshId
             ?.trim()
-            ?.uppercase(java.util.Locale.US)
+            ?.uppercase(Locale.US)
             ?.takeIf { it.matches(Regex("MJ-[A-Z0-9]{6}")) }
 
-        connectingEndpoints.forEach { endpointId ->
-            if (
-                targetMeshId != null &&
-                endpointNames[endpointId] != targetMeshId
-            ) {
-                connectionsClient.disconnectFromEndpoint(endpointId)
-            }
-        }
+        // Keep all nearby peers connected.
+        // The destination is carried inside each mesh message,
+        // allowing intermediate peers to relay multi-hop traffic.
     }
 
     fun getTargetMeshId(): String? = targetMeshId
 
-    private val handshakeTimeouts = mutableMapOf<String, Runnable>()
-
     private fun sendHandshake(endpointId: String) {
         val handshake = Payload.fromBytes(
-            "$HANDSHAKE_PREFIX$meshId".toByteArray(Charsets.UTF_8)
+            "$HANDSHAKE_PREFIX$meshId"
+                .toByteArray(Charsets.UTF_8)
         )
 
-        connectionsClient.sendPayload(endpointId, handshake)
+        connectionsClient
+            .sendPayload(endpointId, handshake)
             .addOnFailureListener {
                 listener.onError(
                     "Mesh handshake failed: ${it.message ?: "unknown error"}"
@@ -89,9 +117,13 @@ class OfflineMeshManager(
         val timeout = Runnable {
             if (!connectedEndpoints.contains(endpointId)) {
                 handshakeEndpoints.remove(endpointId)
+
                 listener.onError(
-                    "Mesh handshake timeout: ${endpointNames[endpointId] ?: endpointId}"
+                    "Mesh handshake timeout: ${
+                        endpointNames[endpointId] ?: endpointId
+                    }"
                 )
+
                 connectionsClient.disconnectFromEndpoint(endpointId)
             }
         }
@@ -104,62 +136,201 @@ class OfflineMeshManager(
         endpointId: String,
         remoteMeshId: String
     ) {
-        if (!remoteMeshId.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+        val normalized =
+            remoteMeshId.trim().uppercase(Locale.US)
+
+        if (!normalized.matches(Regex("MJ-[A-Z0-9]{6}"))) {
             listener.onError(
-                "Invalid Mesh ID received from ${endpointNames[endpointId] ?: endpointId}"
+                "Invalid Mesh ID received from ${
+                    endpointNames[endpointId] ?: endpointId
+                }"
             )
+
             connectionsClient.disconnectFromEndpoint(endpointId)
             return
         }
 
         handshakeTimeouts.remove(endpointId)?.let(handler::removeCallbacks)
 
+        val wanted = targetMeshId
+
+        if (wanted != null &&
+            !normalized.equals(wanted, ignoreCase = true)
+        ) {
+            connectionsClient.disconnectFromEndpoint(endpointId)
+            return
+        }
+
+        endpointNames[endpointId] = normalized
+
         if (handshakeEndpoints.add(endpointId)) {
             connectedEndpoints.add(endpointId)
 
             listener.onPeerConnected(
                 endpointId,
-                remoteMeshId
+                normalized
             )
         }
     }
 
-    private val payloadCallback = object : PayloadCallback() {
+    private fun rememberMessage(messageId: String): Boolean {
+        synchronized(seenLock) {
+            if (!seenMessages.add(messageId)) {
+                return false
+            }
 
-        override fun onPayloadReceived(
-            endpointId: String,
-            payload: Payload
-        ) {
-            val bytes = payload.asBytes() ?: return
-            val message = bytes.toString(Charsets.UTF_8)
+            if (seenMessages.size > SEEN_LIMIT) {
+                val iterator = seenMessages.iterator()
+                iterator.next()
+                iterator.remove()
+            }
 
-            if (message.startsWith(HANDSHAKE_PREFIX)) {
-                val remoteMeshId =
-                    message.removePrefix(HANDSHAKE_PREFIX).trim()
+            return true
+        }
+    }
 
-                completeHandshake(
+    private data class MeshMessage(
+        val id: String,
+        val source: String,
+        val destination: String?,
+        val ttl: Int,
+        val body: String
+    )
+
+    private fun encodeMessage(message: MeshMessage): String {
+        return listOf(
+            MESSAGE_PREFIX.removeSuffix("|"),
+            message.id,
+            message.source,
+            message.destination ?: "*",
+            message.ttl.toString(),
+            message.body
+        ).joinToString("|")
+    }
+
+    private fun decodeMessage(raw: String): MeshMessage? {
+        if (!raw.startsWith(MESSAGE_PREFIX)) {
+            return null
+        }
+
+        val parts = raw.split("|", limit = 7)
+
+        if (parts.size < 7) {
+            return null
+        }
+
+        val ttl = parts[5].toIntOrNull() ?: return null
+
+        if (ttl < 0 || ttl > MAX_TTL) {
+            return null
+        }
+
+        return MeshMessage(
+            id = parts[2],
+            source = parts[3],
+            destination = parts[4].takeIf { it != "*" },
+            ttl = ttl,
+            body = parts[6]
+        )
+    }
+
+    private fun forwardMessage(
+        message: MeshMessage,
+        incomingEndpointId: String
+    ) {
+        if (message.ttl <= 0) {
+            return
+        }
+
+        val forwarded = message.copy(
+            ttl = message.ttl - 1
+        )
+
+        val payload = Payload.fromBytes(
+            encodeMessage(forwarded)
+                .toByteArray(Charsets.UTF_8)
+        )
+
+        connectedEndpoints
+            .filter { it != incomingEndpointId }
+            .forEach { endpointId ->
+                connectionsClient.sendPayload(
                     endpointId,
-                    remoteMeshId
+                    payload
                 )
-                return
             }
-
-            if (!connectedEndpoints.contains(endpointId)) {
-                return
-            }
-
-            listener.onMessage(
-                endpointId,
-                message
-            )
-        }
-
-        override fun onPayloadTransferUpdate(
-            endpointId: String,
-            update: PayloadTransferUpdate
-        ) {
-        }
     }
+
+    private val payloadCallback =
+        object : PayloadCallback() {
+
+            override fun onPayloadReceived(
+                endpointId: String,
+                payload: Payload
+            ) {
+                val bytes = payload.asBytes() ?: return
+                val raw = bytes.toString(Charsets.UTF_8)
+
+                if (raw.startsWith(HANDSHAKE_PREFIX)) {
+                    val remoteMeshId =
+                        raw.removePrefix(HANDSHAKE_PREFIX).trim()
+
+                    completeHandshake(
+                        endpointId,
+                        remoteMeshId
+                    )
+
+                    return
+                }
+
+                if (!connectedEndpoints.contains(endpointId)) {
+                    return
+                }
+
+                val meshMessage = decodeMessage(raw)
+
+                if (meshMessage == null) {
+                    // Backward compatibility with plain messages.
+                    listener.onMessage(
+                        endpointId,
+                        raw
+                    )
+                    return
+                }
+
+                if (!rememberMessage(meshMessage.id)) {
+                    return
+                }
+
+                val destination = meshMessage.destination
+
+                if (
+                    destination == null ||
+                    destination.equals(meshId, ignoreCase = true)
+                ) {
+                    listener.onMessage(
+                        endpointId,
+                        meshMessage.body
+                    )
+                }
+
+                if (
+                    destination == null ||
+                    !destination.equals(meshId, ignoreCase = true)
+                ) {
+                    forwardMessage(
+                        meshMessage,
+                        endpointId
+                    )
+                }
+            }
+
+            override fun onPayloadTransferUpdate(
+                endpointId: String,
+                update: PayloadTransferUpdate
+            ) {
+            }
+        }
 
     private val connectionLifecycleCallback =
         object : ConnectionLifecycleCallback() {
@@ -171,16 +342,21 @@ class OfflineMeshManager(
                 endpointNames[endpointId] =
                     connectionInfo.endpointName
 
-                connectionsClient.acceptConnection(
-                    endpointId,
-                    payloadCallback
-                ).addOnSuccessListener {
-                    sendHandshake(endpointId)
-                }.addOnFailureListener {
-                    listener.onError(
-                        "Accept connection failed: ${it.message ?: "unknown error"}"
+                connectionsClient
+                    .acceptConnection(
+                        endpointId,
+                        payloadCallback
                     )
-                }
+                    .addOnSuccessListener {
+                        sendHandshake(endpointId)
+                    }
+                    .addOnFailureListener {
+                        listener.onError(
+                            "Accept connection failed: ${
+                                it.message ?: "unknown error"
+                            }"
+                        )
+                    }
             }
 
             override fun onConnectionResult(
@@ -193,17 +369,25 @@ class OfflineMeshManager(
                     sendHandshake(endpointId)
                 } else {
                     listener.onError(
-                        "Connection failed: ${result.status.statusMessage}"
+                        "Connection failed: ${
+                            result.status.statusMessage
+                        }"
                     )
                 }
             }
 
-            override fun onDisconnected(endpointId: String) {
+            override fun onDisconnected(
+                endpointId: String
+            ) {
                 connectingEndpoints.remove(endpointId)
                 connectedEndpoints.remove(endpointId)
                 handshakeEndpoints.remove(endpointId)
 
-                handshakeTimeouts.remove(endpointId)?.let(handler::removeCallbacks)
+                handshakeTimeouts
+                    .remove(endpointId)
+                    ?.let(handler::removeCallbacks)
+
+                endpointNames.remove(endpointId)
 
                 listener.onPeerDisconnected(endpointId)
             }
@@ -217,6 +401,7 @@ class OfflineMeshManager(
                 info: DiscoveredEndpointInfo
             ) {
                 val remoteName = info.endpointName
+
                 endpointNames[endpointId] = remoteName
 
                 listener.onPeerDiscovered(
@@ -224,11 +409,14 @@ class OfflineMeshManager(
                     remoteName
                 )
 
-                val wantedMeshId = targetMeshId
+                val wanted = targetMeshId
 
                 if (
-                    wantedMeshId != null &&
-                    !remoteName.equals(wantedMeshId, ignoreCase = true)
+                    wanted != null &&
+                    !remoteName.equals(
+                        wanted,
+                        ignoreCase = true
+                    )
                 ) {
                     listener.onPeerLost(endpointId)
                     return
@@ -241,87 +429,156 @@ class OfflineMeshManager(
                     return
                 }
 
-                if (!remoteName.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+                if (
+                    !remoteName.matches(
+                        Regex("MJ-[A-Z0-9]{6}")
+                    )
+                ) {
                     connectingEndpoints.remove(endpointId)
+
                     listener.onError(
                         "Ignored device with invalid Mesh ID: $remoteName"
                     )
+
                     return
                 }
 
-                connectionsClient.requestConnection(
-                    meshId,
-                    endpointId,
-                    connectionLifecycleCallback
-                ).addOnFailureListener {
-                    connectingEndpoints.remove(endpointId)
-
-                    listener.onError(
-                        "Request connection failed: ${it.message ?: "unknown error"}"
+                connectionsClient
+                    .requestConnection(
+                        meshId,
+                        endpointId,
+                        connectionLifecycleCallback
                     )
-                }
+                    .addOnFailureListener {
+                        connectingEndpoints.remove(endpointId)
+
+                        listener.onError(
+                            "Request connection failed: ${
+                                it.message ?: "unknown error"
+                            }"
+                        )
+                    }
             }
 
-            override fun onEndpointLost(endpointId: String) {
+            override fun onEndpointLost(
+                endpointId: String
+            ) {
                 endpointNames.remove(endpointId)
                 connectingEndpoints.remove(endpointId)
                 handshakeEndpoints.remove(endpointId)
 
-                handshakeTimeouts.remove(endpointId)?.let(handler::removeCallbacks)
+                handshakeTimeouts
+                    .remove(endpointId)
+                    ?.let(handler::removeCallbacks)
 
                 listener.onPeerLost(endpointId)
             }
         }
 
-    @Volatile
-    private var started = false
-
     @Synchronized
     fun start() {
-        if (started) return
+        if (started) {
+            return
+        }
+
         started = true
 
         val advertisingOptions =
-            com.google.android.gms.nearby.connection.AdvertisingOptions.Builder()
+            com.google.android.gms.nearby.connection.AdvertisingOptions
+                .Builder()
                 .setStrategy(STRATEGY)
                 .build()
 
         val discoveryOptions =
-            com.google.android.gms.nearby.connection.DiscoveryOptions.Builder()
+            com.google.android.gms.nearby.connection.DiscoveryOptions
+                .Builder()
                 .setStrategy(STRATEGY)
                 .build()
 
-        connectionsClient.startAdvertising(
-            meshId,
-            SERVICE_ID,
-            connectionLifecycleCallback,
-            advertisingOptions
-        ).addOnFailureListener { error ->
-            val message = error.message ?: "unknown error"
+        connectionsClient
+            .startAdvertising(
+                meshId,
+                SERVICE_ID,
+                connectionLifecycleCallback,
+                advertisingOptions
+            )
+            .addOnFailureListener { error ->
+                val message =
+                    error.message ?: "unknown error"
 
-            if (!message.contains("already advertising", ignoreCase = true)) {
-                listener.onError("Advertising failed: $message")
+                if (
+                    !message.contains(
+                        "already advertising",
+                        ignoreCase = true
+                    )
+                ) {
+                    listener.onError(
+                        "Advertising failed: $message"
+                    )
+                }
             }
-        }
 
-        connectionsClient.startDiscovery(
-            SERVICE_ID,
-            discoveryCallback,
-            discoveryOptions
-        ).addOnFailureListener { error ->
-            val message = error.message ?: "unknown error"
+        connectionsClient
+            .startDiscovery(
+                SERVICE_ID,
+                discoveryCallback,
+                discoveryOptions
+            )
+            .addOnFailureListener { error ->
+                val message =
+                    error.message ?: "unknown error"
 
-            if (!message.contains("already discovering", ignoreCase = true)) {
-                listener.onError("Discovery failed: $message")
+                if (
+                    !message.contains(
+                        "already discovering",
+                        ignoreCase = true
+                    )
+                ) {
+                    listener.onError(
+                        "Discovery failed: $message"
+                    )
+                }
             }
-        }
     }
 
     fun sendMessage(message: String) {
-        if (message.isEmpty()) return
+        sendMeshMessage(
+            destination = targetMeshId,
+            message = message
+        )
+    }
+
+    fun sendMeshMessage(
+        destination: String?,
+        message: String
+    ) {
+        if (message.isEmpty()) {
+            return
+        }
+
+        val normalizedDestination =
+            destination
+                ?.trim()
+                ?.uppercase(Locale.US)
+                ?.takeIf {
+                    it.matches(
+                        Regex("MJ-[A-Z0-9]{6}")
+                    )
+                }
+
+        val meshMessage = MeshMessage(
+            id = UUID.randomUUID().toString(),
+            source = meshId,
+            destination = normalizedDestination,
+            ttl = MAX_TTL,
+            body = message
+        )
+
+        rememberMessage(meshMessage.id)
 
         val payload = Payload.fromBytes(
-            message.toByteArray(Charsets.UTF_8)
+            encodeMessage(meshMessage)
+                .toByteArray(Charsets.UTF_8)
         )
 
         connectedEndpoints.forEach { endpointId ->
@@ -336,7 +593,10 @@ class OfflineMeshManager(
     fun stop() {
         started = false
 
-        handshakeTimeouts.values.forEach(handler::removeCallbacks)
+        handshakeTimeouts
+            .values
+            .forEach(handler::removeCallbacks)
+
         handshakeTimeouts.clear()
 
         connectionsClient.stopAdvertising()
