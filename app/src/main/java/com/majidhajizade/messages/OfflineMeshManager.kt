@@ -273,30 +273,47 @@ class OfflineMeshManager(
             }
         }
 
+    @Volatile
+    private var started = false
+
+    @Synchronized
     fun start() {
+        if (started) return
+        started = true
+
+        val advertisingOptions =
+            com.google.android.gms.nearby.connection.AdvertisingOptions.Builder()
+                .setStrategy(STRATEGY)
+                .build()
+
+        val discoveryOptions =
+            com.google.android.gms.nearby.connection.DiscoveryOptions.Builder()
+                .setStrategy(STRATEGY)
+                .build()
+
         connectionsClient.startAdvertising(
             meshId,
             SERVICE_ID,
             connectionLifecycleCallback,
-            com.google.android.gms.nearby.connection.AdvertisingOptions.Builder()
-                .setStrategy(STRATEGY)
-                .build()
-        ).addOnFailureListener {
-            listener.onError(
-                "Advertising failed: ${it.message ?: "unknown error"}"
-            )
+            advertisingOptions
+        ).addOnFailureListener { error ->
+            val message = error.message ?: "unknown error"
+
+            if (!message.contains("already advertising", ignoreCase = true)) {
+                listener.onError("Advertising failed: $message")
+            }
         }
 
         connectionsClient.startDiscovery(
             SERVICE_ID,
             discoveryCallback,
-            com.google.android.gms.nearby.connection.DiscoveryOptions.Builder()
-                .setStrategy(STRATEGY)
-                .build()
-        ).addOnFailureListener {
-            listener.onError(
-                "Discovery failed: ${it.message ?: "unknown error"}"
-            )
+            discoveryOptions
+        ).addOnFailureListener { error ->
+            val message = error.message ?: "unknown error"
+
+            if (!message.contains("already discovering", ignoreCase = true)) {
+                listener.onError("Discovery failed: $message")
+            }
         }
     }
 
@@ -315,7 +332,10 @@ class OfflineMeshManager(
         }
     }
 
+    @Synchronized
     fun stop() {
+        started = false
+
         handshakeTimeouts.values.forEach(handler::removeCallbacks)
         handshakeTimeouts.clear()
 
