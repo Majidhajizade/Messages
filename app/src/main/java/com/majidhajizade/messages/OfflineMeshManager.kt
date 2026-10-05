@@ -323,7 +323,8 @@ class OfflineMeshManager(
         val source: String,
         val destination: String?,
         val ttl: Int,
-        val body: String
+        val body: String,
+        val encrypted: Boolean
     )
 
     private fun encodeMessage(message: MeshMessage): String {
@@ -333,6 +334,7 @@ class OfflineMeshManager(
             message.source,
             message.destination ?: "*",
             message.ttl.toString(),
+            if (message.encrypted) "1" else "0",
             message.body
         ).joinToString("|")
     }
@@ -342,13 +344,15 @@ class OfflineMeshManager(
             return null
         }
 
-        val parts = raw.split("|", limit = 7)
+        val parts = raw.split("|", limit = 8)
 
-        if (parts.size < 7) {
+        if (parts.size < 8) {
             return null
         }
 
         val ttl = parts[5].toIntOrNull() ?: return null
+
+        val encrypted = parts[6] == "1"
 
         if (ttl < 0 || ttl > MAX_TTL) {
             return null
@@ -359,7 +363,8 @@ class OfflineMeshManager(
             source = parts[3],
             destination = parts[4].takeIf { it != "*" },
             ttl = ttl,
-            body = parts[6]
+            body = parts[7],
+            encrypted = encrypted
         )
     }
 
@@ -572,9 +577,25 @@ class OfflineMeshManager(
                     destination == null ||
                     destination.equals(meshId, ignoreCase = true)
                 ) {
+                    val deliveredBody =
+                        if (meshMessage.encrypted) {
+                            try {
+                                identity.decryptMessage(
+                                    meshMessage.body
+                                )
+                            } catch (_: Exception) {
+                                listener.onError(
+                                    "Failed to decrypt mesh message"
+                                )
+                                return
+                            }
+                        } else {
+                            meshMessage.body
+                        }
+
                     listener.onMessage(
                         endpointId,
-                        meshMessage.body
+                        deliveredBody
                     )
 
                     if (destination != null) {
@@ -826,6 +847,35 @@ class OfflineMeshManager(
             }
     }
 
+    private fun encryptionPublicKeyForMeshId(
+        destination: String
+    ): PublicKey? {
+        val endpointId = endpointNames.entries
+            .firstOrNull {
+                it.value.equals(destination, ignoreCase = true)
+            }
+            ?.key
+            ?: return null
+
+        val publicKeyBase64 =
+            endpointPublicKeys[endpointId]
+                ?: return null
+
+        return try {
+            val keyBytes = Base64.decode(
+                publicKeyBase64,
+                Base64.NO_WRAP
+            )
+
+            KeyFactory.getInstance("RSA")
+                .generatePublic(
+                    X509EncodedKeySpec(keyBytes)
+                )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun sendMessage(message: String) {
         sendMeshMessage(
             destination = targetMeshId,
@@ -851,12 +901,41 @@ class OfflineMeshManager(
                     )
                 }
 
+        val encryptedBody =
+            if (normalizedDestination != null) {
+                val publicKey =
+                    encryptionPublicKeyForMeshId(
+                        normalizedDestination
+                    )
+                    ?: run {
+                        listener.onError(
+                            "Encryption key for destination is not available"
+                        )
+                        return
+                    }
+
+                try {
+                    identity.encryptMessage(
+                        publicKey,
+                        message.toByteArray(Charsets.UTF_8)
+                    )
+                } catch (_: Exception) {
+                    listener.onError(
+                        "Failed to encrypt mesh message"
+                    )
+                    return
+                }
+            } else {
+                message
+            }
+
         val meshMessage = MeshMessage(
             id = UUID.randomUUID().toString(),
             source = meshId,
             destination = normalizedDestination,
             ttl = MAX_TTL,
-            body = message
+            body = encryptedBody,
+            encrypted = normalizedDestination != null
         )
 
         rememberMessage(meshMessage.id)
