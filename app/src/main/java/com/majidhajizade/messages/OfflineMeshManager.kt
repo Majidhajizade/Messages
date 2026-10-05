@@ -70,13 +70,7 @@ class OfflineMeshManager(
     private val handshakeTimeouts =
         ConcurrentHashMap<String, Runnable>()
 
-    private val seenMessages =
-        object : LinkedHashSet<String>() {
-            override fun removeEldestEntry(
-                eldest: MutableMap.MutableEntry<String, Boolean>?
-            ): Boolean = size > SEEN_LIMIT
-        }
-
+    private val seenMessages = LinkedHashSet<String>()
     private val seenLock = Any()
 
     @Volatile
