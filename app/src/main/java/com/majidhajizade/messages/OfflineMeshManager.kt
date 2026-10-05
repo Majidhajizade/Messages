@@ -49,6 +49,27 @@ class OfflineMeshManager(
     private val handshakeEndpoints = mutableSetOf<String>()
     private val endpointNames = mutableMapOf<String, String>()
 
+    @Volatile
+    private var targetMeshId: String? = null
+
+    fun setTargetMeshId(meshId: String?) {
+        targetMeshId = meshId
+            ?.trim()
+            ?.uppercase(java.util.Locale.US)
+            ?.takeIf { it.matches(Regex("MJ-[A-Z0-9]{6}")) }
+
+        connectingEndpoints.forEach { endpointId ->
+            if (
+                targetMeshId != null &&
+                endpointNames[endpointId] != targetMeshId
+            ) {
+                connectionsClient.disconnectFromEndpoint(endpointId)
+            }
+        }
+    }
+
+    fun getTargetMeshId(): String? = targetMeshId
+
     private val handshakeTimeouts = mutableMapOf<String, Runnable>()
 
     private fun sendHandshake(endpointId: String) {
@@ -202,6 +223,16 @@ class OfflineMeshManager(
                     endpointId,
                     remoteName
                 )
+
+                val wantedMeshId = targetMeshId
+
+                if (
+                    wantedMeshId != null &&
+                    !remoteName.equals(wantedMeshId, ignoreCase = true)
+                ) {
+                    listener.onPeerLost(endpointId)
+                    return
+                }
 
                 if (
                     connectedEndpoints.contains(endpointId) ||

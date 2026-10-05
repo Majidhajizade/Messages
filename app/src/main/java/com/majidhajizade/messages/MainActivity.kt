@@ -852,6 +852,68 @@ companion object {
             }
         )
 
+        searchInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(
+                text: CharSequence?,
+                start: Int,
+                count: Int,
+                after: Int
+            ) {
+            }
+
+            override fun onTextChanged(
+                text: CharSequence?,
+                start: Int,
+                before: Int,
+                count: Int
+            ) {
+                val target = text
+                    ?.toString()
+                    ?.trim()
+                    ?.uppercase(Locale.US)
+                    ?.takeIf {
+                        it.matches(Regex("MJ-[A-Z0-9]{6}"))
+                    }
+
+                meshManager?.setTargetMeshId(target)
+
+                meshDevicesContainer?.let { container ->
+                    for (i in 0 until container.childCount) {
+                        val child = container.getChildAt(i)
+                        child.visibility =
+                            if (target == null || target.isEmpty()) {
+                                View.VISIBLE
+                            } else {
+                                val endpointId = meshDevices.entries
+                                    .firstOrNull { it.value == child }
+                                    ?.key
+
+                                val textValue =
+                                    (child as? TextView)?.text?.toString() ?: ""
+
+                                if (
+                                    endpointId != null &&
+                                    textValue.contains(target, ignoreCase = true)
+                                ) {
+                                    View.VISIBLE
+                                } else {
+                                    View.GONE
+                                }
+                            }
+                    }
+                }
+
+                meshStatusText?.text = if (target != null) {
+                    "Searching for $target…"
+                } else {
+                    "Searching nearby devices…"
+                }
+            }
+
+            override fun afterTextChanged(text: android.text.Editable?) {
+            }
+        })
+
         val divider = View(this).apply {
             setBackgroundColor(Color.rgb(235, 235, 238))
         }
