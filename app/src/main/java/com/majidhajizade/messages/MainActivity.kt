@@ -281,8 +281,8 @@ companion object {
             addView(
                 MessengerComposeIcon(this@MainActivity),
                 FrameLayout.LayoutParams(
-                    dp(64),
-                    dp(64),
+                    dp(54),
+                    dp(54),
                     Gravity.CENTER
                 )
             )
@@ -301,8 +301,8 @@ companion object {
         chatLayer.addView(
             floatingButton,
             FrameLayout.LayoutParams(
-                dp(64),
-                dp(64)
+                dp(54),
+                dp(54)
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
                 rightMargin = dp(18)
@@ -1223,82 +1223,17 @@ companion object {
 
     private class MessengerComposeIcon(
         context: android.content.Context
-    ) : View(context) {
+    ) : ImageView(context) {
 
-        private val paint = android.graphics.Paint(
-            android.graphics.Paint.ANTI_ALIAS_FLAG
-        )
+        init {
+            setImageResource(R.drawable.floti)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt())
+            contentDescription = "New message"
+        }
 
-        override fun onDraw(canvas: android.graphics.Canvas) {
-            super.onDraw(canvas)
-
-            val cx = width / 2f
-            val cy = height / 2f
-            val scale = width / 64f
-
-            paint.style = android.graphics.Paint.Style.FILL
-            paint.color = Color.rgb(190, 190, 196)
-
-            val bubble = android.graphics.Path().apply {
-                moveTo(cx - 17f * scale, cy - 9f * scale)
-                cubicTo(
-                    cx - 17f * scale, cy - 17f * scale,
-                    cx - 10f * scale, cy - 21f * scale,
-                    cx, cy - 21f * scale
-                )
-                cubicTo(
-                    cx + 11f * scale, cy - 21f * scale,
-                    cx + 18f * scale, cy - 15f * scale,
-                    cx + 18f * scale, cy - 5f * scale
-                )
-                cubicTo(
-                    cx + 18f * scale, cy + 6f * scale,
-                    cx + 10f * scale, cy + 13f * scale,
-                    cx - 1f * scale, cy + 13f * scale
-                )
-                lineTo(
-                    cx - 11f * scale,
-                    cy + 21f * scale
-                )
-                lineTo(
-                    cx - 9f * scale,
-                    cy + 10f * scale
-                )
-                cubicTo(
-                    cx - 14f * scale,
-                    cy + 7f * scale,
-                    cx - 17f * scale,
-                    cy + 1f * scale,
-                    cx - 17f * scale,
-                    cy - 9f * scale
-                )
-                close()
-            }
-
-            canvas.drawPath(bubble, paint)
-
-            paint.color = Color.WHITE
-            paint.strokeWidth = 2.8f * scale
-            paint.style = android.graphics.Paint.Style.STROKE
-            paint.strokeCap = android.graphics.Paint.Cap.ROUND
-
-            canvas.drawLine(
-                cx - 8f * scale,
-                cy - 1f * scale,
-                cx + 8f * scale,
-                cy - 1f * scale,
-                paint
-            )
-
-            canvas.drawLine(
-                cx,
-                cy - 9f * scale,
-                cx,
-                cy + 7f * scale,
-                paint
-            )
-
-            paint.style = android.graphics.Paint.Style.FILL
+        private fun dpLocal(value: Float): Float {
+            return value * resources.displayMetrics.density
         }
     }
 
