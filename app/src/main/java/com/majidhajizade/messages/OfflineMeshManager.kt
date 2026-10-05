@@ -76,7 +76,8 @@ class OfflineMeshManager(
         ConcurrentHashMap.newKeySet<String>()
 
     private val endpointNames =
-    private val endpointPublicKeys = ConcurrentHashMap<String, String>()
+        ConcurrentHashMap<String, String>()
+    private val endpointPublicKeys =
         ConcurrentHashMap<String, String>()
 
     private val handshakeTimeouts =
