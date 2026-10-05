@@ -2,10 +2,8 @@ package com.majidhajizade.messages
 
 import android.Manifest
 import android.app.Activity
-import android.Manifest
 import android.content.pm.PackageManager
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.database.Cursor
 import android.graphics.Color
 import android.graphics.Typeface

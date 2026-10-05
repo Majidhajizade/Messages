@@ -129,9 +129,9 @@ class OfflineMeshManager(
             "Messages",
             SERVICE_ID,
             connectionLifecycleCallback,
-            com.google.android.gms.nearby.connection.AdvertisingOptions.Builder(
-                STRATEGY
-            ).build()
+            com.google.android.gms.nearby.connection.AdvertisingOptions.Builder()
+                .setStrategy(STRATEGY)
+                .build()
         ).addOnFailureListener {
             listener.onError(
                 "Advertising failed: ${it.message}"
@@ -141,9 +141,9 @@ class OfflineMeshManager(
         connectionsClient.startDiscovery(
             SERVICE_ID,
             discoveryCallback,
-            com.google.android.gms.nearby.connection.DiscoveryOptions.Builder(
-                STRATEGY
-            ).build()
+            com.google.android.gms.nearby.connection.DiscoveryOptions.Builder()
+                .setStrategy(STRATEGY)
+                .build()
         ).addOnFailureListener {
             listener.onError(
                 "Discovery failed: ${it.message}"
