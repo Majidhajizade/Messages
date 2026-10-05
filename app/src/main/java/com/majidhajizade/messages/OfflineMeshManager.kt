@@ -1,6 +1,8 @@
 package com.majidhajizade.messages
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.ConnectionInfo
 import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback
@@ -31,15 +33,75 @@ class OfflineMeshManager(
         private const val SERVICE_ID =
             "com.majidhajizade.messages.offline"
 
+        private const val HANDSHAKE_PREFIX =
+            "MESSAGES_MESH_HANDSHAKE|v1|"
+
         private val STRATEGY = Strategy.P2P_CLUSTER
     }
 
     private val connectionsClient =
         Nearby.getConnectionsClient(context.applicationContext)
 
+    private val handler = Handler(Looper.getMainLooper())
+
     private val connectedEndpoints = mutableSetOf<String>()
     private val connectingEndpoints = mutableSetOf<String>()
+    private val handshakeEndpoints = mutableSetOf<String>()
     private val endpointNames = mutableMapOf<String, String>()
+
+    private val handshakeTimeouts = mutableMapOf<String, Runnable>()
+
+    private fun sendHandshake(endpointId: String) {
+        val handshake = Payload.fromBytes(
+            "$HANDSHAKE_PREFIX$meshId".toByteArray(Charsets.UTF_8)
+        )
+
+        connectionsClient.sendPayload(endpointId, handshake)
+            .addOnFailureListener {
+                listener.onError(
+                    "Mesh handshake failed: ${it.message ?: "unknown error"}"
+                )
+            }
+
+        handshakeTimeouts.remove(endpointId)?.let(handler::removeCallbacks)
+
+        val timeout = Runnable {
+            if (!connectedEndpoints.contains(endpointId)) {
+                handshakeEndpoints.remove(endpointId)
+                listener.onError(
+                    "Mesh handshake timeout: ${endpointNames[endpointId] ?: endpointId}"
+                )
+                connectionsClient.disconnectFromEndpoint(endpointId)
+            }
+        }
+
+        handshakeTimeouts[endpointId] = timeout
+        handler.postDelayed(timeout, 8000)
+    }
+
+    private fun completeHandshake(
+        endpointId: String,
+        remoteMeshId: String
+    ) {
+        if (!remoteMeshId.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+            listener.onError(
+                "Invalid Mesh ID received from ${endpointNames[endpointId] ?: endpointId}"
+            )
+            connectionsClient.disconnectFromEndpoint(endpointId)
+            return
+        }
+
+        handshakeTimeouts.remove(endpointId)?.let(handler::removeCallbacks)
+
+        if (handshakeEndpoints.add(endpointId)) {
+            connectedEndpoints.add(endpointId)
+
+            listener.onPeerConnected(
+                endpointId,
+                remoteMeshId
+            )
+        }
+    }
 
     private val payloadCallback = object : PayloadCallback() {
 
@@ -48,10 +110,26 @@ class OfflineMeshManager(
             payload: Payload
         ) {
             val bytes = payload.asBytes() ?: return
+            val message = bytes.toString(Charsets.UTF_8)
+
+            if (message.startsWith(HANDSHAKE_PREFIX)) {
+                val remoteMeshId =
+                    message.removePrefix(HANDSHAKE_PREFIX).trim()
+
+                completeHandshake(
+                    endpointId,
+                    remoteMeshId
+                )
+                return
+            }
+
+            if (!connectedEndpoints.contains(endpointId)) {
+                return
+            }
 
             listener.onMessage(
                 endpointId,
-                bytes.toString(Charsets.UTF_8)
+                message
             )
         }
 
@@ -75,9 +153,11 @@ class OfflineMeshManager(
                 connectionsClient.acceptConnection(
                     endpointId,
                     payloadCallback
-                ).addOnFailureListener {
+                ).addOnSuccessListener {
+                    sendHandshake(endpointId)
+                }.addOnFailureListener {
                     listener.onError(
-                        "Accept connection failed: ${it.message}"
+                        "Accept connection failed: ${it.message ?: "unknown error"}"
                     )
                 }
             }
@@ -89,12 +169,7 @@ class OfflineMeshManager(
                 connectingEndpoints.remove(endpointId)
 
                 if (result.status.isSuccess) {
-                    connectedEndpoints.add(endpointId)
-
-                    listener.onPeerConnected(
-                        endpointId,
-                        endpointNames[endpointId] ?: "Nearby device"
-                    )
+                    sendHandshake(endpointId)
                 } else {
                     listener.onError(
                         "Connection failed: ${result.status.statusMessage}"
@@ -105,6 +180,9 @@ class OfflineMeshManager(
             override fun onDisconnected(endpointId: String) {
                 connectingEndpoints.remove(endpointId)
                 connectedEndpoints.remove(endpointId)
+                handshakeEndpoints.remove(endpointId)
+
+                handshakeTimeouts.remove(endpointId)?.let(handler::removeCallbacks)
 
                 listener.onPeerDisconnected(endpointId)
             }
@@ -117,17 +195,26 @@ class OfflineMeshManager(
                 endpointId: String,
                 info: DiscoveredEndpointInfo
             ) {
-                endpointNames[endpointId] = info.endpointName
+                val remoteName = info.endpointName
+                endpointNames[endpointId] = remoteName
 
                 listener.onPeerDiscovered(
                     endpointId,
-                    info.endpointName
+                    remoteName
                 )
 
                 if (
                     connectedEndpoints.contains(endpointId) ||
                     !connectingEndpoints.add(endpointId)
                 ) {
+                    return
+                }
+
+                if (!remoteName.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+                    connectingEndpoints.remove(endpointId)
+                    listener.onError(
+                        "Ignored device with invalid Mesh ID: $remoteName"
+                    )
                     return
                 }
 
@@ -139,7 +226,7 @@ class OfflineMeshManager(
                     connectingEndpoints.remove(endpointId)
 
                     listener.onError(
-                        "Request connection failed: ${it.message}"
+                        "Request connection failed: ${it.message ?: "unknown error"}"
                     )
                 }
             }
@@ -147,6 +234,9 @@ class OfflineMeshManager(
             override fun onEndpointLost(endpointId: String) {
                 endpointNames.remove(endpointId)
                 connectingEndpoints.remove(endpointId)
+                handshakeEndpoints.remove(endpointId)
+
+                handshakeTimeouts.remove(endpointId)?.let(handler::removeCallbacks)
 
                 listener.onPeerLost(endpointId)
             }
@@ -162,7 +252,7 @@ class OfflineMeshManager(
                 .build()
         ).addOnFailureListener {
             listener.onError(
-                "Advertising failed: ${it.message}"
+                "Advertising failed: ${it.message ?: "unknown error"}"
             )
         }
 
@@ -174,7 +264,7 @@ class OfflineMeshManager(
                 .build()
         ).addOnFailureListener {
             listener.onError(
-                "Discovery failed: ${it.message}"
+                "Discovery failed: ${it.message ?: "unknown error"}"
             )
         }
     }
@@ -195,12 +285,16 @@ class OfflineMeshManager(
     }
 
     fun stop() {
+        handshakeTimeouts.values.forEach(handler::removeCallbacks)
+        handshakeTimeouts.clear()
+
         connectionsClient.stopAdvertising()
         connectionsClient.stopDiscovery()
         connectionsClient.stopAllEndpoints()
 
         connectedEndpoints.clear()
         connectingEndpoints.clear()
+        handshakeEndpoints.clear()
         endpointNames.clear()
     }
 }
