@@ -44,8 +44,11 @@ class OfflineMeshManager(
         private const val HANDSHAKE_PREFIX =
             "MESSAGES_MESH_HANDSHAKE|v3|"
 
+        private const val PACKET_TYPE_MESSAGE = "message"
+        private const val PACKET_TYPE_ACK = "ack"
+
         private const val MESSAGE_PREFIX =
-            "MESSAGES_MESH_MESSAGE|v1|"
+            "MESSAGES_MESH_PACKET|v1|"
 
         private const val ACK_PREFIX =
             "MESSAGES_MESH_ACK|v1|"
@@ -183,7 +186,7 @@ class OfflineMeshManager(
 
     private fun sendHandshake(endpointId: String) {
         val handshakeData =
-            "$meshId|${identity.publicKeyBase64()}"
+            "$meshId|${identity.publicKeyBase64()}|${identity.encryptionPublicKeyBase64()}"
 
         val signature =
             identity.sign(
@@ -226,6 +229,7 @@ class OfflineMeshManager(
     private fun verifyHandshakeSignature(
         meshId: String,
         publicKeyBase64: String,
+        encryptionPublicKeyBase64: String,
         signatureBase64: String
     ): Boolean {
         return try {
@@ -243,8 +247,9 @@ class OfflineMeshManager(
             val verifier = Signature.getInstance("SHA256withRSA")
             verifier.initVerify(publicKey)
 
-            val data = "$meshId|$publicKeyBase64"
-                .toByteArray(Charsets.UTF_8)
+            val data =
+                "$meshId|$publicKeyBase64|$encryptionPublicKeyBase64"
+                    .toByteArray(Charsets.UTF_8)
 
             verifier.update(data)
 
@@ -320,11 +325,24 @@ class OfflineMeshManager(
         }
     }
 
+    private data class MeshPacket(
+        val version: Int,
+        val type: String,
+        val messageId: String,
+        val source: String,
+        val destination: String?,
+        val ttl: Int,
+        val timestamp: Long,
+        val payload: String,
+        val signature: String
+    )
+
     private data class MeshMessage(
         val id: String,
         val source: String,
         val destination: String?,
         val ttl: Int,
+        val timestamp: Long,
         val body: String,
         val encrypted: Boolean,
         val signature: String
@@ -335,6 +353,7 @@ class OfflineMeshManager(
             message.id,
             message.source,
             message.destination ?: "*",
+            message.timestamp.toString(),
             if (message.encrypted) "1" else "0",
             message.body
         ).joinToString("|").toByteArray(Charsets.UTF_8)
@@ -357,7 +376,7 @@ class OfflineMeshManager(
                                 ignoreCase = true
                             ) == true
                     }
-                    ?.let { endpointPublicKeys[it.key] }
+                    ?.let { endpointSigningPublicKeys[it.key] }
                     ?: return false
 
             val keyBytes = Base64.decode(
@@ -389,46 +408,79 @@ class OfflineMeshManager(
     }
 
     private fun encodeMessage(message: MeshMessage): String {
+        val payload = Base64.encodeToString(
+            "${if (message.encrypted) "1" else "0"}|${message.body}"
+                .toByteArray(Charsets.UTF_8),
+            Base64.NO_WRAP
+        )
+
         return listOf(
             MESSAGE_PREFIX.removeSuffix("|"),
+            1,
+            PACKET_TYPE_MESSAGE,
             message.id,
             message.source,
             message.destination ?: "*",
-            message.ttl.toString(),
-            if (message.encrypted) "1" else "0",
-            message.body,
+            message.ttl,
+            message.timestamp,
+            payload,
             message.signature
         ).joinToString("|")
     }
 
     private fun decodeMessage(raw: String): MeshMessage? {
-        if (!raw.startsWith(MESSAGE_PREFIX)) {
-            return null
+        return try {
+            if (!raw.startsWith(MESSAGE_PREFIX)) {
+                return null
+            }
+
+            val parts = raw.split("|", limit = 10)
+
+            if (parts.size != 10) {
+                return null
+            }
+
+            val version = parts[1].toIntOrNull() ?: return null
+            if (version != 1 || parts[2] != PACKET_TYPE_MESSAGE) {
+                return null
+            }
+
+            val ttl = parts[6].toIntOrNull() ?: return null
+            if (ttl < 0 || ttl > MAX_TTL) {
+                return null
+            }
+
+            val timestamp = parts[7].toLongOrNull() ?: return null
+
+            val payload = String(
+                Base64.decode(parts[8], Base64.NO_WRAP),
+                Charsets.UTF_8
+            )
+
+            val payloadParts = payload.split("|", limit = 2)
+            if (payloadParts.size != 2) {
+                return null
+            }
+
+            val encrypted = when (payloadParts[0]) {
+                "0" -> false
+                "1" -> true
+                else -> return null
+            }
+
+            MeshMessage(
+                id = parts[3],
+                source = parts[4],
+                destination = parts[5].takeIf { it != "*" },
+                ttl = ttl,
+                timestamp = timestamp,
+                body = payloadParts[1],
+                encrypted = encrypted,
+                signature = parts[9]
+            )
+        } catch (_: Exception) {
+            null
         }
-
-        val parts = raw.split("|", limit = 9)
-
-        if (parts.size < 9) {
-            return null
-        }
-
-        val ttl = parts[5].toIntOrNull() ?: return null
-
-        val encrypted = parts[6] == "1"
-
-        if (ttl < 0 || ttl > MAX_TTL) {
-            return null
-        }
-
-        return MeshMessage(
-            id = parts[2],
-            source = parts[3],
-            destination = parts[4].takeIf { it != "*" },
-            ttl = ttl,
-            body = parts[7],
-            encrypted = encrypted,
-            signature = parts[8]
-        )
     }
 
     private fun rememberAck(messageId: String): Boolean {
@@ -543,14 +595,20 @@ class OfflineMeshManager(
                                 ?.trim()
                                 .orEmpty()
 
-                        val remoteSignature =
+                        val remoteEncryptionPublicKey =
                             parts.getOrNull(2)
+                                ?.trim()
+                                .orEmpty()
+
+                        val remoteSignature =
+                            parts.getOrNull(3)
                                 ?.trim()
                                 .orEmpty()
 
                         if (
                             remoteMeshId.isEmpty() ||
                             remotePublicKey.isEmpty() ||
+                            remoteEncryptionPublicKey.isEmpty() ||
                             remoteSignature.isEmpty()
                         ) {
                             return
@@ -560,6 +618,7 @@ class OfflineMeshManager(
                             !verifyHandshakeSignature(
                                 remoteMeshId,
                                 remotePublicKey,
+                                remoteEncryptionPublicKey,
                                 remoteSignature
                             )
                         ) {
@@ -572,8 +631,10 @@ class OfflineMeshManager(
                             return
                         }
 
-                        endpointPublicKeys[endpointId] =
+                        endpointSigningPublicKeys[endpointId] =
                             remotePublicKey
+                        endpointPublicKeys[endpointId] =
+                            remoteEncryptionPublicKey
 
                         completeHandshake(
                             endpointId,
@@ -1004,6 +1065,7 @@ class OfflineMeshManager(
             source = meshId,
             destination = normalizedDestination,
             ttl = MAX_TTL,
+            timestamp = System.currentTimeMillis(),
             body = encryptedBody,
             encrypted = normalizedDestination != null,
             signature = ""
