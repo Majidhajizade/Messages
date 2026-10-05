@@ -34,7 +34,8 @@ class MainActivity : Activity() {
         arrayOf(
             Manifest.permission.BLUETOOTH_SCAN,
             Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_ADVERTISE
+            Manifest.permission.BLUETOOTH_ADVERTISE,
+            Manifest.permission.NEARBY_WIFI_DEVICES
         )
     } else {
         arrayOf(
@@ -605,6 +606,9 @@ companion object {
             ) == PackageManager.PERMISSION_GRANTED &&
             checkSelfPermission(
                 Manifest.permission.BLUETOOTH_ADVERTISE
+            ) == PackageManager.PERMISSION_GRANTED &&
+            checkSelfPermission(
+                Manifest.permission.NEARBY_WIFI_DEVICES
             ) == PackageManager.PERMISSION_GRANTED
         } else {
             checkSelfPermission(
