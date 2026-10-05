@@ -73,6 +73,69 @@ class OfflineMeshManager(
     private val seenMessages = LinkedHashSet<String>()
     private val seenLock = Any()
 
+    private val pendingMessages = LinkedHashMap<String, MeshMessage>()
+    private val pendingLock = Any()
+
+    private fun queuePendingMessage(message: MeshMessage) {
+        if (message.destination == null) return
+
+        synchronized(pendingLock) {
+            pendingMessages[message.id] = message
+
+            while (pendingMessages.size > SEEN_LIMIT) {
+                val iterator = pendingMessages.entries.iterator()
+                iterator.next()
+                iterator.remove()
+            }
+        }
+    }
+
+    private fun removePendingMessage(messageId: String) {
+        synchronized(pendingLock) {
+            pendingMessages.remove(messageId)
+        }
+    }
+
+    private fun retryPendingMessages() {
+        val pending = synchronized(pendingLock) {
+            pendingMessages.values.toList()
+        }
+
+        pending.forEach { message ->
+            if (message.ttl <= 0) {
+                removePendingMessage(message.id)
+                return@forEach
+            }
+
+            val payload = Payload.fromBytes(
+                encodeMessage(message)
+                    .toByteArray(Charsets.UTF_8)
+            )
+
+            var deliveredToDestination = false
+
+            connectedEndpoints.forEach { endpointId ->
+                val peerId = endpointNames[endpointId]
+
+                if (
+                    message.destination == null ||
+                    peerId.equals(message.destination, ignoreCase = true)
+                ) {
+                    deliveredToDestination = true
+                }
+
+                connectionsClient.sendPayload(
+                    endpointId,
+                    payload
+                )
+            }
+
+            if (deliveredToDestination) {
+                removePendingMessage(message.id)
+            }
+        }
+    }
+
     @Volatile
     private var targetMeshId: String? = null
 
@@ -164,6 +227,10 @@ class OfflineMeshManager(
                 endpointId,
                 normalized
             )
+
+            handler.post {
+                retryPendingMessages()
+            }
         }
     }
 
@@ -306,12 +373,13 @@ class OfflineMeshManager(
                         endpointId,
                         meshMessage.body
                     )
-                }
 
-                if (
-                    destination == null ||
-                    !destination.equals(meshId, ignoreCase = true)
-                ) {
+                    if (destination != null) {
+                        removePendingMessage(meshMessage.id)
+                    }
+                } else {
+                    queuePendingMessage(meshMessage)
+
                     forwardMessage(
                         meshMessage,
                         endpointId
@@ -570,6 +638,11 @@ class OfflineMeshManager(
 
         rememberMessage(meshMessage.id)
 
+        if (normalizedDestination != null && connectedEndpoints.isEmpty()) {
+            queuePendingMessage(meshMessage)
+            return
+        }
+
         val payload = Payload.fromBytes(
             encodeMessage(meshMessage)
                 .toByteArray(Charsets.UTF_8)
@@ -580,6 +653,10 @@ class OfflineMeshManager(
                 endpointId,
                 payload
             )
+        }
+
+        if (normalizedDestination != null) {
+            queuePendingMessage(meshMessage)
         }
     }
 
