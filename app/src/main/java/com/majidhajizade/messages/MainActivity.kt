@@ -568,7 +568,6 @@ companion object {
                         ).show()
                     }
                 }
-                }
             }
         )
 
