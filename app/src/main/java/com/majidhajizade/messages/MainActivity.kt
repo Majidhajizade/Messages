@@ -729,49 +729,6 @@ companion object {
             LinearLayout.LayoutParams(dp(250), dp(64))
         )
 
-        searchInput.addTextChangedListener(
-            object : android.text.TextWatcher {
-                override fun beforeTextChanged(
-                    s: CharSequence?,
-                    start: Int,
-                    count: Int,
-                    after: Int
-                ) {}
-
-                override fun onTextChanged(
-                    s: CharSequence?,
-                    start: Int,
-                    before: Int,
-                    count: Int
-                ) {
-                    val query = s?.toString()
-                        ?.trim()
-                        ?.uppercase(Locale.US)
-                        ?: ""
-
-                    meshDevices.values.forEach { device ->
-                        val meshId = device.text
-                            .toString()
-                            .substringBefore("  •")
-                            .trim()
-                            .uppercase(Locale.US)
-
-                        val visible = query.isEmpty() ||
-                            meshId == query ||
-                            meshId.contains(query)
-
-                        device.visibility = if (visible) {
-                            View.VISIBLE
-                        } else {
-                            View.GONE
-                        }
-                    }
-                }
-
-                override fun afterTextChanged(s: android.text.Editable?) {}
-            }
-        )
-
         meshPopup = PopupWindow(
             card,
             dp(270),

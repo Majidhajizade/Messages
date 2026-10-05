@@ -124,8 +124,23 @@ class ConversationActivity : Activity() {
 
         loadConversation()
 
+        val meshId = getSharedPreferences("messages_settings", MODE_PRIVATE)
+            .getString("mesh_id", null)
+            ?: ("MJ-" + java.util.UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .take(6)
+                .uppercase(java.util.Locale.US))
+                .also { generated ->
+                    getSharedPreferences("messages_settings", MODE_PRIVATE)
+                        .edit()
+                        .putString("mesh_id", generated)
+                        .apply()
+                }
+
         offlineMeshManager = OfflineMeshManager(
             this,
+            meshId,
             object : OfflineMeshManager.Listener {
                 override fun onPeerDiscovered(
                 endpointId: String,
