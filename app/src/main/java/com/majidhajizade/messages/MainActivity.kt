@@ -142,6 +142,10 @@ companion object {
     override fun onResume() {
         super.onResume()
 
+        if (hasNearbyPermissions()) {
+            meshManager?.start()
+        }
+
         if (checkSelfPermission(Manifest.permission.READ_SMS)
             == PackageManager.PERMISSION_GRANTED
         ) {
@@ -1991,13 +1995,6 @@ companion object {
     override fun onPause() {
         meshManager?.stop()
         super.onPause()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (hasNearbyPermissions()) {
-            meshManager?.start()
-        }
     }
 
     override fun onDestroy() {
