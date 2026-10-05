@@ -14,6 +14,11 @@ import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import java.util.Locale
+import android.util.Base64
+import java.security.KeyFactory
+import java.security.PublicKey
+import java.security.Signature
+import java.security.spec.X509EncodedKeySpec
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -37,7 +42,7 @@ class OfflineMeshManager(
             "com.majidhajizade.messages.offline"
 
         private const val HANDSHAKE_PREFIX =
-            "MESSAGES_MESH_HANDSHAKE|v2|"
+            "MESSAGES_MESH_HANDSHAKE|v3|"
 
         private const val MESSAGE_PREFIX =
             "MESSAGES_MESH_MESSAGE|v1|"
@@ -52,6 +57,8 @@ class OfflineMeshManager(
 
         private val STRATEGY = Strategy.P2P_CLUSTER
     }
+
+    private val identity = MeshIdentity(context)
 
     private val connectionsClient =
         Nearby.getConnectionsClient(context.applicationContext)
@@ -69,6 +76,7 @@ class OfflineMeshManager(
         ConcurrentHashMap.newKeySet<String>()
 
     private val endpointNames =
+    private val endpointPublicKeys = ConcurrentHashMap<String, String>()
         ConcurrentHashMap<String, String>()
 
     private val handshakeTimeouts =
@@ -171,8 +179,16 @@ class OfflineMeshManager(
     fun getTargetMeshId(): String? = targetMeshId
 
     private fun sendHandshake(endpointId: String) {
+        val handshakeData =
+            "$meshId|${identity.publicKeyBase64()}"
+
+        val signature =
+            identity.sign(
+                handshakeData.toByteArray(Charsets.UTF_8)
+            )
+
         val handshake = Payload.fromBytes(
-            "$HANDSHAKE_PREFIX$meshId"
+            "$HANDSHAKE_PREFIX$handshakeData|$signature"
                 .toByteArray(Charsets.UTF_8)
         )
 
@@ -202,6 +218,42 @@ class OfflineMeshManager(
 
         handshakeTimeouts[endpointId] = timeout
         handler.postDelayed(timeout, 8000)
+    }
+
+    private fun verifyHandshakeSignature(
+        meshId: String,
+        publicKeyBase64: String,
+        signatureBase64: String
+    ): Boolean {
+        return try {
+            val keyBytes = Base64.decode(
+                publicKeyBase64,
+                Base64.NO_WRAP
+            )
+
+            val publicKey: PublicKey =
+                KeyFactory.getInstance("RSA")
+                    .generatePublic(
+                        X509EncodedKeySpec(keyBytes)
+                    )
+
+            val verifier = Signature.getInstance("SHA256withRSA")
+            verifier.initVerify(publicKey)
+
+            val data = "$meshId|$publicKeyBase64"
+                .toByteArray(Charsets.UTF_8)
+
+            verifier.update(data)
+
+            verifier.verify(
+                Base64.decode(
+                    signatureBase64,
+                    Base64.NO_WRAP
+                )
+            )
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun completeHandshake(
@@ -407,17 +459,60 @@ class OfflineMeshManager(
                 val bytes = payload.asBytes() ?: return
                 val raw = bytes.toString(Charsets.UTF_8)
 
-                if (raw.startsWith(HANDSHAKE_PREFIX)) {
-                    val remoteMeshId =
-                        raw.removePrefix(HANDSHAKE_PREFIX).trim()
+                    if (raw.startsWith(HANDSHAKE_PREFIX)) {
+                        val parts =
+                            raw.removePrefix(HANDSHAKE_PREFIX)
+                                .split("|", limit = 3)
 
-                    completeHandshake(
-                        endpointId,
-                        remoteMeshId
-                    )
+                        val remoteMeshId =
+                            parts.getOrNull(0)
+                                ?.trim()
+                                .orEmpty()
 
-                    return
-                }
+                        val remotePublicKey =
+                            parts.getOrNull(1)
+                                ?.trim()
+                                .orEmpty()
+
+                        val remoteSignature =
+                            parts.getOrNull(2)
+                                ?.trim()
+                                .orEmpty()
+
+                        if (
+                            remoteMeshId.isEmpty() ||
+                            remotePublicKey.isEmpty() ||
+                            remoteSignature.isEmpty()
+                        ) {
+                            return
+                        }
+
+                        if (
+                            !verifyHandshakeSignature(
+                                remoteMeshId,
+                                remotePublicKey,
+                                remoteSignature
+                            )
+                        ) {
+                            listener.onError(
+                                "Invalid mesh handshake signature"
+                            )
+                            connectionsClient.disconnectFromEndpoint(
+                                endpointId
+                            )
+                            return
+                        }
+
+                        endpointPublicKeys[endpointId] =
+                            remotePublicKey
+
+                        completeHandshake(
+                            endpointId,
+                            remoteMeshId
+                        )
+
+                        return
+                    }
 
                 if (!connectedEndpoints.contains(endpointId)) {
                     return
