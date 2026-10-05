@@ -107,6 +107,18 @@ companion object {
         requestNotificationPermission()
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == 9001 && hasNearbyPermissions()) {
+            meshManager?.start()
+        }
+    }
+
     private fun requestDefaultSmsRole() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             val roleManager = getSystemService(RoleManager::class.java)
