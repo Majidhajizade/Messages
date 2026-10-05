@@ -79,6 +79,8 @@ class OfflineMeshManager(
         ConcurrentHashMap<String, String>()
     private val endpointPublicKeys =
         ConcurrentHashMap<String, String>()
+    private val endpointSigningPublicKeys =
+        ConcurrentHashMap<String, String>()
 
     private val handshakeTimeouts =
         ConcurrentHashMap<String, Runnable>()
@@ -324,8 +326,67 @@ class OfflineMeshManager(
         val destination: String?,
         val ttl: Int,
         val body: String,
-        val encrypted: Boolean
+        val encrypted: Boolean,
+        val signature: String
     )
+
+    private fun signatureData(message: MeshMessage): ByteArray {
+        return listOf(
+            message.id,
+            message.source,
+            message.destination ?: "*",
+            if (message.encrypted) "1" else "0",
+            message.body
+        ).joinToString("|").toByteArray(Charsets.UTF_8)
+    }
+
+    private fun signMessage(message: MeshMessage): String {
+        return identity.sign(signatureData(message))
+    }
+
+    private fun verifyMessageSignature(
+        message: MeshMessage
+    ): Boolean {
+        return try {
+            val publicKeyBase64 =
+                endpointSigningPublicKeys.entries
+                    .firstOrNull {
+                        endpointNames[it.key]
+                            ?.equals(
+                                message.source,
+                                ignoreCase = true
+                            ) == true
+                    }
+                    ?.let { endpointPublicKeys[it.key] }
+                    ?: return false
+
+            val keyBytes = Base64.decode(
+                publicKeyBase64,
+                Base64.NO_WRAP
+            )
+
+            val publicKey =
+                KeyFactory.getInstance("RSA")
+                    .generatePublic(
+                        X509EncodedKeySpec(keyBytes)
+                    )
+
+            val verifier =
+                Signature.getInstance("SHA256withRSA")
+
+            verifier.initVerify(publicKey)
+            verifier.update(signatureData(message))
+
+            verifier.verify(
+                Base64.decode(
+                    message.signature,
+                    Base64.NO_WRAP
+                )
+            )
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     private fun encodeMessage(message: MeshMessage): String {
         return listOf(
@@ -335,7 +396,8 @@ class OfflineMeshManager(
             message.destination ?: "*",
             message.ttl.toString(),
             if (message.encrypted) "1" else "0",
-            message.body
+            message.body,
+            message.signature
         ).joinToString("|")
     }
 
@@ -344,9 +406,9 @@ class OfflineMeshManager(
             return null
         }
 
-        val parts = raw.split("|", limit = 8)
+        val parts = raw.split("|", limit = 9)
 
-        if (parts.size < 8) {
+        if (parts.size < 9) {
             return null
         }
 
@@ -364,7 +426,8 @@ class OfflineMeshManager(
             destination = parts[4].takeIf { it != "*" },
             ttl = ttl,
             body = parts[7],
-            encrypted = encrypted
+            encrypted = encrypted,
+            signature = parts[8]
         )
     }
 
@@ -468,7 +531,7 @@ class OfflineMeshManager(
                     if (raw.startsWith(HANDSHAKE_PREFIX)) {
                         val parts =
                             raw.removePrefix(HANDSHAKE_PREFIX)
-                                .split("|", limit = 3)
+                                .split("|", limit = 4)
 
                         val remoteMeshId =
                             parts.getOrNull(0)
@@ -561,6 +624,13 @@ class OfflineMeshManager(
                     listener.onMessage(
                         endpointId,
                         raw
+                    )
+                    return
+                }
+
+                if (!verifyMessageSignature(meshMessage)) {
+                    listener.onError(
+                        "Invalid mesh message signature"
                     )
                     return
                 }
@@ -935,19 +1005,25 @@ class OfflineMeshManager(
             destination = normalizedDestination,
             ttl = MAX_TTL,
             body = encryptedBody,
-            encrypted = normalizedDestination != null
+            encrypted = normalizedDestination != null,
+            signature = ""
         )
 
-        rememberMessage(meshMessage.id)
-        messageReturnRoutes.remove(meshMessage.id)
+        val signedMeshMessage =
+            meshMessage.copy(
+                signature = signMessage(meshMessage)
+            )
+
+        rememberMessage(signedMeshMessage.id)
+        messageReturnRoutes.remove(signedMeshMessage.id)
 
         if (normalizedDestination != null && connectedEndpoints.isEmpty()) {
-            queuePendingMessage(meshMessage)
+            queuePendingMessage(signedMeshMessage)
             return
         }
 
         val payload = Payload.fromBytes(
-            encodeMessage(meshMessage)
+            encodeMessage(signedMeshMessage)
                 .toByteArray(Charsets.UTF_8)
         )
 
@@ -959,7 +1035,7 @@ class OfflineMeshManager(
         }
 
         if (normalizedDestination != null) {
-            queuePendingMessage(meshMessage)
+            queuePendingMessage(signedMeshMessage)
         }
     }
 
