@@ -18,6 +18,8 @@ class OfflineMeshManager(
 ) {
 
     interface Listener {
+        fun onPeerDiscovered(endpointId: String, name: String)
+        fun onPeerLost(endpointId: String)
         fun onPeerConnected(endpointId: String, name: String)
         fun onPeerDisconnected(endpointId: String)
         fun onMessage(endpointId: String, message: String)
@@ -25,20 +27,27 @@ class OfflineMeshManager(
     }
 
     companion object {
-        private const val SERVICE_ID = "com.majidhajizade.messages.offline"
+        private const val SERVICE_ID =
+            "com.majidhajizade.messages.offline"
+
         private val STRATEGY = Strategy.P2P_CLUSTER
     }
 
-    private val connectionsClient = Nearby.getConnectionsClient(context.applicationContext)
+    private val connectionsClient =
+        Nearby.getConnectionsClient(context.applicationContext)
+
     private val connectedEndpoints = mutableSetOf<String>()
     private val connectingEndpoints = mutableSetOf<String>()
+    private val endpointNames = mutableMapOf<String, String>()
 
     private val payloadCallback = object : PayloadCallback() {
+
         override fun onPayloadReceived(
             endpointId: String,
             payload: Payload
         ) {
             val bytes = payload.asBytes() ?: return
+
             listener.onMessage(
                 endpointId,
                 bytes.toString(Charsets.UTF_8)
@@ -59,6 +68,9 @@ class OfflineMeshManager(
                 endpointId: String,
                 connectionInfo: ConnectionInfo
             ) {
+                endpointNames[endpointId] =
+                    connectionInfo.endpointName
+
                 connectionsClient.acceptConnection(
                     endpointId,
                     payloadCallback
@@ -77,9 +89,10 @@ class OfflineMeshManager(
 
                 if (result.status.isSuccess) {
                     connectedEndpoints.add(endpointId)
+
                     listener.onPeerConnected(
                         endpointId,
-                        endpointId
+                        endpointNames[endpointId] ?: "Nearby device"
                     )
                 } else {
                     listener.onError(
@@ -91,6 +104,7 @@ class OfflineMeshManager(
             override fun onDisconnected(endpointId: String) {
                 connectingEndpoints.remove(endpointId)
                 connectedEndpoints.remove(endpointId)
+
                 listener.onPeerDisconnected(endpointId)
             }
         }
@@ -102,6 +116,13 @@ class OfflineMeshManager(
                 endpointId: String,
                 info: DiscoveredEndpointInfo
             ) {
+                endpointNames[endpointId] = info.endpointName
+
+                listener.onPeerDiscovered(
+                    endpointId,
+                    info.endpointName
+                )
+
                 if (connectedEndpoints.contains(endpointId) ||
                     !connectingEndpoints.add(endpointId)
                 ) {
@@ -114,6 +135,7 @@ class OfflineMeshManager(
                     connectionLifecycleCallback
                 ).addOnFailureListener {
                     connectingEndpoints.remove(endpointId)
+
                     listener.onError(
                         "Request connection failed: ${it.message}"
                     )
@@ -121,6 +143,10 @@ class OfflineMeshManager(
             }
 
             override fun onEndpointLost(endpointId: String) {
+                endpointNames.remove(endpointId)
+                connectingEndpoints.remove(endpointId)
+
+                listener.onPeerLost(endpointId)
             }
         }
 
@@ -170,7 +196,9 @@ class OfflineMeshManager(
         connectionsClient.stopAdvertising()
         connectionsClient.stopDiscovery()
         connectionsClient.stopAllEndpoints()
+
         connectedEndpoints.clear()
         connectingEndpoints.clear()
+        endpointNames.clear()
     }
 }

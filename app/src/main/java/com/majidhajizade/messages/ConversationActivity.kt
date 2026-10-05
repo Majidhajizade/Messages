@@ -48,6 +48,7 @@ class ConversationActivity : Activity() {
     companion object {
         private const val SEND_PERMISSION = 3001
         private const val PICK_CONTACT = 3002
+        private const val NEARBY_PERMISSION = 3003
         private const val ACTION_DELIVERED = "com.majidhajizade.messages.SMS_DELIVERED"
     }
 
@@ -185,7 +186,52 @@ class ConversationActivity : Activity() {
             }
         )
 
-        if (hasNearbyPermissions()) {
+        ensureNearbyPermissions()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == NEARBY_PERMISSION) {
+            if (hasNearbyPermissions()) {
+                offlineMeshManager.start()
+            } else {
+                Toast.makeText(
+                    this,
+                    "Nearby permission is required for offline messaging",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun ensureNearbyPermissions() {
+        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            arrayOf(
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_ADVERTISE
+            )
+        } else {
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION
+            )
+        }
+
+        val missing = permissions.filter {
+            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missing.isNotEmpty()) {
+            requestPermissions(
+                missing.toTypedArray(),
+                NEARBY_PERMISSION
+            )
+        } else {
             offlineMeshManager.start()
         }
     }

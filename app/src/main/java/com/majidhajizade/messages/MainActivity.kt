@@ -67,6 +67,11 @@ class MainActivity : Activity() {
     private var homeTitle: View? = null
     private var composeButtonView: View? = null
     private var floatingComposeButton: View? = null
+    private var meshManager: OfflineMeshManager? = null
+    private var meshPopup: PopupWindow? = null
+    private var meshStatusText: TextView? = null
+    private var meshDevicesContainer: LinearLayout? = null
+    private val meshDevices = linkedMapOf<String, TextView>()
     private val rowViews = mutableMapOf<String, TextView>()
     private val selectedAddresses = linkedSetOf<String>()
     private var selectionMode = false
@@ -92,6 +97,7 @@ companion object {
             View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 
         setContentView(createHomeScreen())
+        setupMeshManager()
 
         requestDefaultSmsRole()
         requestContactsPermission()
@@ -201,6 +207,29 @@ companion object {
                 0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
+            )
+        )
+
+        val menuButton = TextView(this).apply {
+            text = "⋮"
+            textSize = 30f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+            translationY = dp(13).toFloat()
+            contentDescription = "More"
+            setPadding(dp(8), 0, dp(2), 0)
+
+            setOnClickListener {
+                showHeaderMenu()
+            }
+        }
+
+        header.addView(
+            menuButton,
+            LinearLayout.LayoutParams(
+                dp(42),
+                dp(60)
             )
         )
 
@@ -468,6 +497,377 @@ companion object {
             }
     }
 
+
+    private fun setupMeshManager() {
+        meshManager = OfflineMeshManager(
+            this,
+            object : OfflineMeshManager.Listener {
+
+                override fun onPeerDiscovered(
+                    endpointId: String,
+                    name: String
+                ) {
+                    runOnUiThread {
+                        addMeshDevice(endpointId, name)
+                        updateMeshStatus()
+                    }
+                }
+
+                override fun onPeerLost(endpointId: String) {
+                    runOnUiThread {
+                        meshDevices.remove(endpointId)?.let {
+                            meshDevicesContainer?.removeView(it)
+                        }
+                        updateMeshStatus()
+                    }
+                }
+
+                override fun onPeerConnected(
+                    endpointId: String,
+                    name: String
+                ) {
+                    runOnUiThread {
+                        meshDevices[endpointId]?.apply {
+                            text = "$name  •  Connected"
+                            setTextColor(Color.rgb(25, 120, 70))
+                        }
+                        updateMeshStatus()
+                    }
+                }
+
+                override fun onPeerDisconnected(endpointId: String) {
+                    runOnUiThread {
+                        meshDevices[endpointId]?.let { device ->
+                            val current = device.text
+                                .toString()
+                                .substringBefore("  •")
+
+                            device.text = "$current  •  Disconnected"
+                            device.setTextColor(secondaryText)
+                        }
+                        updateMeshStatus()
+                    }
+                }
+
+                override fun onMessage(
+                    endpointId: String,
+                    message: String
+                ) {
+                }
+
+                override fun onError(message: String) {
+                    runOnUiThread {
+                        meshStatusText?.text = "Connection unavailable"
+                        meshStatusText?.setTextColor(
+                            Color.rgb(190, 55, 55)
+                        )
+                    }
+                }
+            }
+        )
+
+        if (hasNearbyPermissions()) {
+            meshManager?.start()
+        }
+    }
+
+    private fun hasNearbyPermissions(): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= 31) {
+            checkSelfPermission(
+                Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED &&
+            checkSelfPermission(
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED &&
+            checkSelfPermission(
+                Manifest.permission.BLUETOOTH_ADVERTISE
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            checkSelfPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun updateMeshStatus() {
+        val connected = meshDevices.values.any {
+            it.text.toString().contains("Connected")
+        }
+
+        meshStatusText?.apply {
+            text = when {
+                connected -> "Connected"
+                meshDevices.isNotEmpty() -> "Nearby devices found"
+                else -> "Searching nearby devices…"
+            }
+
+            setTextColor(
+                if (connected) {
+                    Color.rgb(25, 120, 70)
+                } else {
+                    secondaryText
+                }
+            )
+        }
+    }
+
+    private fun addMeshDevice(
+        endpointId: String,
+        name: String
+    ) {
+        if (meshDevices.containsKey(endpointId)) return
+
+        val device = TextView(this).apply {
+            text = "$name  •  Connecting…"
+            textSize = 16f
+            setTextColor(Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), 0, dp(14), 0)
+
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(248, 248, 250))
+                cornerRadius = dp(14).toFloat()
+            }
+
+            isClickable = true
+
+            setOnClickListener {
+                openMeshConversation(endpointId)
+            }
+        }
+
+        meshDevices[endpointId] = device
+
+        meshDevicesContainer?.addView(
+            device,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(50)
+            ).apply {
+                bottomMargin = dp(8)
+            }
+        )
+
+        updateMeshStatus()
+    }
+
+    private fun openMeshConversation(endpointId: String) {
+        Toast.makeText(
+            this,
+            "Device connected. Open a conversation to chat.",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun showHeaderMenu() {
+        meshPopup?.dismiss()
+
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(20).toFloat()
+                setStroke(dp(1), Color.rgb(230, 230, 235))
+            }
+
+            elevation = dp(18).toFloat()
+        }
+
+        val mesh = createMenuItem(
+            title = "Mesh",
+            subtitle = "Nearby offline devices"
+        )
+
+        mesh.setOnClickListener {
+            showMeshPanel()
+        }
+
+        val settings = createMenuItem(
+            title = "Settings",
+            subtitle = "Coming soon"
+        )
+
+        settings.setOnClickListener {
+        }
+
+        card.addView(
+            mesh,
+            LinearLayout.LayoutParams(dp(250), dp(64))
+        )
+
+        card.addView(
+            settings,
+            LinearLayout.LayoutParams(dp(250), dp(64))
+        )
+
+        meshPopup = PopupWindow(
+            card,
+            dp(270),
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            setBackgroundDrawable(
+                GradientDrawable().apply {
+                    setColor(Color.TRANSPARENT)
+                }
+            )
+            elevation = dp(18).toFloat()
+            isOutsideTouchable = true
+            isFocusable = true
+        }
+
+        meshPopup?.showAsDropDown(
+            homeHeader,
+            0,
+            -dp(4)
+        )
+    }
+
+    private fun createMenuItem(
+        title: String,
+        subtitle: String
+    ): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), 0, dp(14), 0)
+
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(14).toFloat()
+            }
+
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = title
+                    textSize = 17f
+                    setTextColor(Color.BLACK)
+                    typeface = Typeface.DEFAULT_BOLD
+                }
+            )
+
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = subtitle
+                    textSize = 12f
+                    setTextColor(secondaryText)
+                    setPadding(0, dp(3), 0, 0)
+                }
+            )
+        }
+    }
+
+    private fun showMeshPanel() {
+        meshPopup?.dismiss()
+
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(22).toFloat()
+                setStroke(dp(1), Color.rgb(225, 225, 230))
+            }
+
+            elevation = dp(20).toFloat()
+        }
+
+        val title = TextView(this).apply {
+            text = "Mesh"
+            textSize = 25f
+            setTextColor(Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+        }
+
+        card.addView(
+            title,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(34)
+            )
+        )
+
+        meshStatusText = TextView(this).apply {
+            text = "Searching nearby devices…"
+            textSize = 13f
+            setTextColor(secondaryText)
+        }
+
+        card.addView(
+            meshStatusText,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(26)
+            )
+        )
+
+        val divider = View(this).apply {
+            setBackgroundColor(Color.rgb(235, 235, 238))
+        }
+
+        card.addView(
+            divider,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(1)
+            ).apply {
+                topMargin = dp(6)
+                bottomMargin = dp(12)
+            }
+        )
+
+        meshDevicesContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        card.addView(
+            meshDevicesContainer,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        if (meshDevices.isEmpty()) {
+            meshDevicesContainer?.addView(
+                TextView(this).apply {
+                    text = "No nearby devices yet"
+                    textSize = 14f
+                    setTextColor(secondaryText)
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(18), 0, dp(18))
+                }
+            )
+        }
+
+        meshPopup = PopupWindow(
+            card,
+            dp(300),
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            setBackgroundDrawable(
+                GradientDrawable().apply {
+                    setColor(Color.TRANSPARENT)
+                }
+            )
+            elevation = dp(20).toFloat()
+            isOutsideTouchable = true
+            isFocusable = true
+        }
+
+        meshPopup?.showAsDropDown(
+            homeHeader,
+            -dp(8),
+            -dp(4)
+        )
+
+        updateMeshStatus()
+    }
 
     private fun requestContactsPermission() {
         if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
@@ -1283,6 +1683,13 @@ companion object {
             setColor(color)
             cornerRadius = radius
         }
+    }
+
+
+    override fun onDestroy() {
+        meshPopup?.dismiss()
+        meshManager?.stop()
+        super.onDestroy()
     }
 
     private object ColorDrawableCompat {
