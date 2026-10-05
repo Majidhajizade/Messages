@@ -82,6 +82,7 @@ class MainActivity : Activity() {
 companion object {
         private const val SMS_PERMISSION_REQUEST = 2001
         private const val PREFS = "messages_settings"
+        private const val MESH_ID = "mesh_id"
         private const val PINNED = "pinned_numbers"
         private const val BLOCKED = "blocked_numbers"
         private const val MUTED = "muted_numbers"
@@ -499,8 +500,26 @@ companion object {
 
 
     private fun setupMeshManager() {
+        val meshId = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getString(MESH_ID, null)
+            ?: run {
+                val generated = "MJ-" + java.util.UUID.randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .take(6)
+                    .uppercase(Locale.US)
+
+                getSharedPreferences(PREFS, MODE_PRIVATE)
+                    .edit()
+                    .putString(MESH_ID, generated)
+                    .apply()
+
+                generated
+            }
+
         meshManager = OfflineMeshManager(
             this,
+            meshId,
             object : OfflineMeshManager.Listener {
 
                 override fun onPeerDiscovered(
@@ -692,10 +711,12 @@ companion object {
 
         val settings = createMenuItem(
             title = "Settings",
-            subtitle = "Coming soon"
+            subtitle = "Mesh ID and preferences"
         )
 
         settings.setOnClickListener {
+            meshPopup?.dismiss()
+            showMeshIdSettings()
         }
 
         card.addView(
@@ -706,6 +727,49 @@ companion object {
         card.addView(
             settings,
             LinearLayout.LayoutParams(dp(250), dp(64))
+        )
+
+        searchInput.addTextChangedListener(
+            object : android.text.TextWatcher {
+                override fun beforeTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    count: Int,
+                    after: Int
+                ) {}
+
+                override fun onTextChanged(
+                    s: CharSequence?,
+                    start: Int,
+                    before: Int,
+                    count: Int
+                ) {
+                    val query = s?.toString()
+                        ?.trim()
+                        ?.uppercase(Locale.US)
+                        ?: ""
+
+                    meshDevices.values.forEach { device ->
+                        val meshId = device.text
+                            .toString()
+                            .substringBefore("  •")
+                            .trim()
+                            .uppercase(Locale.US)
+
+                        val visible = query.isEmpty() ||
+                            meshId == query ||
+                            meshId.contains(query)
+
+                        device.visibility = if (visible) {
+                            View.VISIBLE
+                        } else {
+                            View.GONE
+                        }
+                    }
+                }
+
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            }
         )
 
         meshPopup = PopupWindow(
@@ -808,6 +872,27 @@ companion object {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(26)
             )
+        )
+
+        val searchInput = EditText(this).apply {
+            hint = "Search Mesh ID  •  MJ-XXXXXX"
+            textSize = 14f
+            setSingleLine(true)
+            setPadding(dp(12), 0, dp(12), 0)
+            background = solidDrawable(
+                Color.rgb(245, 245, 248),
+                dp(12).toFloat()
+            )
+        }
+
+        card.addView(
+            searchInput,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(48)
+            ).apply {
+                bottomMargin = dp(10)
+            }
         )
 
         val divider = View(this).apply {
@@ -1672,6 +1757,121 @@ companion object {
         private fun dpLocal(value: Float): Float {
             return value * resources.displayMetrics.density
         }
+    }
+
+    private fun showMeshIdSettings() {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        var meshId = prefs.getString(MESH_ID, null)
+
+        if (meshId.isNullOrBlank()) {
+            meshId = "MJ-" + java.util.UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .take(6)
+                .uppercase(Locale.US)
+
+            prefs.edit().putString(MESH_ID, meshId).apply()
+        }
+
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(20), dp(24), dp(20))
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(20).toFloat()
+            }
+            elevation = dp(18).toFloat()
+        }
+
+        val title = TextView(this).apply {
+            text = "Mesh ID"
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(25, 25, 30))
+        }
+
+        val description = TextView(this).apply {
+            text = "Your ID is used to identify this device for nearby offline messaging."
+            textSize = 14f
+            setTextColor(secondaryText)
+            setPadding(0, dp(8), 0, dp(14))
+        }
+
+        val input = EditText(this).apply {
+            setText(meshId)
+            textSize = 18f
+            setSingleLine(true)
+            hint = "MJ-XXXXXX"
+            setSelectAllOnFocus(true)
+        }
+
+        val save = TextView(this).apply {
+            text = "Save"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = solidDrawable(Color.rgb(35, 35, 40), dp(12).toFloat())
+            setPadding(dp(18), dp(12), dp(18), dp(12))
+        }
+
+        save.setOnClickListener {
+            val value = input.text.toString().trim().uppercase(Locale.US)
+
+            if (!value.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+                Toast.makeText(
+                    this,
+                    "Use format MJ-XXXXXX",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            prefs.edit().putString(MESH_ID, value).apply()
+            Toast.makeText(
+                this,
+                "Mesh ID saved",
+                Toast.LENGTH_SHORT
+            ).show()
+            meshPopup?.dismiss()
+        }
+
+        card.addView(title)
+        card.addView(description)
+        card.addView(
+            input,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(56)
+            ).apply {
+                bottomMargin = dp(14)
+            }
+        )
+        card.addView(
+            save,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(50)
+            )
+        )
+
+        meshPopup = PopupWindow(
+            card,
+            dp(310),
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            setBackgroundDrawable(ColorDrawableCompat.white())
+            isOutsideTouchable = true
+            elevation = dp(18).toFloat()
+        }
+
+        meshPopup?.showAtLocation(
+            window.decorView,
+            Gravity.CENTER,
+            0,
+            0
+        )
     }
 
     private fun openNewMessage() {

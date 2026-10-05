@@ -14,6 +14,7 @@ import com.google.android.gms.nearby.connection.Strategy
 
 class OfflineMeshManager(
     context: Context,
+    private val meshId: String,
     private val listener: Listener
 ) {
 
@@ -123,14 +124,15 @@ class OfflineMeshManager(
                     info.endpointName
                 )
 
-                if (connectedEndpoints.contains(endpointId) ||
+                if (
+                    connectedEndpoints.contains(endpointId) ||
                     !connectingEndpoints.add(endpointId)
                 ) {
                     return
                 }
 
                 connectionsClient.requestConnection(
-                    "Messages",
+                    meshId,
                     endpointId,
                     connectionLifecycleCallback
                 ).addOnFailureListener {
@@ -152,7 +154,7 @@ class OfflineMeshManager(
 
     fun start() {
         connectionsClient.startAdvertising(
-            "Messages",
+            meshId,
             SERVICE_ID,
             connectionLifecycleCallback,
             com.google.android.gms.nearby.connection.AdvertisingOptions.Builder()
