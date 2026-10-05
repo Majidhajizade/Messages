@@ -84,6 +84,7 @@ class OfflineMeshManager(
     private val pendingLock = Any()
 
     private val pendingAttempts = ConcurrentHashMap<String, Int>()
+    private val messageReturnRoutes = ConcurrentHashMap<String, String>()
 
     private fun queuePendingMessage(message: MeshMessage) {
         if (message.destination == null) return
@@ -104,6 +105,7 @@ class OfflineMeshManager(
             pendingMessages.remove(messageId)
         }
         pendingAttempts.remove(messageId)
+        messageReturnRoutes.remove(messageId)
     }
 
     private fun retryPendingMessages() {
@@ -324,27 +326,48 @@ class OfflineMeshManager(
         }
     }
 
-    private fun sendAck(endpointId: String, messageId: String) {
+    private fun sendAck(
+        endpointId: String,
+        messageId: String
+    ) {
         val payload = Payload.fromBytes(
-            "$ACK_PREFIX$messageId".toByteArray(Charsets.UTF_8)
+            "$ACK_PREFIX$messageId|$meshId"
+                .toByteArray(Charsets.UTF_8)
         )
 
-        connectionsClient.sendPayload(endpointId, payload)
+        connectionsClient.sendPayload(
+            endpointId,
+            payload
+        )
     }
 
     private fun forwardAck(
         messageId: String,
-        incomingEndpointId: String
+        sourceMeshId: String
     ) {
+        if (sourceMeshId.equals(meshId, ignoreCase = true)) {
+            removePendingMessage(messageId)
+            messageReturnRoutes.remove(messageId)
+            return
+        }
+
+        val returnEndpointId =
+            messageReturnRoutes[messageId]
+                ?: return
+
+        if (!connectedEndpoints.contains(returnEndpointId)) {
+            return
+        }
+
         val payload = Payload.fromBytes(
-            "$ACK_PREFIX$messageId".toByteArray(Charsets.UTF_8)
+            "$ACK_PREFIX$messageId|$sourceMeshId"
+                .toByteArray(Charsets.UTF_8)
         )
 
-        connectedEndpoints
-            .filter { it != incomingEndpointId }
-            .forEach { endpointId ->
-                connectionsClient.sendPayload(endpointId, payload)
-            }
+        connectionsClient.sendPayload(
+            returnEndpointId,
+            payload
+        )
     }
 
     private fun forwardMessage(
@@ -401,15 +424,32 @@ class OfflineMeshManager(
                 }
 
                 if (raw.startsWith(ACK_PREFIX)) {
-                    val messageId =
-                        raw.removePrefix(ACK_PREFIX).trim()
+                    val parts =
+                        raw.removePrefix(ACK_PREFIX)
+                            .split("|", limit = 2)
 
-                    if (messageId.isEmpty() || !rememberAck(messageId)) {
+                    val messageId =
+                        parts.getOrNull(0)
+                            ?.trim()
+                            .orEmpty()
+
+                    val sourceMeshId =
+                        parts.getOrNull(1)
+                            ?.trim()
+                            .orEmpty()
+
+                    if (
+                        messageId.isEmpty() ||
+                        sourceMeshId.isEmpty() ||
+                        !rememberAck(messageId)
+                    ) {
                         return
                     }
 
-                    removePendingMessage(messageId)
-                    forwardAck(messageId, endpointId)
+                    forwardAck(
+                        messageId,
+                        sourceMeshId
+                    )
                     return
                 }
 
@@ -423,6 +463,8 @@ class OfflineMeshManager(
                     )
                     return
                 }
+
+                messageReturnRoutes[meshMessage.id] = endpointId
 
                 if (!rememberMessage(meshMessage.id)) {
                     return
@@ -722,6 +764,7 @@ class OfflineMeshManager(
         )
 
         rememberMessage(meshMessage.id)
+        messageReturnRoutes.remove(meshMessage.id)
 
         if (normalizedDestination != null && connectedEndpoints.isEmpty()) {
             queuePendingMessage(meshMessage)
