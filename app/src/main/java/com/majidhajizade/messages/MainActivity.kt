@@ -129,11 +129,6 @@ companion object {
             }
 
             if (roleManager.isRoleHeld(RoleManager.ROLE_SMS)) {
-                Toast.makeText(
-                    this,
-                    "Messages is already default SMS",
-                    Toast.LENGTH_LONG
-                ).show()
                 return
             }
 
