@@ -42,7 +42,11 @@ class OfflineMeshManager(
         private const val MESSAGE_PREFIX =
             "MESSAGES_MESH_MESSAGE|v1|"
 
+        private const val ACK_PREFIX =
+            "MESSAGES_MESH_ACK|v1|"
+
         private const val MAX_TTL = 6
+        private const val RETRY_INTERVAL_MS = 5000L
 
         private const val SEEN_LIMIT = 2000
 
@@ -73,8 +77,13 @@ class OfflineMeshManager(
     private val seenMessages = LinkedHashSet<String>()
     private val seenLock = Any()
 
+    private val seenAcks = LinkedHashSet<String>()
+    private val ackLock = Any()
+
     private val pendingMessages = LinkedHashMap<String, MeshMessage>()
     private val pendingLock = Any()
+
+    private val pendingAttempts = ConcurrentHashMap<String, Int>()
 
     private fun queuePendingMessage(message: MeshMessage) {
         if (message.destination == null) return
@@ -94,6 +103,7 @@ class OfflineMeshManager(
         synchronized(pendingLock) {
             pendingMessages.remove(messageId)
         }
+        pendingAttempts.remove(messageId)
     }
 
     private fun retryPendingMessages() {
@@ -102,6 +112,9 @@ class OfflineMeshManager(
         }
 
         pending.forEach { message ->
+            pendingAttempts[message.id] =
+                (pendingAttempts[message.id] ?: 0) + 1
+
             if (message.ttl <= 0) {
                 removePendingMessage(message.id)
                 return@forEach
@@ -295,6 +308,45 @@ class OfflineMeshManager(
         )
     }
 
+    private fun rememberAck(messageId: String): Boolean {
+        synchronized(ackLock) {
+            if (!seenAcks.add(messageId)) {
+                return false
+            }
+
+            if (seenAcks.size > SEEN_LIMIT) {
+                val iterator = seenAcks.iterator()
+                iterator.next()
+                iterator.remove()
+            }
+
+            return true
+        }
+    }
+
+    private fun sendAck(endpointId: String, messageId: String) {
+        val payload = Payload.fromBytes(
+            "$ACK_PREFIX$messageId".toByteArray(Charsets.UTF_8)
+        )
+
+        connectionsClient.sendPayload(endpointId, payload)
+    }
+
+    private fun forwardAck(
+        messageId: String,
+        incomingEndpointId: String
+    ) {
+        val payload = Payload.fromBytes(
+            "$ACK_PREFIX$messageId".toByteArray(Charsets.UTF_8)
+        )
+
+        connectedEndpoints
+            .filter { it != incomingEndpointId }
+            .forEach { endpointId ->
+                connectionsClient.sendPayload(endpointId, payload)
+            }
+    }
+
     private fun forwardMessage(
         message: MeshMessage,
         incomingEndpointId: String
@@ -348,6 +400,19 @@ class OfflineMeshManager(
                     return
                 }
 
+                if (raw.startsWith(ACK_PREFIX)) {
+                    val messageId =
+                        raw.removePrefix(ACK_PREFIX).trim()
+
+                    if (messageId.isEmpty() || !rememberAck(messageId)) {
+                        return
+                    }
+
+                    removePendingMessage(messageId)
+                    forwardAck(messageId, endpointId)
+                    return
+                }
+
                 val meshMessage = decodeMessage(raw)
 
                 if (meshMessage == null) {
@@ -375,6 +440,7 @@ class OfflineMeshManager(
                     )
 
                     if (destination != null) {
+                        sendAck(endpointId, meshMessage.id)
                         removePendingMessage(meshMessage.id)
                     }
                 } else {
@@ -537,6 +603,19 @@ class OfflineMeshManager(
             }
         }
 
+    private val retryRunnable = object : Runnable {
+        override fun run() {
+            if (!started) return
+
+            retryPendingMessages()
+
+            handler.postDelayed(
+                this,
+                RETRY_INTERVAL_MS
+            )
+        }
+    }
+
     @Synchronized
     fun start() {
         if (started) {
@@ -544,6 +623,12 @@ class OfflineMeshManager(
         }
 
         started = true
+
+        handler.removeCallbacks(retryRunnable)
+        handler.postDelayed(
+            retryRunnable,
+            RETRY_INTERVAL_MS
+        )
 
         val advertisingOptions =
             com.google.android.gms.nearby.connection.AdvertisingOptions
@@ -663,6 +748,7 @@ class OfflineMeshManager(
     @Synchronized
     fun stop() {
         started = false
+        handler.removeCallbacks(retryRunnable)
 
         handshakeTimeouts
             .values
