@@ -42,6 +42,8 @@ class ConversationActivity : Activity() {
     private val secondaryText = Color.rgb(110, 110, 115)
 
     private lateinit var phone: String
+    private lateinit var offlineMeshManager: OfflineMeshManager
+    private var offlinePeerConnected = false
 
     companion object {
         private const val SEND_PERMISSION = 3001
@@ -120,9 +122,79 @@ class ConversationActivity : Activity() {
         }
 
         loadConversation()
+
+        offlineMeshManager = OfflineMeshManager(
+            this,
+            object : OfflineMeshManager.Listener {
+                override fun onPeerConnected(endpointId: String, name: String) {
+                    offlinePeerConnected = true
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@ConversationActivity,
+                            "Offline device connected",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
+                override fun onPeerDisconnected(endpointId: String) {
+                    offlinePeerConnected = false
+                }
+
+                override fun onMessage(endpointId: String, message: String) {
+                    runOnUiThread {
+                        val receivedDate = System.currentTimeMillis()
+
+                        addMessage(
+                            body = message,
+                            date = receivedDate,
+                            incoming = true
+                        )
+
+                        runCatching {
+                            contentResolver.insert(
+                                Telephony.Sms.CONTENT_URI,
+                                ContentValues().apply {
+                                    put(Telephony.Sms.ADDRESS, phone)
+                                    put(Telephony.Sms.BODY, message)
+                                    put(Telephony.Sms.DATE, receivedDate)
+                                    put(
+                                        Telephony.Sms.TYPE,
+                                        Telephony.Sms.MESSAGE_TYPE_INBOX
+                                    )
+                                    put(Telephony.Sms.READ, 1)
+                                }
+                            )
+                        }
+
+                        scrollView.post {
+                            scrollView.fullScroll(View.FOCUS_DOWN)
+                        }
+                    }
+                }
+
+                override fun onError(message: String) {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@ConversationActivity,
+                            message,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        )
+
+        if (hasNearbyPermissions()) {
+            offlineMeshManager.start()
+        }
     }
 
     override fun onDestroy() {
+        if (::offlineMeshManager.isInitialized) {
+            offlineMeshManager.stop()
+        }
+
         runCatching {
             unregisterReceiver(smsSentReceiver)
         }
@@ -140,6 +212,20 @@ class ConversationActivity : Activity() {
                 == PackageManager.PERMISSION_GRANTED
         ) {
             loadConversation()
+        }
+    }
+
+    private fun hasNearbyPermissions(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) ==
+                PackageManager.PERMISSION_GRANTED &&
+                checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) ==
+                PackageManager.PERMISSION_GRANTED &&
+                checkSelfPermission(Manifest.permission.BLUETOOTH_ADVERTISE) ==
+                PackageManager.PERMISSION_GRANTED
+        } else {
+            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
         }
     }
 
@@ -677,6 +763,23 @@ class ConversationActivity : Activity() {
         val message = messageInput.text.toString().trim()
 
         if (message.isEmpty()) {
+            return
+        }
+
+        if (offlinePeerConnected) {
+            addMessage(
+                body = message,
+                date = System.currentTimeMillis(),
+                incoming = false
+            )
+
+            messageInput.text.clear()
+
+            scrollView.post {
+                scrollView.fullScroll(View.FOCUS_DOWN)
+            }
+
+            offlineMeshManager.sendMessage(message)
             return
         }
 

@@ -2,6 +2,8 @@ package com.majidhajizade.messages
 
 import android.Manifest
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.Cursor
@@ -29,6 +31,29 @@ import java.util.Locale
 import kotlin.math.abs
 
 class MainActivity : Activity() {
+
+    private val nearbyPermissions = if (android.os.Build.VERSION.SDK_INT >= 31) {
+        arrayOf(
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_ADVERTISE
+        )
+    } else {
+        arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+    }
+
+    private fun ensureNearbyPermissions() {
+        val missing = nearbyPermissions.filter {
+            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missing.isNotEmpty()) {
+            requestPermissions(missing.toTypedArray(), 9001)
+        }
+    }
+
 
     private val blue = Color.rgb(0, 122, 255)
     private val premiumBlue = Color.rgb(0, 95, 220)
@@ -61,6 +86,7 @@ companion object {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ensureNearbyPermissions()
 
         window.statusBarColor = background
         window.navigationBarColor = background
