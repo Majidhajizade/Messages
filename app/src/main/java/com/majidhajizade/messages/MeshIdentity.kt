@@ -46,8 +46,10 @@ class MeshIdentity(context: Context) {
             )
                 .setKeySize(2048)
                 .setDigests(
-                    android.security.keystore.KeyProperties.DIGEST_SHA256,
-                    android.security.keystore.KeyProperties.DIGEST_SHA512
+                    android.security.keystore.KeyProperties.DIGEST_SHA256
+                )
+                .setSignaturePaddings(
+                    android.security.keystore.KeyProperties.SIGNATURE_PADDING_RSA_PKCS1
                 )
                 .build()
         )
