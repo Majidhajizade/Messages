@@ -13,6 +13,9 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import java.nio.ByteBuffer
 import java.security.SecureRandom
+import java.security.spec.MGF1ParameterSpec
+import javax.crypto.spec.OAEPParameterSpec
+import javax.crypto.spec.PSource
 
 class MeshIdentity(context: Context) {
 
@@ -205,7 +208,17 @@ class MeshIdentity(context: Context) {
 
     fun decrypt(data: ByteArray): ByteArray {
         val cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
-        cipher.init(Cipher.DECRYPT_MODE, encryptionKeyPair.private)
+        val oaepSpec = OAEPParameterSpec(
+            "SHA-256",
+            "MGF1",
+            MGF1ParameterSpec.SHA256,
+            PSource.PSpecified.DEFAULT
+        )
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            encryptionKeyPair.private,
+            oaepSpec
+        )
         return cipher.doFinal(data)
     }
 
@@ -214,7 +227,17 @@ class MeshIdentity(context: Context) {
         data: ByteArray
     ): ByteArray {
         val cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
-        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
+        val oaepSpec = OAEPParameterSpec(
+            "SHA-256",
+            "MGF1",
+            MGF1ParameterSpec.SHA256,
+            PSource.PSpecified.DEFAULT
+        )
+        cipher.init(
+            Cipher.ENCRYPT_MODE,
+            publicKey,
+            oaepSpec
+        )
         return cipher.doFinal(data)
     }
 }
