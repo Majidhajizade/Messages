@@ -43,13 +43,16 @@ class ConversationActivity : Activity() {
 
     private lateinit var phone: String
     private lateinit var offlineMeshManager: OfflineMeshManager
-    private var offlinePeerConnected = false
 
     companion object {
         private const val SEND_PERMISSION = 3001
         private const val PICK_CONTACT = 3002
         private const val NEARBY_PERMISSION = 3003
         private const val ACTION_DELIVERED = "com.majidhajizade.messages.SMS_DELIVERED"
+
+        @Volatile
+        var activeMeshId: String? = null
+            private set
     }
 
     private val smsDeliveredReceiver = object : BroadcastReceiver() {
@@ -98,6 +101,12 @@ class ConversationActivity : Activity() {
             return
         }
 
+        if (intent.getBooleanExtra("offline_mesh", false)) {
+            activeMeshId = phone
+                .trim()
+                .uppercase(Locale.US)
+        }
+
         setContentView(createScreen())
 
         val filter = IntentFilter("com.majidhajizade.messages.SMS_SENT")
@@ -124,93 +133,51 @@ class ConversationActivity : Activity() {
 
         loadConversation()
 
-        val meshId = getSharedPreferences("messages_settings", MODE_PRIVATE)
-            .getString("mesh_id", null)
-            ?: ("MJ-" + java.util.UUID.randomUUID()
-                .toString()
-                .replace("-", "")
-                .take(6)
-                .uppercase(java.util.Locale.US))
-                .also { generated ->
-                    getSharedPreferences("messages_settings", MODE_PRIVATE)
-                        .edit()
-                        .putString("mesh_id", generated)
-                        .apply()
-                }
-
-        offlineMeshManager = OfflineMeshManager(
-            this,
-            meshId,
-            object : OfflineMeshManager.Listener {
-                override fun onPeerDiscovered(
-                endpointId: String,
-                name: String
-            ) {
+        offlineMeshManager = MeshSession.manager
+            ?: run {
+                finish()
+                return
             }
 
-            override fun onPeerLost(
-                endpointId: String
+        MeshSession.activeChatId = phone
+            .trim()
+            .uppercase(Locale.US)
+
+        MeshSession.activeMessageHandler = { senderId, message ->
+            if (
+                senderId.equals(
+                    phone.trim().uppercase(Locale.US),
+                    ignoreCase = true
+                )
             ) {
-            }
+                runOnUiThread {
+                    val receivedDate = System.currentTimeMillis()
 
-            override fun onPeerConnected(endpointId: String, name: String) {
-                    offlinePeerConnected = true
-                    runOnUiThread {
-                        Toast.makeText(
-                            this@ConversationActivity,
-                            "Offline device connected",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
+                    addMessage(
+                        body = message,
+                        date = receivedDate,
+                        incoming = true
+                    )
 
-                override fun onPeerDisconnected(endpointId: String) {
-                    offlinePeerConnected = false
-                }
-
-                override fun onMessage(endpointId: String, message: String) {
-                    runOnUiThread {
-                        val receivedDate = System.currentTimeMillis()
-
-                        addMessage(
-                            body = message,
-                            date = receivedDate,
-                            incoming = true
+                    runCatching {
+                        contentResolver.insert(
+                            Telephony.Sms.CONTENT_URI,
+                            ContentValues().apply {
+                                put(Telephony.Sms.ADDRESS, phone)
+                                put(Telephony.Sms.BODY, message)
+                                put(Telephony.Sms.DATE, receivedDate)
+                                put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_INBOX)
+                                put(Telephony.Sms.READ, 1)
+                            }
                         )
-
-                        runCatching {
-                            contentResolver.insert(
-                                Telephony.Sms.CONTENT_URI,
-                                ContentValues().apply {
-                                    put(Telephony.Sms.ADDRESS, phone)
-                                    put(Telephony.Sms.BODY, message)
-                                    put(Telephony.Sms.DATE, receivedDate)
-                                    put(
-                                        Telephony.Sms.TYPE,
-                                        Telephony.Sms.MESSAGE_TYPE_INBOX
-                                    )
-                                    put(Telephony.Sms.READ, 1)
-                                }
-                            )
-                        }
-
-                        scrollView.post {
-                            scrollView.fullScroll(View.FOCUS_DOWN)
-                        }
                     }
-                }
 
-                override fun onError(message: String) {
-                    runOnUiThread {
-                        Toast.makeText(
-                            this@ConversationActivity,
-                            message,
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    scrollView.post {
+                        scrollView.fullScroll(View.FOCUS_DOWN)
                     }
                 }
             }
-        )
+        }
 
         intent.getStringExtra("mesh_id")
             ?.trim()
@@ -271,8 +238,15 @@ class ConversationActivity : Activity() {
     }
 
     override fun onDestroy() {
-        if (::offlineMeshManager.isInitialized) {
-            offlineMeshManager.stop()
+        val currentChatId =
+            phone.trim().uppercase(Locale.US)
+
+        if (
+            MeshSession.activeChatId
+                ?.equals(currentChatId, ignoreCase = true) == true
+        ) {
+            MeshSession.activeMessageHandler = null
+            MeshSession.activeChatId = null
         }
 
         runCatching {
@@ -281,6 +255,11 @@ class ConversationActivity : Activity() {
         runCatching {
             unregisterReceiver(smsDeliveredReceiver)
         }
+
+        if (activeMeshId == phone.trim().uppercase(Locale.US)) {
+            activeMeshId = null
+        }
+
         super.onDestroy()
     }
 
@@ -931,7 +910,16 @@ class ConversationActivity : Activity() {
             return
         }
 
-        if (offlinePeerConnected) {
+        if (activeMeshId != null) {
+            if (!MeshSession.targetConnected) {
+                Toast.makeText(
+                    this,
+                    "Offline device is not connected",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return
+            }
+
             addMessage(
                 body = message,
                 date = System.currentTimeMillis(),

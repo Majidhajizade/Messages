@@ -2,8 +2,13 @@ package com.majidhajizade.messages
 
 import android.Manifest
 import android.app.Activity
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.pm.PackageManager
 import android.content.Intent
+import android.content.Context
 import android.database.Cursor
 import android.graphics.Color
 import android.graphics.Typeface
@@ -105,6 +110,7 @@ companion object {
             View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 
         setContentView(createHomeScreen())
+        setupMeshNotificationChannel()
         setupMeshManager()
 
         requestDefaultSmsRole()
@@ -513,6 +519,77 @@ companion object {
     }
 
 
+    private fun setupMeshNotificationChannel() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "mesh_messages",
+                "Mesh messages",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for messages received through Mesh"
+            }
+
+            getSystemService(NotificationManager::class.java)
+                ?.createNotificationChannel(channel)
+        }
+    }
+
+    private fun showMeshMessageNotification(
+        senderId: String,
+        message: String
+    ) {
+        val activeChat = ConversationActivity.activeMeshId
+
+        if (activeChat != null &&
+            activeChat.equals(senderId, ignoreCase = true)
+        ) {
+            return
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        val intent = Intent(
+            this,
+            ConversationActivity::class.java
+        ).apply {
+            putExtra("phone", senderId)
+            putExtra("mesh_id", senderId)
+            putExtra("offline_mesh", true)
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            senderId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = Notification.Builder(this, "mesh_messages")
+            .setSmallIcon(android.R.drawable.ic_dialog_email)
+            .setContentTitle("پیام جدید از $senderId")
+            .setContentText(message)
+            .setStyle(
+                Notification.BigTextStyle()
+                    .bigText(message)
+            )
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setCategory(Notification.CATEGORY_MESSAGE)
+            .setPriority(Notification.PRIORITY_HIGH)
+            .build()
+
+        getSystemService(NotificationManager::class.java)
+            ?.notify(senderId.hashCode(), notification)
+    }
+
     private fun setupMeshManager() {
         val meshId = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getString(MESH_ID, null)
@@ -531,8 +608,16 @@ companion object {
                 generated
             }
 
+        if (MeshSession.manager != null) {
+            meshManager = MeshSession.manager
+            if (hasNearbyPermissions()) {
+                meshManager?.start()
+            }
+            return
+        }
+
         meshManager = OfflineMeshManager(
-            this,
+            applicationContext,
             meshId,
             object : OfflineMeshManager.Listener {
 
@@ -570,6 +655,13 @@ companion object {
                     logMesh(
                         "CONNECTED | peer=$name | endpoint=$endpointId"
                     )
+                    if (
+                        MeshSession.manager?.getTargetMeshId()
+                            ?.equals(name, ignoreCase = true) == true
+                    ) {
+                        MeshSession.targetConnected = true
+                    }
+
                     runOnUiThread {
                         meshDevices[endpointId]?.apply {
                             text = "Connected"
@@ -583,6 +675,19 @@ companion object {
                     logMesh(
                         "DISCONNECTED | endpoint=$endpointId"
                     )
+                    val disconnectedMeshId =
+                        meshDeviceNames[endpointId]
+
+                    if (
+                        MeshSession.manager?.getTargetMeshId()
+                            ?.equals(
+                                disconnectedMeshId,
+                                ignoreCase = true
+                            ) == true
+                    ) {
+                        MeshSession.targetConnected = false
+                    }
+
                     runOnUiThread {
                         meshDevices[endpointId]?.apply {
                             text = "Disconnected"
@@ -599,6 +704,36 @@ companion object {
                     logMesh(
                         "MESSAGE | endpoint=$endpointId | $message"
                     )
+
+                    val senderId = meshDeviceNames[endpointId]
+                        ?.trim()
+                        ?.uppercase(Locale.US)
+                        ?.takeIf {
+                            it.matches(Regex("MJ-[A-Z0-9]{6}"))
+                        }
+                        ?: endpointId
+
+                    runOnUiThread {
+                        val activeChat = MeshSession.activeChatId
+
+                        if (
+                            activeChat != null &&
+                            activeChat.equals(
+                                senderId,
+                                ignoreCase = true
+                            )
+                        ) {
+                            MeshSession.activeMessageHandler?.invoke(
+                                senderId,
+                                message
+                            )
+                        } else {
+                            showMeshMessageNotification(
+                                senderId = senderId,
+                                message = message
+                            )
+                        }
+                    }
                 }
 
                 override fun onError(message: String) {
@@ -617,6 +752,8 @@ companion object {
                 }
             }
         )
+
+        MeshSession.manager = meshManager
 
         if (hasNearbyPermissions()) {
             meshManager?.start()
@@ -754,6 +891,13 @@ companion object {
         selectedMeshId = normalized
         saveMeshDevice(normalized)
         meshManager?.setTargetMeshId(normalized)
+
+        MeshSession.targetConnected = meshDeviceNames.any { (_, deviceName) ->
+            deviceName
+                ?.trim()
+                ?.uppercase(Locale.US)
+                ?.equals(normalized, ignoreCase = true) == true
+        }
 
         startActivity(
             Intent(this, ConversationActivity::class.java).apply {
@@ -2358,13 +2502,11 @@ companion object {
 
 
     override fun onPause() {
-        meshManager?.stop()
         super.onPause()
     }
 
     override fun onDestroy() {
         meshPopup?.dismiss()
-        meshManager?.stop()
         super.onDestroy()
     }
 
