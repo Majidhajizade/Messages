@@ -874,6 +874,10 @@ class OfflineMeshManager(
                     return
                 }
 
+                listener.onError(
+                    "REQUESTING CONNECTION: local=$meshId peer=$remoteName endpoint=$endpointId"
+                )
+
                 connectionsClient
                     .requestConnection(
                         meshId,
