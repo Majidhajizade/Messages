@@ -21,6 +21,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
+import android.widget.ScrollView
 import android.widget.Toast
 import android.graphics.drawable.GradientDrawable
 import java.text.SimpleDateFormat
