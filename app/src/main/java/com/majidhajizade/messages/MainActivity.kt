@@ -2637,7 +2637,7 @@ companion object {
         val scroll = ScrollView(this).apply {
             addView(
                 meshLogText,
-                ScrollView.LayoutParams(
+                ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
