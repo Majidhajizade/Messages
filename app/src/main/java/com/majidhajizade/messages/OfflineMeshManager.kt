@@ -58,7 +58,7 @@ class OfflineMeshManager(
 
         private const val SEEN_LIMIT = 2000
 
-        private val STRATEGY = Strategy.P2P_CLUSTER
+        private val STRATEGY = Strategy.P2P_POINT_TO_POINT
     }
 
     private val identity = MeshIdentity(context)
@@ -867,13 +867,18 @@ class OfflineMeshManager(
                         endpointId,
                         connectionLifecycleCallback
                     )
+                    .addOnSuccessListener {
+                        listener.onError(
+                            "Connection request sent to $remoteName"
+                        )
+                    }
                     .addOnFailureListener {
                         connectingEndpoints.remove(endpointId)
 
                         listener.onError(
                             "Request connection failed: ${
                                 it.message ?: "unknown error"
-                            }"
+                            } | endpoint=$endpointId | peer=$remoteName"
                         )
                     }
             }
