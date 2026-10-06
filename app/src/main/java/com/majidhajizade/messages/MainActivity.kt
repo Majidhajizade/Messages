@@ -73,6 +73,8 @@ class MainActivity : Activity() {
     private var meshStatusText: TextView? = null
     private var meshDevicesContainer: LinearLayout? = null
     private val meshDevices = linkedMapOf<String, TextView>()
+    private val meshDeviceRows = linkedMapOf<String, LinearLayout>()
+    private val meshDeviceNames = linkedMapOf<String, String>()
     private var selectedMeshId: String? = null
     private val rowViews = mutableMapOf<String, TextView>()
     private val selectedAddresses = linkedSetOf<String>()
@@ -543,7 +545,9 @@ companion object {
 
                 override fun onPeerLost(endpointId: String) {
                     runOnUiThread {
-                        meshDevices.remove(endpointId)?.let {
+                        meshDevices.remove(endpointId)
+                        meshDeviceNames.remove(endpointId)
+                        meshDeviceRows.remove(endpointId)?.let {
                             meshDevicesContainer?.removeView(it)
                         }
                         updateMeshStatus()
@@ -556,7 +560,7 @@ companion object {
                 ) {
                     runOnUiThread {
                         meshDevices[endpointId]?.apply {
-                            text = "$name  •  Connected"
+                            text = "Connected"
                             setTextColor(Color.rgb(25, 120, 70))
                         }
                         updateMeshStatus()
@@ -565,13 +569,9 @@ companion object {
 
                 override fun onPeerDisconnected(endpointId: String) {
                     runOnUiThread {
-                        meshDevices[endpointId]?.let { device ->
-                            val current = device.text
-                                .toString()
-                                .substringBefore("  •")
-
-                            device.text = "$current  •  Disconnected"
-                            device.setTextColor(secondaryText)
+                        meshDevices[endpointId]?.apply {
+                            text = "Disconnected"
+                            setTextColor(secondaryText)
                         }
                         updateMeshStatus()
                     }
@@ -672,20 +672,21 @@ companion object {
         saveMeshDevice(normalized)
         meshManager?.setTargetMeshId(normalized)
 
-        meshDevices.values.forEach { device ->
-            val deviceId = device.text
-                .toString()
-                .substringBefore(" •")
-                .trim()
-                .uppercase(Locale.US)
+        meshDeviceRows.forEach { (endpointId, row) ->
+            val deviceId = meshDeviceNames[endpointId]
+                ?.trim()
+                ?.uppercase(Locale.US)
 
-            device.setBackgroundColor(
-                if (deviceId == normalized) {
-                    Color.rgb(225, 240, 255)
-                } else {
-                    Color.rgb(248, 248, 250)
-                }
-            )
+            row.background = GradientDrawable().apply {
+                setColor(
+                    if (deviceId == normalized) {
+                        Color.rgb(225, 240, 255)
+                    } else {
+                        Color.rgb(248, 248, 250)
+                    }
+                )
+                cornerRadius = dp(18).toFloat()
+            }
         }
 
         meshStatusText?.text =
@@ -708,33 +709,104 @@ companion object {
     ) {
         if (meshDevices.containsKey(endpointId)) return
 
-        val device = TextView(this).apply {
-            text = "$name  •  Connecting…"
-            textSize = 16f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
+        val deviceId = name.trim().uppercase(Locale.US)
+
+        val device = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), 0, dp(14), 0)
+            setPadding(dp(12), dp(8), dp(10), dp(8))
 
             background = GradientDrawable().apply {
-                setColor(Color.rgb(248, 248, 250))
-                cornerRadius = dp(14).toFloat()
+                setColor(
+                    if (deviceId == selectedMeshId) {
+                        Color.rgb(225, 240, 255)
+                    } else {
+                        Color.rgb(248, 248, 250)
+                    }
+                )
+                cornerRadius = dp(18).toFloat()
             }
 
             isClickable = true
-
             setOnClickListener {
                 selectMeshDevice(name)
             }
         }
 
-        meshDevices[endpointId] = device
+        val avatar = TextView(this).apply {
+            text = name.trim().firstOrNull()
+                ?.uppercaseChar()
+                ?.toString() ?: "M"
+            textSize = 16f
+            setTextColor(Color.rgb(30, 55, 95))
+            gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(225, 235, 250))
+                shape = GradientDrawable.OVAL
+            }
+        }
+
+        device.addView(
+            avatar,
+            LinearLayout.LayoutParams(dp(42), dp(42)).apply {
+                rightMargin = dp(11)
+            }
+        )
+
+        val info = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        info.addView(
+            TextView(this@MainActivity).apply {
+                text = name
+                textSize = 15f
+                setTextColor(Color.rgb(25, 25, 30))
+                typeface = Typeface.DEFAULT_BOLD
+            }
+        )
+
+        val status = TextView(this@MainActivity).apply {
+            text = "Connecting…"
+            textSize = 12f
+            setTextColor(secondaryText)
+            tag = "mesh_status"
+            setPadding(0, dp(2), 0, 0)
+        }
+
+        info.addView(status)
+
+        device.addView(
+            info,
+            LinearLayout.LayoutParams(0, dp(50), 1f)
+        )
+
+        val arrow = TextView(this).apply {
+            text = "›"
+            textSize = 25f
+            setTextColor(Color.rgb(155, 155, 162))
+            gravity = Gravity.CENTER
+        }
+
+        device.addView(
+            arrow,
+            LinearLayout.LayoutParams(dp(28), dp(42))
+        )
+
+        meshDevices[endpointId] = status
+        meshDeviceRows[endpointId] = device
+        meshDeviceNames[endpointId] = deviceId
+
+        meshDevicesContainer?.findViewWithTag<View>("mesh_empty")
+            ?.let { meshDevicesContainer?.removeView(it) }
 
         meshDevicesContainer?.addView(
             device,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(50)
+                dp(66)
             ).apply {
                 bottomMargin = dp(8)
             }
@@ -865,74 +937,120 @@ companion object {
 
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(16))
-
+            setPadding(dp(18), dp(18), dp(18), dp(16))
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp(22).toFloat()
-                setStroke(dp(1), Color.rgb(225, 225, 230))
+                cornerRadius = dp(26).toFloat()
+                setStroke(dp(1), Color.rgb(232, 232, 238))
             }
-
-            elevation = dp(20).toFloat()
+            elevation = dp(24).toFloat()
         }
 
-        val title = TextView(this).apply {
-            text = "Mesh"
-            textSize = 25f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
 
-        card.addView(
-            title,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(34)
-            )
+        val titleBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        titleBox.addView(
+            TextView(this).apply {
+                text = "Mesh"
+                textSize = 25f
+                setTextColor(Color.rgb(18, 18, 22))
+                typeface = Typeface.DEFAULT_BOLD
+            }
         )
 
         meshStatusText = TextView(this).apply {
             text = "Searching nearby devices…"
-            textSize = 13f
+            textSize = 12f
             setTextColor(secondaryText)
+            setPadding(0, dp(3), 0, 0)
         }
 
-        card.addView(
-            meshStatusText,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(26)
-            )
+        titleBox.addView(meshStatusText)
+
+        header.addView(
+            titleBox,
+            LinearLayout.LayoutParams(0, dp(52), 1f)
         )
+
+        val close = TextView(this).apply {
+            text = "×"
+            textSize = 28f
+            setTextColor(Color.rgb(90, 90, 96))
+            gravity = Gravity.CENTER
+            background = solidDrawable(
+                Color.rgb(245, 245, 248),
+                dp(18).toFloat()
+            )
+            setOnClickListener {
+                meshPopup?.dismiss()
+            }
+        }
+
+        header.addView(
+            close,
+            LinearLayout.LayoutParams(dp(42), dp(42))
+        )
+
+        card.addView(header)
 
         val myMeshId = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getString(MESH_ID, null)
             ?: "Unknown"
 
-        val myMeshIdText = TextView(this).apply {
-            text = "My Mesh ID  •  $myMeshId"
-            textSize = 14f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(0, dp(2), 0, dp(10))
+        val identityCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = solidDrawable(
+                Color.rgb(243, 247, 255),
+                dp(18).toFloat()
+            )
         }
 
+        identityCard.addView(
+            TextView(this).apply {
+                text = "YOUR MESH ID"
+                textSize = 10f
+                setTextColor(premiumBlue)
+                typeface = Typeface.DEFAULT_BOLD
+                letterSpacing = 0.08f
+            }
+        )
+
+        identityCard.addView(
+            TextView(this).apply {
+                text = myMeshId
+                textSize = 20f
+                setTextColor(Color.rgb(25, 45, 75))
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(0, dp(4), 0, 0)
+            }
+        )
+
         card.addView(
-            myMeshIdText,
+            identityCard,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(34)
-            )
+                dp(76)
+            ).apply {
+                topMargin = dp(12)
+                bottomMargin = dp(12)
+            }
         )
 
         val searchInput = EditText(this).apply {
-            hint = "Search Mesh ID  •  MJ-XXXXXX"
+            hint = "Search Mesh ID"
             textSize = 14f
             setSingleLine(true)
-            setPadding(dp(12), 0, dp(12), 0)
+            setPadding(dp(14), 0, dp(14), 0)
             background = solidDrawable(
-                Color.rgb(245, 245, 248),
-                dp(12).toFloat()
+                Color.rgb(246, 246, 249),
+                dp(16).toFloat()
             )
         }
 
@@ -940,9 +1058,9 @@ companion object {
             searchInput,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
+                dp(50)
             ).apply {
-                bottomMargin = dp(10)
+                bottomMargin = dp(14)
             }
         )
 
@@ -952,8 +1070,7 @@ companion object {
                 start: Int,
                 count: Int,
                 after: Int
-            ) {
-            }
+            ) {}
 
             override fun onTextChanged(
                 text: CharSequence?,
@@ -974,53 +1091,74 @@ companion object {
                 meshDevicesContainer?.let { container ->
                     for (i in 0 until container.childCount) {
                         val child = container.getChildAt(i)
-                        child.visibility =
-                            if (target == null || target.isEmpty()) {
+
+                        if (child.tag == "mesh_empty") continue
+
+                        val device = child as? LinearLayout ?: continue
+                        val deviceId = device.tag?.toString()
+
+                        device.visibility =
+                            if (target == null || target.isEmpty() ||
+                                deviceId?.contains(target, ignoreCase = true) == true
+                            ) {
                                 View.VISIBLE
                             } else {
-                                val endpointId = meshDevices.entries
-                                    .firstOrNull { it.value == child }
-                                    ?.key
-
-                                val textValue =
-                                    (child as? TextView)?.text?.toString() ?: ""
-
-                                if (
-                                    endpointId != null &&
-                                    textValue.contains(target, ignoreCase = true)
-                                ) {
-                                    View.VISIBLE
-                                } else {
-                                    View.GONE
-                                }
+                                View.GONE
                             }
                     }
                 }
 
                 meshStatusText?.text = if (target != null) {
-                    "Searching for $target…"
+                    "Looking for $target"
                 } else {
-                    "Searching nearby devices…"
+                    when {
+                        meshDevices.values.any {
+                            it.text.toString().contains("Connected")
+                        } -> "Mesh connected"
+                        meshDevices.isNotEmpty() -> "${meshDevices.size} nearby device(s)"
+                        else -> "Searching nearby devices…"
+                    }
                 }
             }
 
-            override fun afterTextChanged(text: android.text.Editable?) {
-            }
+            override fun afterTextChanged(text: android.text.Editable?) {}
         })
 
-        val divider = View(this).apply {
-            setBackgroundColor(Color.rgb(235, 235, 238))
+        val nearbyTitle = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
 
+        nearbyTitle.addView(
+            TextView(this).apply {
+                text = "Nearby devices"
+                textSize = 15f
+                setTextColor(Color.rgb(30, 30, 35))
+                typeface = Typeface.DEFAULT_BOLD
+            },
+            LinearLayout.LayoutParams(0, dp(30), 1f)
+        )
+
+        nearbyTitle.addView(
+            TextView(this).apply {
+                text = "${meshDevices.size}"
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setTextColor(secondaryText)
+                background = solidDrawable(
+                    Color.rgb(242, 242, 245),
+                    dp(12).toFloat()
+                )
+                setPadding(dp(9), dp(4), dp(9), dp(4))
+            }
+        )
+
         card.addView(
-            divider,
+            nearbyTitle,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(1)
-            ).apply {
-                topMargin = dp(6)
-                bottomMargin = dp(12)
-            }
+                dp(34)
+            )
         )
 
         meshDevicesContainer = LinearLayout(this).apply {
@@ -1038,18 +1176,27 @@ companion object {
         if (meshDevices.isEmpty()) {
             meshDevicesContainer?.addView(
                 TextView(this).apply {
-                    text = "No nearby devices yet"
-                    textSize = 14f
+                    tag = "mesh_empty"
+                    text = "No nearby devices yet\nKeep Mesh open to discover peers."
+                    textSize = 13f
                     setTextColor(secondaryText)
                     gravity = Gravity.CENTER
-                    setPadding(0, dp(18), 0, dp(18))
-                }
+                    setPadding(0, dp(22), 0, dp(22))
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(82)
+                )
             )
+        } else {
+            meshDevices.values.forEach { device ->
+                meshDevicesContainer?.addView(device)
+            }
         }
 
         meshPopup = PopupWindow(
             card,
-            dp(300),
+            dp(340),
             ViewGroup.LayoutParams.WRAP_CONTENT,
             true
         ).apply {
@@ -1058,14 +1205,14 @@ companion object {
                     setColor(Color.TRANSPARENT)
                 }
             )
-            elevation = dp(20).toFloat()
+            elevation = dp(24).toFloat()
             isOutsideTouchable = true
             isFocusable = true
         }
 
         meshPopup?.showAsDropDown(
             homeHeader,
-            -dp(8),
+            -dp(28),
             -dp(4)
         )
 
