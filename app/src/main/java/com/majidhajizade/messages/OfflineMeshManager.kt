@@ -874,6 +874,17 @@ class OfflineMeshManager(
                     return
                 }
 
+                if (
+                    meshId.uppercase(Locale.US) >
+                    remoteName.uppercase(Locale.US)
+                ) {
+                    connectingEndpoints.remove(endpointId)
+                    listener.onError(
+                        "SKIPPING CONNECTION REQUEST: local=$meshId peer=$remoteName"
+                    )
+                    return
+                }
+
                 listener.onError(
                     "REQUESTING CONNECTION: local=$meshId peer=$remoteName endpoint=$endpointId"
                 )
