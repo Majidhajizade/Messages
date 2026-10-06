@@ -185,45 +185,71 @@ class OfflineMeshManager(
     fun getTargetMeshId(): String? = targetMeshId
 
     private fun sendHandshake(endpointId: String) {
-        val handshakeData =
-            "$meshId|${identity.publicKeyBase64()}|${identity.encryptionPublicKeyBase64()}"
-
-        val signature =
-            identity.sign(
-                handshakeData.toByteArray(Charsets.UTF_8)
+        try {
+            listener.onError(
+                "Sending mesh handshake to ${
+                    endpointNames[endpointId] ?: endpointId
+                }"
             )
 
-        val handshake = Payload.fromBytes(
-            "$HANDSHAKE_PREFIX$handshakeData|$signature"
-                .toByteArray(Charsets.UTF_8)
-        )
+            val handshakeData =
+                "$meshId|${identity.publicKeyBase64()}|${identity.encryptionPublicKeyBase64()}"
 
-        connectionsClient
-            .sendPayload(endpointId, handshake)
-            .addOnFailureListener {
-                listener.onError(
-                    "Mesh handshake failed: ${it.message ?: "unknown error"}"
-                )
-            }
-
-        handshakeTimeouts.remove(endpointId)?.let(handler::removeCallbacks)
-
-        val timeout = Runnable {
-            if (!connectedEndpoints.contains(endpointId)) {
-                handshakeEndpoints.remove(endpointId)
-
-                listener.onError(
-                    "Mesh handshake timeout: ${
-                        endpointNames[endpointId] ?: endpointId
-                    }"
+            val signature =
+                identity.sign(
+                    handshakeData.toByteArray(Charsets.UTF_8)
                 )
 
-                connectionsClient.disconnectFromEndpoint(endpointId)
+            val handshake = Payload.fromBytes(
+                "$HANDSHAKE_PREFIX$handshakeData|$signature"
+                    .toByteArray(Charsets.UTF_8)
+            )
+
+            connectionsClient
+                .sendPayload(endpointId, handshake)
+                .addOnSuccessListener {
+                    listener.onError(
+                        "Mesh handshake payload sent"
+                    )
+                }
+                .addOnFailureListener {
+                    listener.onError(
+                        "Mesh handshake failed: ${
+                            it.message ?: "unknown error"
+                        }"
+                    )
+                }
+
+            handshakeTimeouts
+                .remove(endpointId)
+                ?.let(handler::removeCallbacks)
+
+            val timeout = Runnable {
+                if (!connectedEndpoints.contains(endpointId)) {
+                    handshakeEndpoints.remove(endpointId)
+
+                    listener.onError(
+                        "Mesh handshake timeout: ${
+                            endpointNames[endpointId] ?: endpointId
+                        }"
+                    )
+
+                    connectionsClient.disconnectFromEndpoint(endpointId)
+                }
             }
+
+            handshakeTimeouts[endpointId] = timeout
+            handler.postDelayed(timeout, 8000)
+
+        } catch (error: Exception) {
+            listener.onError(
+                "Mesh handshake crashed: ${
+                    error.javaClass.simpleName
+                }: ${
+                    error.message ?: "no message"
+                }"
+            )
         }
-
-        handshakeTimeouts[endpointId] = timeout
-        handler.postDelayed(timeout, 8000)
     }
 
     private fun verifyHandshakeSignature(
