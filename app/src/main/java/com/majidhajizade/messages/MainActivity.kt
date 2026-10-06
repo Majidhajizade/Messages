@@ -70,7 +70,6 @@ class MainActivity : Activity() {
     private var floatingComposeButton: View? = null
     private var meshManager: OfflineMeshManager? = null
     private var meshPopup: PopupWindow? = null
-    private var meshFullscreen: View? = null
     private var meshStatusText: TextView? = null
     private var meshDevicesContainer: LinearLayout? = null
     private val meshDevices = linkedMapOf<String, TextView>()
@@ -936,20 +935,9 @@ companion object {
     private fun showMeshPanel() {
         meshPopup?.dismiss()
 
-        meshFullscreen?.let {
-            it.bringToFront()
-            return
-        }
-
-        val overlay = FrameLayout(this).apply {
-            setBackgroundColor(Color.WHITE)
-            isClickable = true
-            isFocusable = true
-            elevation = dp(30).toFloat()
-        }
-
-        val content = LinearLayout(this).apply {
+        val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
             setPadding(dp(18), dp(18), dp(18), dp(16))
         }
 
@@ -994,9 +982,9 @@ companion object {
                 Color.rgb(245, 245, 248),
                 dp(18).toFloat()
             )
+
             setOnClickListener {
-                (overlay.parent as? ViewGroup)?.removeView(overlay)
-                meshFullscreen = null
+                setContentView(createHomeScreen())
             }
         }
 
@@ -1005,7 +993,7 @@ companion object {
             LinearLayout.LayoutParams(dp(42), dp(42))
         )
 
-        content.addView(header)
+        page.addView(header)
 
         val myMeshId = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getString(MESH_ID, null)
@@ -1040,7 +1028,7 @@ companion object {
             }
         )
 
-        content.addView(
+        page.addView(
             identityCard,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1062,7 +1050,7 @@ companion object {
             )
         }
 
-        content.addView(
+        page.addView(
             searchInput,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1070,6 +1058,96 @@ companion object {
             ).apply {
                 bottomMargin = dp(14)
             }
+        )
+
+        val nearbyTitle = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        nearbyTitle.addView(
+            TextView(this).apply {
+                text = "Nearby devices"
+                textSize = 15f
+                setTextColor(Color.rgb(30, 30, 35))
+                typeface = Typeface.DEFAULT_BOLD
+            },
+            LinearLayout.LayoutParams(0, dp(30), 1f)
+        )
+
+        nearbyTitle.addView(
+            TextView(this).apply {
+                text = "${meshDevices.size}"
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setTextColor(secondaryText)
+                background = solidDrawable(
+                    Color.rgb(242, 242, 245),
+                    dp(12).toFloat()
+                )
+                setPadding(dp(9), dp(4), dp(9), dp(4))
+            }
+        )
+
+        page.addView(
+            nearbyTitle,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(34)
+            )
+        )
+
+        meshDevicesContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        if (meshDevices.isEmpty()) {
+            meshDevicesContainer?.addView(
+                TextView(this).apply {
+                    tag = "mesh_empty"
+                    text = "No nearby devices yet\nKeep Mesh open to discover peers."
+                    textSize = 13f
+                    setTextColor(secondaryText)
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(22), 0, dp(22))
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(82)
+                )
+            )
+        } else {
+            meshDeviceRows.values.forEach { device ->
+                meshDevicesContainer?.addView(
+                    device,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        dp(66)
+                    ).apply {
+                        bottomMargin = dp(8)
+                    }
+                )
+            }
+        }
+
+        val scroll = ScrollView(this).apply {
+            fillViewport = true
+            addView(
+                meshDevicesContainer,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
+        page.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
         )
 
         searchInput.addTextChangedListener(object : android.text.TextWatcher {
@@ -1106,8 +1184,12 @@ companion object {
                         val deviceId = device.tag?.toString()
 
                         device.visibility =
-                            if (target == null || target.isEmpty() ||
-                                deviceId?.contains(target, ignoreCase = true) == true
+                            if (target == null ||
+                                target.isEmpty() ||
+                                deviceId?.contains(
+                                    target,
+                                    ignoreCase = true
+                                ) == true
                             ) {
                                 View.VISIBLE
                             } else {
@@ -1123,9 +1205,12 @@ companion object {
                         meshDevices.values.any {
                             it.text.toString().contains("Connected")
                         } -> "Mesh connected"
+
                         meshDevices.isNotEmpty() ->
                             "${meshDevices.size} nearby device(s)"
-                        else -> "Searching nearby devices…"
+
+                        else ->
+                            "Searching nearby devices…"
                     }
                 }
             }
@@ -1135,109 +1220,7 @@ companion object {
             ) {}
         })
 
-        val nearbyTitle = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        nearbyTitle.addView(
-            TextView(this).apply {
-                text = "Nearby devices"
-                textSize = 15f
-                setTextColor(Color.rgb(30, 30, 35))
-                typeface = Typeface.DEFAULT_BOLD
-            },
-            LinearLayout.LayoutParams(0, dp(30), 1f)
-        )
-
-        nearbyTitle.addView(
-            TextView(this).apply {
-                text = "${meshDevices.size}"
-                textSize = 12f
-                gravity = Gravity.CENTER
-                setTextColor(secondaryText)
-                background = solidDrawable(
-                    Color.rgb(242, 242, 245),
-                    dp(12).toFloat()
-                )
-                setPadding(dp(9), dp(4), dp(9), dp(4))
-            }
-        )
-
-        content.addView(
-            nearbyTitle,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(34)
-            )
-        )
-
-        meshDevicesContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
-        if (meshDevices.isEmpty()) {
-            meshDevicesContainer?.addView(
-                TextView(this).apply {
-                    tag = "mesh_empty"
-                    text = "No nearby devices yet\nKeep Mesh open to discover peers."
-                    textSize = 13f
-                    setTextColor(secondaryText)
-                    gravity = Gravity.CENTER
-                    setPadding(0, dp(22), 0, dp(22))
-                },
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(82)
-                )
-            )
-        } else {
-            meshDevices.values.forEach { device ->
-                meshDevicesContainer?.addView(device)
-            }
-        }
-
-        val scroll = ScrollView(this).apply {
-            fillViewport = true
-            addView(
-                meshDevicesContainer,
-                ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            )
-        }
-
-        content.addView(
-            scroll,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
-
-        overlay.addView(
-            content,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        )
-
-        val root = findViewById<ViewGroup>(android.R.id.content)
-
-        root.addView(
-            overlay,
-            ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        )
-
-        meshFullscreen = overlay
-        overlay.bringToFront()
-
+        setContentView(page)
         updateMeshStatus()
     }
 
