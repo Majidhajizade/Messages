@@ -760,18 +760,31 @@ class OfflineMeshManager(
                 endpointNames[endpointId] =
                     connectionInfo.endpointName
 
+                listener.onError(
+                    "Connection initiated: peer=${
+                        connectionInfo.endpointName
+                    } endpoint=$endpointId"
+                )
+
                 connectionsClient
                     .acceptConnection(
                         endpointId,
                         payloadCallback
                     )
                     .addOnSuccessListener {
+                        listener.onError(
+                            "Accept connection succeeded: peer=${
+                                connectionInfo.endpointName
+                            }"
+                        )
                         sendHandshake(endpointId)
                     }
                     .addOnFailureListener {
                         listener.onError(
                             "Accept connection failed: ${
                                 it.message ?: "unknown error"
+                            } | endpoint=$endpointId | peer=${
+                                connectionInfo.endpointName
                             }"
                         )
                     }
