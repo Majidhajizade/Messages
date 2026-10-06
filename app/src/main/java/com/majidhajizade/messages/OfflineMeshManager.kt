@@ -770,12 +770,16 @@ class OfflineMeshManager(
                     val deliveredBody =
                         if (meshMessage.encrypted) {
                             try {
+                                listener.onError(
+                                    "Decrypting mesh message | local=${meshId} | keyFp=${identity.encryptionPublicKeyFingerprint()} | ${identity.encryptedPacketInfo(meshMessage.body)}"
+                                )
+
                                 identity.decryptMessage(
                                     meshMessage.body
                                 )
-                            } catch (_: Exception) {
+                            } catch (error: Exception) {
                                 listener.onError(
-                                    "Failed to decrypt mesh message"
+                                    "Failed to decrypt mesh message | ${error.javaClass.simpleName}: ${error.message ?: "no message"}"
                                 )
                                 return
                             }
@@ -1138,13 +1142,17 @@ class OfflineMeshManager(
                     }
 
                 try {
+                    listener.onError(
+                        "Encrypting mesh message | local=${meshId} | destination=${normalizedDestination} | keyFp=${identity.encryptionPublicKeyFingerprint()}"
+                    )
+
                     identity.encryptMessage(
                         publicKey,
                         message.toByteArray(Charsets.UTF_8)
                     )
-                } catch (_: Exception) {
+                } catch (error: Exception) {
                     listener.onError(
-                        "Failed to encrypt mesh message"
+                        "Failed to encrypt mesh message | ${error.javaClass.simpleName}: ${error.message ?: "no message"}"
                     )
                     return
                 }

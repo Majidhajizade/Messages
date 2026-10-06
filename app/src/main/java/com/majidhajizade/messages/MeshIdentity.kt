@@ -13,6 +13,7 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import java.nio.ByteBuffer
 import java.security.SecureRandom
+import java.security.MessageDigest
 import java.security.spec.MGF1ParameterSpec
 import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
@@ -106,6 +107,15 @@ class MeshIdentity(context: Context) {
             Base64.NO_WRAP
         )
 
+    fun encryptionPublicKeyFingerprint(): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(encryptionKeyPair.public.encoded)
+
+        return digest
+            .take(8)
+            .joinToString("") { "%02X".format(it) }
+    }
+
     fun sign(data: ByteArray): String {
         val signature = java.security.Signature.getInstance(
             "SHA256withRSA"
@@ -161,6 +171,27 @@ class MeshIdentity(context: Context) {
             packet.array(),
             Base64.NO_WRAP
         )
+    }
+
+    fun encryptedPacketInfo(packetBase64: String): String {
+        return try {
+            val packet = ByteBuffer.wrap(
+                Base64.decode(packetBase64, Base64.NO_WRAP)
+            )
+
+            val encryptedKeySize = packet.int
+
+            if (
+                encryptedKeySize <= 0 ||
+                encryptedKeySize > packet.remaining()
+            ) {
+                "invalid-rsa-size=$encryptedKeySize"
+            } else {
+                "rsa=$encryptedKeySize,total=${packet.remaining()}"
+            }
+        } catch (error: Exception) {
+            "packet-parse=${error.javaClass.simpleName}"
+        }
     }
 
     fun decryptMessage(
