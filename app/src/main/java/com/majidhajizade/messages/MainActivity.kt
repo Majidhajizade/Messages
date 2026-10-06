@@ -70,6 +70,7 @@ class MainActivity : Activity() {
     private var floatingComposeButton: View? = null
     private var meshManager: OfflineMeshManager? = null
     private var meshPopup: PopupWindow? = null
+    private var meshFullscreen: View? = null
     private var meshStatusText: TextView? = null
     private var meshDevicesContainer: LinearLayout? = null
     private val meshDevices = linkedMapOf<String, TextView>()
@@ -935,15 +936,21 @@ companion object {
     private fun showMeshPanel() {
         meshPopup?.dismiss()
 
-        val card = LinearLayout(this).apply {
+        meshFullscreen?.let {
+            it.bringToFront()
+            return
+        }
+
+        val overlay = FrameLayout(this).apply {
+            setBackgroundColor(Color.WHITE)
+            isClickable = true
+            isFocusable = true
+            elevation = dp(30).toFloat()
+        }
+
+        val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(18), dp(18), dp(16))
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(26).toFloat()
-                setStroke(dp(1), Color.rgb(232, 232, 238))
-            }
-            elevation = dp(24).toFloat()
         }
 
         val header = LinearLayout(this).apply {
@@ -988,7 +995,8 @@ companion object {
                 dp(18).toFloat()
             )
             setOnClickListener {
-                meshPopup?.dismiss()
+                (overlay.parent as? ViewGroup)?.removeView(overlay)
+                meshFullscreen = null
             }
         }
 
@@ -997,7 +1005,7 @@ companion object {
             LinearLayout.LayoutParams(dp(42), dp(42))
         )
 
-        card.addView(header)
+        content.addView(header)
 
         val myMeshId = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getString(MESH_ID, null)
@@ -1032,7 +1040,7 @@ companion object {
             }
         )
 
-        card.addView(
+        content.addView(
             identityCard,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1054,7 +1062,7 @@ companion object {
             )
         }
 
-        card.addView(
+        content.addView(
             searchInput,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1115,13 +1123,16 @@ companion object {
                         meshDevices.values.any {
                             it.text.toString().contains("Connected")
                         } -> "Mesh connected"
-                        meshDevices.isNotEmpty() -> "${meshDevices.size} nearby device(s)"
+                        meshDevices.isNotEmpty() ->
+                            "${meshDevices.size} nearby device(s)"
                         else -> "Searching nearby devices…"
                     }
                 }
             }
 
-            override fun afterTextChanged(text: android.text.Editable?) {}
+            override fun afterTextChanged(
+                text: android.text.Editable?
+            ) {}
         })
 
         val nearbyTitle = LinearLayout(this).apply {
@@ -1153,7 +1164,7 @@ companion object {
             }
         )
 
-        card.addView(
+        content.addView(
             nearbyTitle,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1164,14 +1175,6 @@ companion object {
         meshDevicesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
-
-        card.addView(
-            meshDevicesContainer,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        )
 
         if (meshDevices.isEmpty()) {
             meshDevicesContainer?.addView(
@@ -1194,27 +1197,46 @@ companion object {
             }
         }
 
-        meshPopup = PopupWindow(
-            card,
-            dp(340),
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        ).apply {
-            setBackgroundDrawable(
-                GradientDrawable().apply {
-                    setColor(Color.TRANSPARENT)
-                }
+        val scroll = ScrollView(this).apply {
+            fillViewport = true
+            addView(
+                meshDevicesContainer,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
             )
-            elevation = dp(24).toFloat()
-            isOutsideTouchable = true
-            isFocusable = true
         }
 
-        meshPopup?.showAsDropDown(
-            homeHeader,
-            -dp(28),
-            -dp(4)
+        content.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
         )
+
+        overlay.addView(
+            content,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        val root = findViewById<ViewGroup>(android.R.id.content)
+
+        root.addView(
+            overlay,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        meshFullscreen = overlay
+        overlay.bringToFront()
 
         updateMeshStatus()
     }
