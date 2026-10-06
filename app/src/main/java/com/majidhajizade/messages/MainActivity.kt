@@ -1132,7 +1132,7 @@ companion object {
         }
 
         val scroll = ScrollView(this).apply {
-            fillViewport = true
+            setFillViewport(true)
             addView(
                 meshDevicesContainer,
                 ViewGroup.LayoutParams(
