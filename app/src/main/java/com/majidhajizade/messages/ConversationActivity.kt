@@ -212,6 +212,13 @@ class ConversationActivity : Activity() {
             }
         )
 
+        intent.getStringExtra("mesh_id")
+            ?.trim()
+            ?.uppercase(Locale.US)
+            ?.let { targetMeshId ->
+                offlineMeshManager.setTargetMeshId(targetMeshId)
+            }
+
         ensureNearbyPermissions()
     }
 

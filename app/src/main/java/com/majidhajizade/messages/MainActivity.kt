@@ -755,6 +755,14 @@ companion object {
         saveMeshDevice(normalized)
         meshManager?.setTargetMeshId(normalized)
 
+        startActivity(
+            Intent(this, ConversationActivity::class.java).apply {
+                putExtra("phone", normalized)
+                putExtra("mesh_id", normalized)
+                putExtra("offline_mesh", true)
+            }
+        )
+
         meshDeviceRows.forEach { (endpointId, row) ->
             val deviceId = meshDeviceNames[endpointId]
                 ?.trim()
