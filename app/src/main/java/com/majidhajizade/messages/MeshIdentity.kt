@@ -242,7 +242,7 @@ class MeshIdentity(context: Context) {
         val oaepSpec = OAEPParameterSpec(
             "SHA-256",
             "MGF1",
-            MGF1ParameterSpec.SHA256,
+            MGF1ParameterSpec.SHA1,
             PSource.PSpecified.DEFAULT
         )
         cipher.init(
@@ -261,7 +261,7 @@ class MeshIdentity(context: Context) {
         val oaepSpec = OAEPParameterSpec(
             "SHA-256",
             "MGF1",
-            MGF1ParameterSpec.SHA256,
+            MGF1ParameterSpec.SHA1,
             PSource.PSpecified.DEFAULT
         )
         cipher.init(
