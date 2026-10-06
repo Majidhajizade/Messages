@@ -84,6 +84,9 @@ class MainActivity : Activity() {
     private val meshDeviceRows = linkedMapOf<String, LinearLayout>()
     private val meshDeviceNames = linkedMapOf<String, String>()
     private var selectedMeshId: String? = null
+    private var isMeshPanelVisible = false
+    private var isSettingsPageVisible = false
+    private var isMeshLogPageVisible = false
     private val rowViews = mutableMapOf<String, TextView>()
     private val selectedAddresses = linkedSetOf<String>()
     private var selectionMode = false
@@ -111,6 +114,9 @@ companion object {
 
         setContentView(createHomeScreen())
         setupMeshNotificationChannel()
+        MeshSession.logHandler = { message ->
+            logMesh(message)
+        }
         setupMeshManager()
 
         requestDefaultSmsRole()
@@ -181,15 +187,6 @@ companion object {
                 SMS_PERMISSION_REQUEST
             )
         }
-    }
-
-    override fun onBackPressed() {
-        if (selectionMode || selectionHeader.visibility == View.VISIBLE) {
-            exitSelectionMode()
-            return
-        }
-
-        super.onBackPressed()
     }
 
     private fun createHomeScreen(): View {
@@ -743,11 +740,7 @@ companion object {
                         meshStatusText?.setTextColor(
                             Color.rgb(190, 55, 55)
                         )
-                        Toast.makeText(
-                            this@MainActivity,
-                            message,
-                            Toast.LENGTH_LONG
-                        ).show()
+                        logMesh("ERROR | $message")
                     }
                 }
             }
@@ -803,11 +796,6 @@ companion object {
             )
         )
 
-        Toast.makeText(
-            this,
-            "Mesh log copied",
-            Toast.LENGTH_SHORT
-        ).show()
     }
 
     private fun clearMeshLog() {
@@ -817,11 +805,6 @@ companion object {
 
         meshLogText?.text = ""
 
-        Toast.makeText(
-            this,
-            "Mesh log cleared",
-            Toast.LENGTH_SHORT
-        ).show()
     }
 
     private fun hasNearbyPermissions(): Boolean {
@@ -1051,11 +1034,7 @@ companion object {
     }
 
     private fun openMeshConversation(endpointId: String) {
-        Toast.makeText(
-            this,
-            "Device connected. Open a conversation to chat.",
-            Toast.LENGTH_SHORT
-        ).show()
+        logMesh("CONNECTED | Ready to open conversation | endpoint=$endpointId")
     }
 
     private fun showHeaderMenu() {
@@ -1169,6 +1148,7 @@ companion object {
 
     private fun showMeshPanel() {
         meshPopup?.dismiss()
+        isMeshPanelVisible = true
 
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1219,7 +1199,7 @@ companion object {
             )
 
             setOnClickListener {
-                setContentView(createHomeScreen())
+                returnToHome()
             }
         }
 
@@ -1385,188 +1365,49 @@ companion object {
             )
         )
 
-        val logHeader = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        logHeader.addView(
-            TextView(this).apply {
-                text = "Mesh Log"
-                textSize = 15f
-                setTextColor(Color.rgb(30, 30, 35))
-                typeface = Typeface.DEFAULT_BOLD
-            },
-            LinearLayout.LayoutParams(0, dp(40), 1f)
-        )
-
-        val clearLogButton = TextView(this).apply {
-            text = "Clear"
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setTextColor(secondaryText)
-            background = solidDrawable(
-                Color.rgb(242, 242, 245),
-                dp(12).toFloat()
-            )
-            setPadding(dp(10), dp(5), dp(10), dp(5))
-
-            setOnClickListener {
-                clearMeshLog()
-            }
-        }
-
-        logHeader.addView(
-            clearLogButton,
-            LinearLayout.LayoutParams(
-                dp(58),
-                dp(32)
-            ).apply {
-                rightMargin = dp(6)
-            }
-        )
-
-        val copyLogButton = TextView(this).apply {
-            text = "Copy"
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = solidDrawable(
-                premiumBlue,
-                dp(12).toFloat()
-            )
-            setPadding(dp(10), dp(5), dp(10), dp(5))
-
-            setOnClickListener {
-                copyMeshLog()
-            }
-        }
-
-        logHeader.addView(
-            copyLogButton,
-            LinearLayout.LayoutParams(
-                dp(58),
-                dp(32)
-            )
-        )
-
-        page.addView(
-            logHeader,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(40)
-            ).apply {
-                topMargin = dp(8)
-            }
-        )
-
-        meshLogText = TextView(this).apply {
-            text = synchronized(meshLogLines) {
-                meshLogLines.joinToString("\n")
-            }
-            textSize = 11f
-            setTextColor(Color.rgb(45, 45, 50))
-            setPadding(dp(10), dp(10), dp(10), dp(10))
-            typeface = Typeface.MONOSPACE
-            setTextIsSelectable(true)
-            background = solidDrawable(
-                Color.rgb(247, 247, 249),
-                dp(14).toFloat()
-            )
-        }
-
-        val logScroll = ScrollView(this).apply {
-            addView(
-                meshLogText,
-                ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            )
-        }
-
-        page.addView(
-            logScroll,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(170)
-            ).apply {
-                bottomMargin = dp(4)
-            }
-        )
-
-        searchInput.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(
-                text: CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) {}
-
-            override fun onTextChanged(
-                text: CharSequence?,
-                start: Int,
-                before: Int,
-                count: Int
-            ) {
-                val target = text
-                    ?.toString()
-                    ?.trim()
-                    ?.uppercase(Locale.US)
-                    ?.takeIf {
-                        it.matches(Regex("MJ-[A-Z0-9]{6}"))
-                    }
-
-                meshManager?.setTargetMeshId(target)
-
-                meshDevicesContainer?.let { container ->
-                    for (i in 0 until container.childCount) {
-                        val child = container.getChildAt(i)
-
-                        if (child.tag == "mesh_empty") continue
-
-                        val device = child as? LinearLayout ?: continue
-                        val deviceId = device.tag?.toString()
-
-                        device.visibility =
-                            if (target == null ||
-                                target.isEmpty() ||
-                                deviceId?.contains(
-                                    target,
-                                    ignoreCase = true
-                                ) == true
-                            ) {
-                                View.VISIBLE
-                            } else {
-                                View.GONE
-                            }
-                    }
-                }
-
-                meshStatusText?.text = if (target != null) {
-                    "Looking for $target"
-                } else {
-                    when {
-                        meshDevices.values.any {
-                            it.text.toString().contains("Connected")
-                        } -> "Mesh connected"
-
-                        meshDevices.isNotEmpty() ->
-                            "${meshDevices.size} nearby device(s)"
-
-                        else ->
-                            "Searching nearby devices…"
-                    }
-                }
-            }
-
-            override fun afterTextChanged(
-                text: android.text.Editable?
-            ) {}
-        })
 
         setContentView(page)
         updateMeshStatus()
+    }
+
+    private fun returnToHome() {
+        if (!isMeshPanelVisible) {
+            return
+        }
+
+        isMeshPanelVisible = false
+        meshStatusText = null
+        meshDevicesContainer = null
+        meshLogText = null
+        setContentView(createHomeScreen())
+        updateMeshStatus()
+    }
+
+    override fun onBackPressed() {
+        when {
+            isMeshLogPageVisible -> {
+                isMeshLogPageVisible = false
+                showMeshIdSettings()
+            }
+
+            isSettingsPageVisible -> {
+                isSettingsPageVisible = false
+                setContentView(createHomeScreen())
+                updateMeshStatus()
+            }
+
+            isMeshPanelVisible -> {
+                returnToHome()
+            }
+
+            selectionMode || selectionHeader.visibility == View.VISIBLE -> {
+                exitSelectionMode()
+            }
+
+            else -> {
+                super.onBackPressed()
+            }
+        }
     }
 
     private fun requestContactsPermission() {
@@ -2370,6 +2211,11 @@ companion object {
     }
 
     private fun showMeshIdSettings() {
+        meshPopup?.dismiss()
+        isMeshPanelVisible = false
+        isSettingsPageVisible = true
+        isMeshLogPageVisible = false
+
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         var meshId = prefs.getString(MESH_ID, null)
 
@@ -2383,14 +2229,197 @@ companion object {
             prefs.edit().putString(MESH_ID, meshId).apply()
         }
 
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.rgb(245, 245, 248))
+            setPadding(dp(18), dp(18), dp(18), dp(16))
+        }
+
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val title = TextView(this).apply {
+            text = "Settings"
+            textSize = 26f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(20, 20, 24))
+        }
+
+        header.addView(
+            title,
+            LinearLayout.LayoutParams(0, dp(52), 1f)
+        )
+
+        val close = TextView(this).apply {
+            text = "×"
+            textSize = 28f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(90, 90, 96))
+            background = solidDrawable(
+                Color.WHITE,
+                dp(18).toFloat()
+            )
+
+            setOnClickListener {
+                setContentView(createHomeScreen())
+                updateMeshStatus()
+            }
+        }
+
+        header.addView(
+            close,
+            LinearLayout.LayoutParams(dp(42), dp(42))
+        )
+
+        page.addView(header)
+
+        val meshIdCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            background = solidDrawable(
+                Color.WHITE,
+                dp(22).toFloat()
+            )
+        }
+
+        meshIdCard.addView(
+            TextView(this).apply {
+                text = "Mesh ID"
+                textSize = 17f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(25, 25, 30))
+            }
+        )
+
+        meshIdCard.addView(
+            TextView(this).apply {
+                text = meshId
+                textSize = 15f
+                setTextColor(secondaryText)
+                setPadding(0, dp(5), 0, 0)
+            }
+        )
+
+        val editMeshId = TextView(this).apply {
+            text = "Edit"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(35, 35, 40))
+            background = solidDrawable(
+                Color.rgb(245, 245, 248),
+                dp(14).toFloat()
+            )
+            setPadding(dp(14), dp(9), dp(14), dp(9))
+
+            setOnClickListener {
+                showMeshIdEditDialog(meshId ?: "")
+            }
+        }
+
+        meshIdCard.addView(
+            editMeshId,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                dp(42)
+            ).apply {
+                topMargin = dp(12)
+            }
+        )
+
+        page.addView(
+            meshIdCard,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(12)
+            }
+        )
+
+        val logCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            background = solidDrawable(
+                Color.WHITE,
+                dp(22).toFloat()
+            )
+
+            setOnClickListener {
+                showMeshLog()
+            }
+        }
+
+        val logIcon = TextView(this).apply {
+            text = "{ }"
+            textSize = 18f
+            gravity = Gravity.CENTER
+            typeface = Typeface.MONOSPACE
+            setTextColor(Color.rgb(35, 35, 40))
+            background = solidDrawable(
+                Color.rgb(245, 245, 248),
+                dp(18).toFloat()
+            )
+        }
+
+        logCard.addView(
+            logIcon,
+            LinearLayout.LayoutParams(dp(48), dp(48))
+        )
+
+        val logTitle = TextView(this).apply {
+            text = "Log"
+            textSize = 17f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(25, 25, 30))
+            setPadding(dp(14), 0, 0, 0)
+        }
+
+        logCard.addView(
+            logTitle,
+            LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        )
+
+        val arrow = TextView(this).apply {
+            text = "›"
+            textSize = 28f
+            setTextColor(secondaryText)
+            gravity = Gravity.CENTER
+        }
+
+        logCard.addView(
+            arrow,
+            LinearLayout.LayoutParams(dp(28), dp(48))
+        )
+
+        page.addView(
+            logCard,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(72)
+            ).apply {
+                topMargin = dp(10)
+            }
+        )
+
+        setContentView(page)
+    }
+
+    private fun showMeshIdEditDialog(currentMeshId: String) {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(24), dp(20), dp(24), dp(20))
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(20).toFloat()
-            }
-            elevation = dp(18).toFloat()
+            background = solidDrawable(
+                Color.WHITE,
+                dp(20).toFloat()
+            )
         }
 
         val title = TextView(this).apply {
@@ -2408,7 +2437,7 @@ companion object {
         }
 
         val input = EditText(this).apply {
-            setText(meshId)
+            setText(currentMeshId)
             textSize = 18f
             setSingleLine(true)
             hint = "MJ-XXXXXX"
@@ -2421,29 +2450,41 @@ companion object {
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            background = solidDrawable(Color.rgb(35, 35, 40), dp(12).toFloat())
+            background = solidDrawable(
+                Color.rgb(35, 35, 40),
+                dp(12).toFloat()
+            )
             setPadding(dp(18), dp(12), dp(18), dp(12))
+        }
+
+        val popup = PopupWindow(
+            card,
+            dp(310),
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            setBackgroundDrawable(ColorDrawableCompat.white())
+            isOutsideTouchable = true
+            elevation = dp(18).toFloat()
         }
 
         save.setOnClickListener {
             val value = input.text.toString().trim().uppercase(Locale.US)
 
             if (!value.matches(Regex("MJ-[A-Z0-9]{6}"))) {
-                Toast.makeText(
-                    this,
-                    "Use format MJ-XXXXXX",
-                    Toast.LENGTH_SHORT
-                ).show()
+                logMesh("ERROR | Invalid Mesh ID format")
+                popup.dismiss()
                 return@setOnClickListener
             }
 
-            prefs.edit().putString(MESH_ID, value).apply()
-            Toast.makeText(
-                this,
-                "Mesh ID saved",
-                Toast.LENGTH_SHORT
-            ).show()
-            meshPopup?.dismiss()
+            getSharedPreferences(PREFS, MODE_PRIVATE)
+                .edit()
+                .putString(MESH_ID, value)
+                .apply()
+
+            logMesh("Mesh ID saved | $value")
+            popup.dismiss()
+            showMeshIdSettings()
         }
 
         card.addView(title)
@@ -2465,23 +2506,159 @@ companion object {
             )
         )
 
-        meshPopup = PopupWindow(
-            card,
-            dp(310),
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        ).apply {
-            setBackgroundDrawable(ColorDrawableCompat.white())
-            isOutsideTouchable = true
-            elevation = dp(18).toFloat()
-        }
-
-        meshPopup?.showAtLocation(
+        popup.showAtLocation(
             window.decorView,
             Gravity.CENTER,
             0,
             0
         )
+    }
+
+    private fun showMeshLog() {
+        isMeshPanelVisible = false
+        isSettingsPageVisible = false
+        isMeshLogPageVisible = true
+
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.rgb(245, 245, 248))
+            setPadding(dp(18), dp(18), dp(18), dp(16))
+        }
+
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val title = TextView(this).apply {
+            text = "Mesh Log"
+            textSize = 26f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(20, 20, 24))
+        }
+
+        header.addView(
+            title,
+            LinearLayout.LayoutParams(0, dp(52), 1f)
+        )
+
+        val close = TextView(this).apply {
+            text = "×"
+            textSize = 28f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(90, 90, 96))
+            background = solidDrawable(
+                Color.WHITE,
+                dp(18).toFloat()
+            )
+
+            setOnClickListener {
+                showMeshIdSettings()
+            }
+        }
+
+        header.addView(
+            close,
+            LinearLayout.LayoutParams(dp(42), dp(42))
+        )
+
+        page.addView(header)
+
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val clear = TextView(this).apply {
+            text = "Clear"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(35, 35, 40))
+            background = solidDrawable(
+                Color.WHITE,
+                dp(14).toFloat()
+            )
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            setOnClickListener {
+                clearMeshLog()
+            }
+        }
+
+        val copy = TextView(this).apply {
+            text = "Copy"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(35, 35, 40))
+            background = solidDrawable(
+                Color.WHITE,
+                dp(14).toFloat()
+            )
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            setOnClickListener {
+                copyMeshLog()
+            }
+        }
+
+        actions.addView(clear)
+        actions.addView(
+            copy,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                leftMargin = dp(8)
+            }
+        )
+
+        page.addView(
+            actions,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(48)
+            )
+        )
+
+        meshLogText = TextView(this).apply {
+            text = synchronized(meshLogLines) {
+                meshLogLines.joinToString("\n")
+            }
+            textSize = 12f
+            typeface = Typeface.MONOSPACE
+            setTextColor(Color.rgb(45, 45, 50))
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            background = solidDrawable(
+                Color.WHITE,
+                dp(18).toFloat()
+            )
+        }
+
+        val scroll = ScrollView(this).apply {
+            addView(
+                meshLogText,
+                ScrollView.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
+        page.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            ).apply {
+                topMargin = dp(10)
+            }
+        )
+
+        setContentView(page)
+        meshLogText?.post {
+            scroll.fullScroll(View.FOCUS_DOWN)
+        }
     }
 
     private fun openNewMessage() {

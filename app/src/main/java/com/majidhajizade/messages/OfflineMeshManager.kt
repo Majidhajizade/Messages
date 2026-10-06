@@ -490,26 +490,29 @@ class OfflineMeshManager(
                 return null
             }
 
-            val parts = raw.split("|", limit = 10)
+            val parts = raw.split("|", limit = 11)
 
-            if (parts.size != 10) {
+            if (parts.size != 11) {
                 return null
             }
 
-            val version = parts[1].toIntOrNull() ?: return null
-            if (version != 1 || parts[2] != PACKET_TYPE_MESSAGE) {
+            if (parts[1] != "v1") {
                 return null
             }
 
-            val ttl = parts[6].toIntOrNull() ?: return null
+            if (parts[2] != "1" || parts[3] != PACKET_TYPE_MESSAGE) {
+                return null
+            }
+
+            val ttl = parts[7].toIntOrNull() ?: return null
             if (ttl < 0 || ttl > MAX_TTL) {
                 return null
             }
 
-            val timestamp = parts[7].toLongOrNull() ?: return null
+            val timestamp = parts[8].toLongOrNull() ?: return null
 
             val payload = String(
-                Base64.decode(parts[8], Base64.NO_WRAP),
+                Base64.decode(parts[9], Base64.NO_WRAP),
                 Charsets.UTF_8
             )
 
@@ -525,14 +528,14 @@ class OfflineMeshManager(
             }
 
             MeshMessage(
-                id = parts[3],
-                source = parts[4],
-                destination = parts[5].takeIf { it != "*" },
+                id = parts[4],
+                source = parts[5],
+                destination = parts[6].takeIf { it != "*" },
                 ttl = ttl,
                 timestamp = timestamp,
                 body = payloadParts[1],
                 encrypted = encrypted,
-                signature = parts[9]
+                signature = parts[10]
             )
         } catch (_: Exception) {
             null

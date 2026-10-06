@@ -10,4 +10,10 @@ object MeshSession {
         ((senderId: String, message: String) -> Unit)? = null
 
     var targetConnected: Boolean = false
+
+    var logHandler: ((String) -> Unit)? = null
+
+    fun log(message: String) {
+        logHandler?.invoke(message)
+    }
 }

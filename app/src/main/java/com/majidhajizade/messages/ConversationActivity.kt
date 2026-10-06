@@ -912,11 +912,9 @@ class ConversationActivity : Activity() {
 
         if (activeMeshId != null) {
             if (!MeshSession.targetConnected) {
-                Toast.makeText(
-                    this,
-                    "Offline device is not connected",
-                    Toast.LENGTH_SHORT
-                ).show()
+                MeshSession.log(
+                    "ERROR | Target device is not connected"
+                )
                 return
             }
 
