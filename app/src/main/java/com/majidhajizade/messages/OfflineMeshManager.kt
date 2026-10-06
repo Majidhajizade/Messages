@@ -192,13 +192,43 @@ class OfflineMeshManager(
                 }"
             )
 
-            val handshakeData =
-                "$meshId|${identity.publicKeyBase64()}|${identity.encryptionPublicKeyBase64()}"
+            val signingPublicKey = try {
+                identity.publicKeyBase64()
+            } catch (error: Exception) {
+                listener.onError(
+                    "Mesh signing public key failed: ${error.javaClass.simpleName}: ${error.message ?: "no message"}"
+                )
+                throw error
+            }
 
-            val signature =
+            listener.onError("Mesh signing public key OK")
+
+            val encryptionPublicKey = try {
+                identity.encryptionPublicKeyBase64()
+            } catch (error: Exception) {
+                listener.onError(
+                    "Mesh encryption public key failed: ${error.javaClass.simpleName}: ${error.message ?: "no message"}"
+                )
+                throw error
+            }
+
+            listener.onError("Mesh encryption public key OK")
+
+            val handshakeData =
+                "$meshId|$signingPublicKey|$encryptionPublicKey"
+
+            val signature = try {
                 identity.sign(
                     handshakeData.toByteArray(Charsets.UTF_8)
                 )
+            } catch (error: Exception) {
+                listener.onError(
+                    "Mesh signing failed: ${error.javaClass.simpleName}: ${error.message ?: "no message"}"
+                )
+                throw error
+            }
+
+            listener.onError("Mesh signature OK")
 
             val handshake = Payload.fromBytes(
                 "$HANDSHAKE_PREFIX$handshakeData|$signature"
