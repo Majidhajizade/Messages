@@ -73,6 +73,8 @@ class MainActivity : Activity() {
     private var meshPopup: PopupWindow? = null
     private var meshStatusText: TextView? = null
     private var meshDevicesContainer: LinearLayout? = null
+    private var meshLogText: TextView? = null
+    private val meshLogLines = mutableListOf<String>()
     private val meshDevices = linkedMapOf<String, TextView>()
     private val meshDeviceRows = linkedMapOf<String, LinearLayout>()
     private val meshDeviceNames = linkedMapOf<String, String>()
@@ -538,6 +540,9 @@ companion object {
                     endpointId: String,
                     name: String
                 ) {
+                    logMesh(
+                        "DISCOVERED | peer=$name | endpoint=$endpointId"
+                    )
                     runOnUiThread {
                         addMeshDevice(endpointId, name)
                         updateMeshStatus()
@@ -545,6 +550,9 @@ companion object {
                 }
 
                 override fun onPeerLost(endpointId: String) {
+                    logMesh(
+                        "LOST | endpoint=$endpointId"
+                    )
                     runOnUiThread {
                         meshDevices.remove(endpointId)
                         meshDeviceNames.remove(endpointId)
@@ -559,6 +567,9 @@ companion object {
                     endpointId: String,
                     name: String
                 ) {
+                    logMesh(
+                        "CONNECTED | peer=$name | endpoint=$endpointId"
+                    )
                     runOnUiThread {
                         meshDevices[endpointId]?.apply {
                             text = "Connected"
@@ -569,6 +580,9 @@ companion object {
                 }
 
                 override fun onPeerDisconnected(endpointId: String) {
+                    logMesh(
+                        "DISCONNECTED | endpoint=$endpointId"
+                    )
                     runOnUiThread {
                         meshDevices[endpointId]?.apply {
                             text = "Disconnected"
@@ -582,9 +596,13 @@ companion object {
                     endpointId: String,
                     message: String
                 ) {
+                    logMesh(
+                        "MESSAGE | endpoint=$endpointId | $message"
+                    )
                 }
 
                 override fun onError(message: String) {
+                    logMesh("ERROR | $message")
                     runOnUiThread {
                         meshStatusText?.text = message
                         meshStatusText?.setTextColor(
@@ -603,6 +621,70 @@ companion object {
         if (hasNearbyPermissions()) {
             meshManager?.start()
         }
+    }
+
+    private fun logMesh(message: String) {
+        val time = SimpleDateFormat(
+            "HH:mm:ss.SSS",
+            Locale.US
+        ).format(Date())
+
+        val line = "[$time] $message"
+
+        synchronized(meshLogLines) {
+            meshLogLines.add(line)
+
+            if (meshLogLines.size > 500) {
+                meshLogLines.removeAt(0)
+            }
+        }
+
+        runOnUiThread {
+            meshLogText?.text = meshLogLines.joinToString("\n")
+
+            meshLogText?.post {
+                val parent = meshLogText?.parent
+                if (parent is ScrollView) {
+                    parent.fullScroll(View.FOCUS_DOWN)
+                }
+            }
+        }
+    }
+
+    private fun copyMeshLog() {
+        val log = synchronized(meshLogLines) {
+            meshLogLines.joinToString("\n")
+        }
+
+        val clipboard =
+            getSystemService(android.content.ClipboardManager::class.java)
+
+        clipboard.setPrimaryClip(
+            android.content.ClipData.newPlainText(
+                "Messages Mesh Log",
+                log
+            )
+        )
+
+        Toast.makeText(
+            this,
+            "Mesh log copied",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun clearMeshLog() {
+        synchronized(meshLogLines) {
+            meshLogLines.clear()
+        }
+
+        meshLogText?.text = ""
+
+        Toast.makeText(
+            this,
+            "Mesh log cleared",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     private fun hasNearbyPermissions(): Boolean {
@@ -1149,6 +1231,116 @@ companion object {
                 0,
                 1f
             )
+        )
+
+        val logHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        logHeader.addView(
+            TextView(this).apply {
+                text = "Mesh Log"
+                textSize = 15f
+                setTextColor(Color.rgb(30, 30, 35))
+                typeface = Typeface.DEFAULT_BOLD
+            },
+            LinearLayout.LayoutParams(0, dp(40), 1f)
+        )
+
+        val clearLogButton = TextView(this).apply {
+            text = "Clear"
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(secondaryText)
+            background = solidDrawable(
+                Color.rgb(242, 242, 245),
+                dp(12).toFloat()
+            )
+            setPadding(dp(10), dp(5), dp(10), dp(5))
+
+            setOnClickListener {
+                clearMeshLog()
+            }
+        }
+
+        logHeader.addView(
+            clearLogButton,
+            LinearLayout.LayoutParams(
+                dp(58),
+                dp(32)
+            ).apply {
+                rightMargin = dp(6)
+            }
+        )
+
+        val copyLogButton = TextView(this).apply {
+            text = "Copy"
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = solidDrawable(
+                premiumBlue,
+                dp(12).toFloat()
+            )
+            setPadding(dp(10), dp(5), dp(10), dp(5))
+
+            setOnClickListener {
+                copyMeshLog()
+            }
+        }
+
+        logHeader.addView(
+            copyLogButton,
+            LinearLayout.LayoutParams(
+                dp(58),
+                dp(32)
+            )
+        )
+
+        page.addView(
+            logHeader,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(40)
+            ).apply {
+                topMargin = dp(8)
+            }
+        )
+
+        meshLogText = TextView(this).apply {
+            text = synchronized(meshLogLines) {
+                meshLogLines.joinToString("\n")
+            }
+            textSize = 11f
+            setTextColor(Color.rgb(45, 45, 50))
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            typeface = Typeface.MONOSPACE
+            setTextIsSelectable(true)
+            background = solidDrawable(
+                Color.rgb(247, 247, 249),
+                dp(14).toFloat()
+            )
+        }
+
+        val logScroll = ScrollView(this).apply {
+            addView(
+                meshLogText,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
+        page.addView(
+            logScroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(170)
+            ).apply {
+                bottomMargin = dp(4)
+            }
         )
 
         searchInput.addTextChangedListener(object : android.text.TextWatcher {
