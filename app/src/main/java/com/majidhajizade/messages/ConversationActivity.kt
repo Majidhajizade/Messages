@@ -346,7 +346,7 @@ class ConversationActivity : Activity() {
                 setColorFilter(Color.BLACK)
                 contentDescription = "Call"
                 background = null
-                scaleType = ImageButton.ScaleType.CENTER
+                scaleType = android.widget.ImageView.ScaleType.CENTER
                 setPadding(dp(9), dp(9), dp(9), dp(9))
 
                 setOnClickListener {
@@ -509,7 +509,7 @@ class ConversationActivity : Activity() {
         val send = ImageButton(this).apply {
             setImageResource(R.drawable.ic_send_arrow)
             contentDescription = "Send"
-            scaleType = ImageButton.ScaleType.CENTER_INSIDE
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(9), dp(9), dp(9), dp(9))
             background = GradientDrawable().apply {
                 setColor(Color.rgb(0, 122, 255))
