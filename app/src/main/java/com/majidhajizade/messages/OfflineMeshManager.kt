@@ -184,6 +184,15 @@ class OfflineMeshManager(
 
     fun getTargetMeshId(): String? = targetMeshId
 
+    fun isTargetConnected(): Boolean {
+        val target = targetMeshId ?: return false
+
+        return connectedEndpoints.any { endpointId ->
+            endpointNames[endpointId]
+                ?.equals(target, ignoreCase = true) == true
+        }
+    }
+
     private fun sendHandshake(endpointId: String) {
         try {
             listener.onError(

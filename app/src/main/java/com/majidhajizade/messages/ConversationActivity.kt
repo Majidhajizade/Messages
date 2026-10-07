@@ -911,7 +911,7 @@ class ConversationActivity : Activity() {
         }
 
         if (activeMeshId != null) {
-            if (!MeshSession.targetConnected) {
+            if (!offlineMeshManager.isTargetConnected()) {
                 MeshSession.log(
                     "ERROR | Target device is not connected"
                 )
