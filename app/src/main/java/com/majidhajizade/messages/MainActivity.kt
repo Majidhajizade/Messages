@@ -490,6 +490,24 @@ companion object {
             }
         }
 
+        MeshMessageStore.loadConversations(this).forEach { meshId ->
+            val latest = MeshMessageStore.loadLatestMessage(
+                this,
+                meshId
+            ) ?: return@forEach
+
+            conversations[meshId] = ConversationData(
+                meshId,
+                latest.body,
+                latest.date,
+                if (latest.incoming) {
+                    Telephony.Sms.MESSAGE_TYPE_INBOX
+                } else {
+                    Telephony.Sms.MESSAGE_TYPE_SENT
+                }
+            )
+        }
+
         if (conversations.isEmpty()) {
             showEmptyState()
             return
@@ -2190,7 +2208,19 @@ companion object {
             this,
             ConversationActivity::class.java
         )
+
+        val normalized = address.trim().uppercase(Locale.US)
+        val isMeshConversation = normalized.matches(
+            Regex("MJ-[A-Z0-9]{6}")
+        )
+
         intent.putExtra("phone", address)
+
+        if (isMeshConversation) {
+            intent.putExtra("mesh_id", normalized)
+            intent.putExtra("offline_mesh", true)
+        }
+
         startActivity(intent)
     }
 

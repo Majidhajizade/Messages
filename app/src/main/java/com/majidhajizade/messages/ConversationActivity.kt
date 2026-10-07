@@ -159,18 +159,15 @@ class ConversationActivity : Activity() {
                         incoming = true
                     )
 
-                    runCatching {
-                        contentResolver.insert(
-                            Telephony.Sms.CONTENT_URI,
-                            ContentValues().apply {
-                                put(Telephony.Sms.ADDRESS, phone)
-                                put(Telephony.Sms.BODY, message)
-                                put(Telephony.Sms.DATE, receivedDate)
-                                put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_INBOX)
-                                put(Telephony.Sms.READ, 1)
-                            }
+                    MeshMessageStore.saveMessage(
+                        this@ConversationActivity,
+                        phone,
+                        StoredMeshMessage(
+                            body = message,
+                            date = receivedDate,
+                            incoming = true
                         )
-                    }
+                    )
 
                     scrollView.post {
                         scrollView.fullScroll(View.FOCUS_DOWN)
@@ -659,6 +656,24 @@ class ConversationActivity : Activity() {
     private fun loadConversation() {
         messagesContainer.removeAllViews()
 
+        if (activeMeshId != null) {
+            MeshMessageStore.loadMessages(
+                this,
+                activeMeshId!!
+            ).forEach { message ->
+                addMessage(
+                    body = message.body,
+                    date = message.date,
+                    incoming = message.incoming
+                )
+            }
+
+            scrollView.post {
+                scrollView.fullScroll(View.FOCUS_DOWN)
+            }
+            return
+        }
+
         if (checkSelfPermission(Manifest.permission.READ_SMS)
             != PackageManager.PERMISSION_GRANTED
         ) {
@@ -918,10 +933,22 @@ class ConversationActivity : Activity() {
                 return
             }
 
+            val sentDate = System.currentTimeMillis()
+
             addMessage(
                 body = message,
-                date = System.currentTimeMillis(),
+                date = sentDate,
                 incoming = false
+            )
+
+            MeshMessageStore.saveMessage(
+                this@ConversationActivity,
+                phone,
+                StoredMeshMessage(
+                    body = message,
+                    date = sentDate,
+                    incoming = false
+                )
             )
 
             messageInput.text.clear()
