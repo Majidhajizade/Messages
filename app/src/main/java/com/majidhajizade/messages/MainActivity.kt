@@ -1591,16 +1591,11 @@ companion object {
             FrameLayout.LayoutParams(dp(52), dp(52))
         )
 
-        val selectionOverlay = TextView(this).apply {
-            textSize = 12f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
+        val selectionOverlay = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_check_circle)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             visibility = View.GONE
-            background = GradientDrawable().apply {
-                setColor(Color.rgb(105, 105, 110))
-                shape = GradientDrawable.OVAL
-            }
+            contentDescription = "Selected"
         }
 
         selectionOverlay.tag = 1001
@@ -1721,7 +1716,7 @@ companion object {
         address: String,
         callAction: TextView,
         deleteAction: TextView,
-        selectionOverlay: TextView
+        selectionOverlay: android.widget.ImageView
     ) {
         var downX = 0f
         var downY = 0f
@@ -1925,13 +1920,34 @@ companion object {
             gravity = Gravity.CENTER
             setOnClickListener { action() }
 
-            addView(
-                SelectionIconView(this@MainActivity, iconType),
-                LinearLayout.LayoutParams(
-                    dp(26),
-                    dp(25)
+            if (iconType == 0 || iconType == 1) {
+                addView(
+                    android.widget.ImageView(this@MainActivity).apply {
+                        setImageResource(
+                            if (iconType == 0) {
+                                R.drawable.ic_notification
+                            } else {
+                                R.drawable.ic_delete
+                            }
+                        )
+                        setColorFilter(Color.BLACK)
+                        scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                        contentDescription = label
+                    },
+                    LinearLayout.LayoutParams(
+                        dp(26),
+                        dp(25)
+                    )
                 )
-            )
+            } else {
+                addView(
+                    SelectionIconView(this@MainActivity, iconType),
+                    LinearLayout.LayoutParams(
+                        dp(26),
+                        dp(25)
+                    )
+                )
+            }
 
             addView(
                 TextView(this@MainActivity).apply {
@@ -2065,13 +2081,12 @@ companion object {
 
         rowViews.forEach { (address, _) ->
             val row = findRowByAddress(address)
-            val overlay = row?.getTag(1001) as? TextView
+            val overlay = row?.getTag(1001) as? android.widget.ImageView
 
             if (overlay != null) {
                 val selected = selectedAddresses.contains(address)
 
-                overlay.visibility = View.VISIBLE
-                overlay.text = if (selected) "✓" else ""
+                overlay.visibility = if (selected) View.VISIBLE else View.GONE
                 overlay.background = GradientDrawable().apply {
                     setColor(
                         if (selected) {

@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.content.ContentValues
 import android.content.IntentFilter
 import android.content.pm.PackageManager
@@ -19,6 +20,7 @@ import android.telephony.SmsManager
 import android.view.Gravity
 import android.view.View
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -338,6 +340,36 @@ class ConversationActivity : Activity() {
             }
         )
 
+        if (!phone.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+            val callButton = ImageButton(this).apply {
+                setImageResource(R.drawable.ic_call)
+                setColorFilter(Color.BLACK)
+                contentDescription = "Call"
+                background = null
+                scaleType = ImageButton.ScaleType.CENTER
+                setPadding(dp(9), dp(9), dp(9), dp(9))
+
+                setOnClickListener {
+                    val dialIntent = Intent(
+                        Intent.ACTION_DIAL,
+                        Uri.parse("tel:${Uri.encode(phone)}")
+                    )
+                    startActivity(dialIntent)
+                }
+            }
+
+            header.addView(
+                callButton,
+                android.widget.FrameLayout.LayoutParams(
+                    dp(48),
+                    dp(50)
+                ).apply {
+                    gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                    rightMargin = dp(2)
+                }
+            )
+        }
+
         scrollView = ScrollView(this).apply {
             isFillViewport = true
         }
@@ -474,13 +506,11 @@ class ConversationActivity : Activity() {
             }
         }
 
-        val send = TextView(this).apply {
-            text = "↑"
-            textSize = 21f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-
+        val send = ImageButton(this).apply {
+            setImageResource(R.drawable.ic_send_arrow)
+            contentDescription = "Send"
+            scaleType = ImageButton.ScaleType.CENTER_INSIDE
+            setPadding(dp(9), dp(9), dp(9), dp(9))
             background = GradientDrawable().apply {
                 setColor(Color.rgb(0, 122, 255))
                 shape = GradientDrawable.OVAL
