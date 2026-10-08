@@ -89,6 +89,7 @@ class MainActivity : Activity() {
     private var isMeshLogPageVisible = false
     private val rowViews = mutableMapOf<String, TextView>()
     private val selectedAddresses = linkedSetOf<String>()
+    private val selectionOverlays = mutableMapOf<String, android.widget.ImageView>()
     private var selectionMode = false
     private lateinit var selectionHeader: LinearLayout
     private lateinit var selectionSelectedText: TextView
@@ -1599,6 +1600,7 @@ companion object {
         }
 
         selectionOverlay.tag = 1001
+        selectionOverlays[address] = selectionOverlay
 
         contactFrame.addView(
             selectionOverlay,
@@ -2080,24 +2082,10 @@ companion object {
             if (selectedAddresses.size == rowViews.size) "●" else "○"
 
         rowViews.forEach { (address, _) ->
-            val row = findRowByAddress(address)
-            val overlay = row?.getTag(1001) as? android.widget.ImageView
+            val overlay = selectionOverlays[address] ?: return@forEach
+            val selected = selectedAddresses.contains(address)
 
-            if (overlay != null) {
-                val selected = selectedAddresses.contains(address)
-
-                overlay.visibility = if (selected) View.VISIBLE else View.GONE
-                overlay.background = GradientDrawable().apply {
-                    setColor(
-                        if (selected) {
-                            Color.rgb(105, 105, 110)
-                        } else {
-                            Color.TRANSPARENT
-                        }
-                    )
-                    shape = GradientDrawable.OVAL
-                }
-            }
+            overlay.visibility = if (selected) View.VISIBLE else View.GONE
         }
     }
 
@@ -2198,12 +2186,8 @@ companion object {
         floatingComposeButton?.translationY = 0f
         floatingComposeButton?.visibility = View.VISIBLE
 
-        for (i in 0 until messagesContainer.childCount) {
-            val child = messagesContainer.getChildAt(i)
-            if (child is FrameLayout) {
-                child.findViewWithTag<android.widget.ImageView>(1001)?.visibility = View.GONE
-            }
-        }
+        selectionOverlays.values.forEach { it.visibility = View.GONE }
+        selectionOverlays.clear()
     }
 
     private fun getPinnedNumbers(): Set<String> {
