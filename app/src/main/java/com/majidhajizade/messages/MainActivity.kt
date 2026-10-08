@@ -95,6 +95,7 @@ class MainActivity : Activity() {
     private lateinit var selectionSelectedText: TextView
     private lateinit var selectionAllButton: TextView
     private lateinit var selectionActionBar: LinearLayout
+private lateinit var selectionPinIcon: android.widget.ImageView
 companion object {
         private const val SMS_PERMISSION_REQUEST = 2001
         private const val PREFS = "messages_settings"
@@ -1616,6 +1617,7 @@ companion object {
 
         val textContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            layoutDirection = View.LAYOUT_DIRECTION_LOCALE
         }
 
         val name = TextView(this).apply {
@@ -1623,6 +1625,8 @@ companion object {
             textSize = 17f
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.START
+            textDirection = View.TEXT_DIRECTION_LOCALE
         }
 
         val preview = TextView(this).apply {
@@ -1632,41 +1636,25 @@ companion object {
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             setPadding(0, dp(4), 0, 0)
+            gravity = Gravity.START
+            textDirection = View.TEXT_DIRECTION_LOCALE
         }
 
-        val topRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        topRow.addView(
+        textContainer.addView(
             name,
             LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
-            )
-        )
-
-        val dateText = TextView(this).apply {
-            text = formatShortDate(date)
-            textSize = 13f
-            setTextColor(Color.rgb(165, 165, 170))
-            gravity = Gravity.CENTER_VERTICAL or Gravity.END
-            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            setPadding(0, 0, 0, 0)
-        }
-
-        topRow.addView(
-            dateText,
-            LinearLayout.LayoutParams(
-                dp(54),
+                LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
 
-        textContainer.addView(topRow)
-        textContainer.addView(preview)
+        textContainer.addView(
+            preview,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         foreground.addView(
             textContainer,
@@ -1675,6 +1663,75 @@ companion object {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
             )
+        )
+
+        val metaContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.TOP or Gravity.END
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
+        }
+
+        val dateText = TextView(this).apply {
+            text = formatShortDate(date)
+            textSize = 13f
+            setTextColor(Color.rgb(165, 165, 170))
+            gravity = Gravity.CENTER
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            setPadding(0, 0, 0, 0)
+        }
+
+        metaContainer.addView(
+            dateText,
+            LinearLayout.LayoutParams(
+                dp(54),
+                dp(22)
+            )
+        )
+
+        val pinned = getPinnedNumbers().contains(address)
+
+        if (pinned) {
+            val pinCircle = FrameLayout(this).apply {
+                background = GradientDrawable().apply {
+                    setColor(Color.rgb(246, 246, 248))
+                    shape = GradientDrawable.OVAL
+                    setStroke(dp(1), Color.rgb(225, 225, 230))
+                }
+            }
+
+            pinCircle.addView(
+                android.widget.ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_pin)
+                    scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                    contentDescription = "Pinned"
+                },
+                FrameLayout.LayoutParams(
+                    dp(18),
+                    dp(18)
+                ).apply {
+                    gravity = Gravity.CENTER
+                }
+            )
+
+            metaContainer.addView(
+                pinCircle,
+                LinearLayout.LayoutParams(
+                    dp(26),
+                    dp(26)
+                ).apply {
+                    topMargin = dp(3)
+                }
+            )
+        }
+
+        foreground.addView(
+            metaContainer,
+            LinearLayout.LayoutParams(
+                dp(54),
+                dp(52)
+            ).apply {
+                leftMargin = dp(6)
+            }
         )
 
         actionLayer.addView(
@@ -1941,8 +1998,14 @@ companion object {
                     )
                 )
             } else {
+                selectionPinIcon = android.widget.ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_pin)
+                    scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                    contentDescription = label
+                }
+
                 addView(
-                    SelectionIconView(this@MainActivity, iconType),
+                    selectionPinIcon,
                     LinearLayout.LayoutParams(
                         dp(26),
                         dp(25)
@@ -2080,6 +2143,17 @@ companion object {
         selectionAllButton.text =
             if (selectedAddresses.size == rowViews.size) "●" else "○"
 
+        val pinned = getPinnedNumbers()
+        val anySelectedPinned = selectedAddresses.any { pinned.contains(it) }
+
+        selectionPinIcon.setImageResource(
+            if (anySelectedPinned) {
+                R.drawable.ic_pin_slash
+            } else {
+                R.drawable.ic_pin
+            }
+        )
+
         rowViews.forEach { (address, _) ->
             val overlay = selectionOverlays[address] ?: return@forEach
             val selected = selectedAddresses.contains(address)
@@ -2131,8 +2205,16 @@ companion object {
         val pinned = prefs.getStringSet(PINNED, emptySet())?.toMutableSet()
             ?: mutableSetOf()
 
-        selectedAddresses.forEach {
-            if (pinned.contains(it)) pinned.remove(it) else pinned.add(it)
+        val anySelectedPinned = selectedAddresses.any { pinned.contains(it) }
+
+        if (anySelectedPinned) {
+            selectedAddresses.forEach {
+                pinned.remove(it)
+            }
+        } else {
+            selectedAddresses.forEach {
+                pinned.add(it)
+            }
         }
 
         prefs.edit().putStringSet(PINNED, pinned).apply()
