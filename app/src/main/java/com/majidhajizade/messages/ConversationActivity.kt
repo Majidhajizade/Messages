@@ -335,10 +335,10 @@ class ConversationActivity : Activity() {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp(25).toFloat()
-                setStroke(dp(1), Color.rgb(225, 225, 230))
+                cornerRadius = dp(24).toFloat()
+                setStroke(dp(1), Color.rgb(232, 232, 236))
             }
-            elevation = dp(2).toFloat()
+            elevation = dp(1).toFloat()
             setOnClickListener {
                 finish()
             }
@@ -376,10 +376,10 @@ class ConversationActivity : Activity() {
             setPadding(dp(5), 0, dp(8), 0)
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp(25).toFloat()
-                setStroke(dp(1), Color.rgb(225, 225, 230))
+                cornerRadius = dp(24).toFloat()
+                setStroke(dp(1), Color.rgb(232, 232, 236))
             }
-            elevation = dp(2).toFloat()
+            elevation = dp(1).toFloat()
         }
 
         val profile = TextView(this).apply {
@@ -435,10 +435,10 @@ class ConversationActivity : Activity() {
             setPadding(0, 0, 0, 0)
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp(25).toFloat()
-                setStroke(dp(1), Color.rgb(225, 225, 230))
+                cornerRadius = dp(24).toFloat()
+                setStroke(dp(1), Color.rgb(232, 232, 236))
             }
-            elevation = dp(2).toFloat()
+            elevation = dp(1).toFloat()
         }
 
         if (!phone.matches(Regex("MJ-[A-Z0-9]{6}"))) {
@@ -527,6 +527,7 @@ class ConversationActivity : Activity() {
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
                 cornerRadius = dp(28).toFloat()
+                setStroke(dp(1), Color.rgb(232, 232, 236))
             }
         }
 
@@ -636,7 +637,7 @@ class ConversationActivity : Activity() {
                 shape = GradientDrawable.OVAL
             }
 
-            elevation = dp(2).toFloat()
+            elevation = dp(1).toFloat()
 
             setOnClickListener {
                 sendMessage()
