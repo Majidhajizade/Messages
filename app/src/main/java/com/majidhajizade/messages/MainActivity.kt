@@ -1611,9 +1611,8 @@ companion object {
             }
         )
 
-        selectionOverlay.bringToFront()
-
         foreground.addView(contactFrame)
+        selectionOverlay.bringToFront()
 
         val textContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
