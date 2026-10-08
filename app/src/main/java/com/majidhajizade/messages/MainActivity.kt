@@ -1604,10 +1604,10 @@ companion object {
 
         contactFrame.addView(
             selectionOverlay,
-            FrameLayout.LayoutParams(dp(20), dp(20)).apply {
+            FrameLayout.LayoutParams(dp(26), dp(26)).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
-                rightMargin = dp(0)
-                bottomMargin = dp(0)
+                rightMargin = dp(2)
+                bottomMargin = dp(2)
             }
         )
 
