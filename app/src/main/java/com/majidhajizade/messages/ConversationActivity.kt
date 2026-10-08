@@ -361,12 +361,12 @@ class ConversationActivity : Activity() {
 
         backCapsule.addView(
             backCircle,
-            LinearLayout.LayoutParams(dp(38), dp(38))
+            LinearLayout.LayoutParams(dp(34), dp(34))
         )
 
         header.addView(
             backCapsule,
-            android.widget.FrameLayout.LayoutParams(dp(48), dp(48)).apply {
+            android.widget.FrameLayout.LayoutParams(dp(42), dp(38)).apply {
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
                 leftMargin = dp(2)
             }
@@ -377,7 +377,7 @@ class ConversationActivity : Activity() {
         val profileCapsule = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(7), 0, dp(12), 0)
+            setPadding(dp(5), dp(2), dp(8), dp(2))
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
                 cornerRadius = dp(25).toFloat()
@@ -400,7 +400,7 @@ class ConversationActivity : Activity() {
 
         profileCapsule.addView(
             profile,
-            LinearLayout.LayoutParams(dp(38), dp(38)).apply {
+            LinearLayout.LayoutParams(dp(34), dp(34)).apply {
                 rightMargin = dp(8)
             }
         )
@@ -424,8 +424,8 @@ class ConversationActivity : Activity() {
         header.addView(
             profileCapsule,
             android.widget.FrameLayout.LayoutParams(
-                dp(210),
-                dp(48)
+                dp(202),
+                dp(38)
             ).apply {
                 gravity = Gravity.CENTER
             }
@@ -484,8 +484,8 @@ class ConversationActivity : Activity() {
         header.addView(
             actionsCapsule,
             android.widget.FrameLayout.LayoutParams(
-                dp(82),
-                dp(48)
+                dp(76),
+                dp(38)
             ).apply {
                 gravity = Gravity.END or Gravity.CENTER_VERTICAL
                 rightMargin = dp(2)
