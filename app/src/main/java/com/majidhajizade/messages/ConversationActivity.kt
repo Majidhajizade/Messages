@@ -334,11 +334,11 @@ class ConversationActivity : Activity() {
         val backCapsule = LinearLayout(this).apply {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(Color.argb(115, 255, 255, 255))
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.rgb(232, 232, 236))
+                setStroke(dp(1), Color.argb(180, 255, 255, 255))
             }
-            elevation = dp(1).toFloat()
+            elevation = dp(3).toFloat()
             setOnClickListener {
                 finish()
             }
@@ -375,11 +375,11 @@ class ConversationActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(5), 0, dp(8), 0)
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(Color.argb(115, 255, 255, 255))
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.rgb(232, 232, 236))
+                setStroke(dp(1), Color.argb(180, 255, 255, 255))
             }
-            elevation = dp(1).toFloat()
+            elevation = dp(3).toFloat()
         }
 
         val profile = TextView(this).apply {
@@ -434,11 +434,11 @@ class ConversationActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 0)
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(Color.argb(115, 255, 255, 255))
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.rgb(232, 232, 236))
+                setStroke(dp(1), Color.argb(180, 255, 255, 255))
             }
-            elevation = dp(1).toFloat()
+            elevation = dp(3).toFloat()
         }
 
         if (!phone.matches(Regex("MJ-[A-Z0-9]{6}"))) {
