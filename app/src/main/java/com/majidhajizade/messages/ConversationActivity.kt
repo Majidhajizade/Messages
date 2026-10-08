@@ -362,7 +362,7 @@ class ConversationActivity : Activity() {
 
         header.addView(
             backCapsule,
-            android.widget.FrameLayout.LayoutParams(dp(38), dp(38)).apply {
+            android.widget.FrameLayout.LayoutParams(dp(48), dp(48)).apply {
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
                 leftMargin = dp(2)
             }
@@ -373,7 +373,7 @@ class ConversationActivity : Activity() {
         val profileCapsule = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(5), dp(2), dp(8), dp(2))
+            setPadding(dp(5), 0, dp(8), 0)
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
                 cornerRadius = dp(25).toFloat()
@@ -413,24 +413,26 @@ class ConversationActivity : Activity() {
             },
             LinearLayout.LayoutParams(
                 dp(150),
-                dp(38)
+                dp(48)
             )
         )
 
         header.addView(
             profileCapsule,
             android.widget.FrameLayout.LayoutParams(
-                dp(202),
-                dp(38)
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(48)
             ).apply {
-                gravity = Gravity.CENTER
+                gravity = Gravity.CENTER_VERTICAL
+                leftMargin = dp(56)
+                rightMargin = dp(102)
             }
         )
 
         val actionsCapsule = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(3), dp(3), dp(3), dp(3))
+            setPadding(0, 0, 0, 0)
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
                 cornerRadius = dp(25).toFloat()
@@ -459,7 +461,7 @@ class ConversationActivity : Activity() {
 
             actionsCapsule.addView(
                 callButton,
-                LinearLayout.LayoutParams(dp(38), dp(38))
+                LinearLayout.LayoutParams(dp(48), dp(48))
             )
         }
 
@@ -474,14 +476,14 @@ class ConversationActivity : Activity() {
 
         actionsCapsule.addView(
             moreButton,
-            LinearLayout.LayoutParams(dp(38), dp(38))
+            LinearLayout.LayoutParams(dp(48), dp(48))
         )
 
         header.addView(
             actionsCapsule,
             android.widget.FrameLayout.LayoutParams(
-                dp(76),
-                dp(38)
+                dp(96),
+                dp(48)
             ).apply {
                 gravity = Gravity.END or Gravity.CENTER_VERTICAL
                 rightMargin = dp(2)
@@ -512,7 +514,7 @@ class ConversationActivity : Activity() {
             header,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(82)
+                dp(96)
             ).apply {
                 gravity = Gravity.TOP
             }
