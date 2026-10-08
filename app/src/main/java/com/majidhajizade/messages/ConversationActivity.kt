@@ -326,13 +326,9 @@ class ConversationActivity : Activity() {
         }
 
         val header = android.widget.FrameLayout(this).apply {
-            background = GradientDrawable().apply {
-                setColor(Color.argb(235, 255, 255, 255))
-                cornerRadius = dp(22).toFloat()
-                setStroke(dp(1), Color.rgb(225, 225, 230))
-            }
-            elevation = dp(4).toFloat()
-            setPadding(dp(8), dp(28), dp(8), dp(8))
+            setBackgroundColor(Color.TRANSPARENT)
+            elevation = 0f
+            setPadding(dp(8), dp(40), dp(8), dp(8))
         }
 
         val backCapsule = LinearLayout(this).apply {
@@ -366,7 +362,7 @@ class ConversationActivity : Activity() {
 
         header.addView(
             backCapsule,
-            android.widget.FrameLayout.LayoutParams(dp(42), dp(38)).apply {
+            android.widget.FrameLayout.LayoutParams(dp(38), dp(38)).apply {
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
                 leftMargin = dp(2)
             }
