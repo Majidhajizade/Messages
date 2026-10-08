@@ -2201,7 +2201,7 @@ companion object {
         for (i in 0 until messagesContainer.childCount) {
             val child = messagesContainer.getChildAt(i)
             if (child is FrameLayout) {
-                child.findViewWithTag<TextView>(1001)?.visibility = View.GONE
+                child.findViewWithTag<android.widget.ImageView>(1001)?.visibility = View.GONE
             }
         }
     }

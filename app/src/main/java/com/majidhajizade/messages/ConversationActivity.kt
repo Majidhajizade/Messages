@@ -289,6 +289,37 @@ class ConversationActivity : Activity() {
         }
     }
 
+    private fun getContactDisplayName(address: String): String {
+        if (address.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+            return address
+        }
+
+        return runCatching {
+            val uri = Uri.withAppendedPath(
+                ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+                Uri.encode(address)
+            )
+
+            contentResolver.query(
+                uri,
+                arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    cursor.getString(
+                        cursor.getColumnIndexOrThrow(
+                            ContactsContract.PhoneLookup.DISPLAY_NAME
+                        )
+                    )
+                } else {
+                    null
+                }
+            } ?: address
+        }.getOrDefault(address)
+    }
+
     private fun createScreen(): View {
         val root = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.rgb(245, 245, 247))
@@ -297,48 +328,120 @@ class ConversationActivity : Activity() {
         val header = android.widget.FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 setColor(Color.argb(235, 255, 255, 255))
-                cornerRadius = 0f
+                cornerRadius = dp(22).toFloat()
+                setStroke(dp(1), Color.rgb(225, 225, 230))
             }
             elevation = dp(4).toFloat()
-            setPadding(0, dp(24), 0, dp(8))
+            setPadding(dp(8), dp(28), dp(8), dp(8))
         }
 
-        val back = TextView(this).apply {
-            text = "‹"
-            textSize = 38f
-            setTextColor(Color.BLACK)
+        val backCapsule = LinearLayout(this).apply {
             gravity = Gravity.CENTER
-
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(25).toFloat()
+                setStroke(dp(1), Color.rgb(225, 225, 230))
+            }
+            elevation = dp(2).toFloat()
             setOnClickListener {
                 finish()
             }
         }
 
+        val backCircle = ImageButton(this).apply {
+            setImageResource(R.drawable.ic_back_arrow)
+            contentDescription = "Back"
+            scaleType = android.widget.ImageView.ScaleType.CENTER
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                shape = GradientDrawable.OVAL
+            }
+        }
+
+        backCapsule.addView(
+            backCircle,
+            LinearLayout.LayoutParams(dp(38), dp(38))
+        )
+
         header.addView(
-            back,
-            android.widget.FrameLayout.LayoutParams(dp(42), dp(50)).apply {
+            backCapsule,
+            android.widget.FrameLayout.LayoutParams(dp(48), dp(48)).apply {
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
                 leftMargin = dp(2)
             }
         )
 
-        val title = TextView(this).apply {
-            text = phone
-            textSize = 18f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
+        val contactName = getContactDisplayName(phone)
+
+        val profileCapsule = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(7), 0, dp(12), 0)
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(25).toFloat()
+                setStroke(dp(1), Color.rgb(225, 225, 230))
+            }
+            elevation = dp(2).toFloat()
         }
 
+        val profile = TextView(this).apply {
+            text = contactName.firstOrNull()?.uppercase() ?: "?"
+            textSize = 17f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(232, 232, 234))
+                shape = GradientDrawable.OVAL
+            }
+        }
+
+        profileCapsule.addView(
+            profile,
+            LinearLayout.LayoutParams(dp(38), dp(38)).apply {
+                rightMargin = dp(8)
+            }
+        )
+
+        profileCapsule.addView(
+            TextView(this).apply {
+                text = contactName
+                textSize = 16f
+                setTextColor(Color.BLACK)
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER_VERTICAL
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            },
+            LinearLayout.LayoutParams(
+                dp(150),
+                dp(38)
+            )
+        )
+
         header.addView(
-            title,
+            profileCapsule,
             android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(50)
+                dp(210),
+                dp(48)
             ).apply {
                 gravity = Gravity.CENTER
             }
         )
+
+        val actionsCapsule = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(3), dp(3), dp(3), dp(3))
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(25).toFloat()
+                setStroke(dp(1), Color.rgb(225, 225, 230))
+            }
+            elevation = dp(2).toFloat()
+        }
 
         if (!phone.matches(Regex("MJ-[A-Z0-9]{6}"))) {
             val callButton = ImageButton(this).apply {
@@ -347,7 +450,7 @@ class ConversationActivity : Activity() {
                 contentDescription = "Call"
                 background = null
                 scaleType = android.widget.ImageView.ScaleType.CENTER
-                setPadding(dp(9), dp(9), dp(9), dp(9))
+                setPadding(dp(12), dp(12), dp(12), dp(12))
 
                 setOnClickListener {
                     val dialIntent = Intent(
@@ -358,17 +461,36 @@ class ConversationActivity : Activity() {
                 }
             }
 
-            header.addView(
+            actionsCapsule.addView(
                 callButton,
-                android.widget.FrameLayout.LayoutParams(
-                    dp(48),
-                    dp(50)
-                ).apply {
-                    gravity = Gravity.END or Gravity.CENTER_VERTICAL
-                    rightMargin = dp(2)
-                }
+                LinearLayout.LayoutParams(dp(38), dp(38))
             )
         }
+
+        val moreButton = TextView(this).apply {
+            text = "⋮"
+            textSize = 27f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            contentDescription = "More"
+        }
+
+        actionsCapsule.addView(
+            moreButton,
+            LinearLayout.LayoutParams(dp(38), dp(38))
+        )
+
+        header.addView(
+            actionsCapsule,
+            android.widget.FrameLayout.LayoutParams(
+                dp(82),
+                dp(48)
+            ).apply {
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                rightMargin = dp(2)
+            }
+        )
 
         scrollView = ScrollView(this).apply {
             isFillViewport = true
