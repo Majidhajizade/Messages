@@ -349,9 +349,9 @@ class ConversationActivity : Activity() {
             contentDescription = "Back"
             scaleType = android.widget.ImageView.ScaleType.CENTER
             setPadding(dp(4), dp(4), dp(4), dp(4))
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                shape = GradientDrawable.OVAL
+            background = null
+            setOnClickListener {
+                finish()
             }
         }
 
