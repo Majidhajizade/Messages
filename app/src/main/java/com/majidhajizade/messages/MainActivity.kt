@@ -1608,8 +1608,8 @@ companion object {
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             visibility = View.GONE
             contentDescription = "Selected"
-            translationX = dp(13).toFloat()
-            translationY = dp(13).toFloat()
+            translationX = dp(5).toFloat()
+            translationY = dp(5).toFloat()
         }
 
         selectionOverlay.tag = 1001
