@@ -370,10 +370,7 @@ class ConversationActivity : Activity() {
 
         val contactName = getContactDisplayName(phone)
 
-        val profileCapsule = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(5), 0, dp(8), 0)
+        val profileCapsule = android.widget.FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 setColor(Color.argb(115, 255, 255, 255))
                 cornerRadius = dp(24).toFloat()
@@ -396,8 +393,9 @@ class ConversationActivity : Activity() {
 
         profileCapsule.addView(
             profile,
-            LinearLayout.LayoutParams(dp(34), dp(34)).apply {
-                rightMargin = dp(8)
+            android.widget.FrameLayout.LayoutParams(dp(34), dp(34)).apply {
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                leftMargin = dp(6)
             }
         )
 
@@ -407,14 +405,17 @@ class ConversationActivity : Activity() {
                 textSize = 16f
                 setTextColor(Color.BLACK)
                 typeface = Typeface.DEFAULT_BOLD
-                gravity = Gravity.CENTER_VERTICAL
+                gravity = Gravity.CENTER
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
             },
-            LinearLayout.LayoutParams(
-                dp(150),
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 dp(48)
-            )
+            ).apply {
+                leftMargin = dp(46)
+                rightMargin = dp(46)
+            }
         )
 
         header.addView(
@@ -425,44 +426,24 @@ class ConversationActivity : Activity() {
             ).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 leftMargin = dp(56)
-                rightMargin = dp(102)
+                rightMargin = dp(56)
             }
         )
 
-        val actionsCapsule = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        profileCapsule.isClickable = true
+        profileCapsule.isFocusable = true
+        profileCapsule.setOnClickListener {
+            showContactDetails(contactName)
+        }
+
+        val moreCapsule = LinearLayout(this).apply {
             gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 0)
             background = GradientDrawable().apply {
                 setColor(Color.argb(115, 255, 255, 255))
                 cornerRadius = dp(24).toFloat()
                 setStroke(dp(1), Color.argb(180, 255, 255, 255))
             }
             elevation = dp(3).toFloat()
-        }
-
-        if (!phone.matches(Regex("MJ-[A-Z0-9]{6}"))) {
-            val callButton = ImageButton(this).apply {
-                setImageResource(R.drawable.ic_call)
-                setColorFilter(Color.BLACK)
-                contentDescription = "Call"
-                background = null
-                scaleType = android.widget.ImageView.ScaleType.CENTER
-                setPadding(dp(12), dp(12), dp(12), dp(12))
-
-                setOnClickListener {
-                    val dialIntent = Intent(
-                        Intent.ACTION_DIAL,
-                        Uri.parse("tel:${Uri.encode(phone)}")
-                    )
-                    startActivity(dialIntent)
-                }
-            }
-
-            actionsCapsule.addView(
-                callButton,
-                LinearLayout.LayoutParams(dp(48), dp(48))
-            )
         }
 
         val moreButton = TextView(this).apply {
@@ -474,17 +455,14 @@ class ConversationActivity : Activity() {
             contentDescription = "More"
         }
 
-        actionsCapsule.addView(
+        moreCapsule.addView(
             moreButton,
             LinearLayout.LayoutParams(dp(48), dp(48))
         )
 
         header.addView(
-            actionsCapsule,
-            android.widget.FrameLayout.LayoutParams(
-                dp(96),
-                dp(48)
-            ).apply {
+            moreCapsule,
+            android.widget.FrameLayout.LayoutParams(dp(48), dp(48)).apply {
                 gravity = Gravity.END or Gravity.CENTER_VERTICAL
                 rightMargin = dp(2)
             }
@@ -678,6 +656,204 @@ class ConversationActivity : Activity() {
 
 
         return root
+    }
+
+    private fun showContactDetails(contactName: String) {
+        val isMeshId = phone.matches(Regex("MJ-[A-Z0-9]{6}"))
+        val isSavedContact = !isMeshId && contactName != phone
+
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(16), dp(20), dp(20))
+            setBackgroundColor(Color.rgb(245, 245, 247))
+        }
+
+        val topBar = LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val back = ImageButton(this).apply {
+            setImageResource(R.drawable.ic_back_arrow)
+            contentDescription = "Back"
+            background = null
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            setOnClickListener { finishContactDetails() }
+        }
+
+        topBar.addView(back, LinearLayout.LayoutParams(dp(48), dp(48)))
+        page.addView(topBar)
+
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(0, dp(34), 0, 0)
+        }
+
+        val avatar = TextView(this).apply {
+            text = contactName.firstOrNull()?.uppercase() ?: "?"
+            textSize = 25f
+            setTextColor(Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.rgb(232, 232, 234))
+            }
+        }
+
+        content.addView(
+            avatar,
+            LinearLayout.LayoutParams(dp(51), dp(51))
+        )
+
+        val title = TextView(this).apply {
+            text = if (isSavedContact) contactName else phone
+            textSize = 22f
+            setTextColor(Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            maxLines = 2
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
+
+        content.addView(title, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            topMargin = dp(18)
+        })
+
+        if (isSavedContact) {
+            content.addView(TextView(this).apply {
+                text = phone
+                textSize = 16f
+                setTextColor(secondaryText)
+                gravity = Gravity.CENTER
+            }, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(7)
+            })
+        }
+
+        page.addView(content)
+
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.TOP
+        }
+
+        var notificationsEnabled = true
+
+        fun makeAction(
+            label: String,
+            iconRes: Int,
+            onClick: () -> Unit
+        ): LinearLayout {
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    setColor(Color.WHITE)
+                    cornerRadius = dp(18).toFloat()
+                }
+                isClickable = true
+                isFocusable = true
+                setPadding(dp(4), dp(14), dp(4), dp(14))
+                setOnClickListener { onClick() }
+            }
+
+            val icon = android.widget.ImageView(this).apply {
+                setImageResource(iconRes)
+                setColorFilter(Color.BLACK)
+                scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                contentDescription = label
+            }
+
+            card.addView(icon, LinearLayout.LayoutParams(dp(27), dp(27)))
+
+            val text = TextView(this).apply {
+                this.text = label
+                textSize = 12f
+                setTextColor(Color.BLACK)
+                gravity = Gravity.CENTER
+                maxLines = 2
+            }
+
+            card.addView(text, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(8)
+            })
+
+            return card
+        }
+
+        actions.addView(
+            makeAction("Notifications", R.drawable.ic_notification_on) {
+                notificationsEnabled = !notificationsEnabled
+                Toast.makeText(
+                    this,
+                    if (notificationsEnabled) "Notifications enabled" else "Notifications disabled",
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            LinearLayout.LayoutParams(0, dp(94), 1f).apply {
+                rightMargin = dp(7)
+            }
+        )
+
+        actions.addView(
+            makeAction("Call", R.drawable.ic_call) {
+                if (!isMeshId) {
+                    startActivity(Intent(
+                        Intent.ACTION_DIAL,
+                        Uri.parse("tel:${Uri.encode(phone)}")
+                    ))
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Phone calls are unavailable for this ID",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            },
+            LinearLayout.LayoutParams(0, dp(94), 1f).apply {
+                leftMargin = dp(3)
+                rightMargin = dp(3)
+            }
+        )
+
+        actions.addView(
+            makeAction("Block", R.drawable.ic_block) {
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("Block contact?")
+                    .setMessage("System-level blocking is not configured yet.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("OK", null)
+                    .show()
+            },
+            LinearLayout.LayoutParams(0, dp(94), 1f).apply {
+                leftMargin = dp(7)
+            }
+        )
+
+        page.addView(actions, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            topMargin = dp(30)
+        })
+
+        setContentView(page)
+    }
+
+    private fun finishContactDetails() {
+        setContentView(createScreen())
+        loadConversation()
     }
 
     @Deprecated("Deprecated in Java")
