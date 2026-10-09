@@ -1981,7 +1981,7 @@ companion object {
 
             if (iconType == 0) {
                 selectionNotificationIcon =
-                    android.widget.ImageView(this@MainActivity).apply {
+                    NotificationSlashIcon(this@MainActivity).apply {
                         setImageResource(R.drawable.ic_notification)
                         scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                         contentDescription = label
@@ -2149,13 +2149,8 @@ companion object {
         val muted = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getStringSet(MUTED, emptySet()) ?: emptySet()
         val anySelectedMuted = selectedAddresses.any { muted.contains(it) }
-        selectionNotificationIcon.setImageResource(
-            if (anySelectedMuted) {
-                R.drawable.ic_notification
-            } else {
-                R.drawable.ic_notification
-            }
-        )
+        (selectionNotificationIcon as? NotificationSlashIcon)
+            ?.setMuted(anySelectedMuted)
 
         val pinned = getPinnedNumbers()
         val anySelectedPinned = selectedAddresses.any { pinned.contains(it) }
@@ -2836,4 +2831,56 @@ companion object {
             value * resources.displayMetrics.density
         ).toInt()
     }
+
+    private class NotificationSlashIcon(
+        context: android.content.Context
+    ) : android.widget.ImageView(context) {
+
+        private var slashProgress = 0f
+        private val slashPaint = android.graphics.Paint(
+            android.graphics.Paint.ANTI_ALIAS_FLAG
+        ).apply {
+            color = android.graphics.Color.BLACK
+            strokeWidth = 2f * resources.displayMetrics.density
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            style = android.graphics.Paint.Style.STROKE
+        }
+
+        fun setMuted(muted: Boolean) {
+            val target = if (muted) 1f else 0f
+            if (slashProgress == target) return
+
+            android.animation.ValueAnimator
+                .ofFloat(slashProgress, target)
+                .apply {
+                    duration = 220L
+                    interpolator =
+                        android.view.animation.DecelerateInterpolator()
+                    addUpdateListener {
+                        slashProgress = it.animatedValue as Float
+                        invalidate()
+                    }
+                    start()
+                }
+        }
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            super.onDraw(canvas)
+
+            if (slashProgress <= 0f) return
+
+            val inset = width * 0.22f
+            val startX = inset
+            val startY = height * 0.78f
+            val endX = width - inset
+            val endY = height * 0.22f
+            val currentEndX = startX + (endX - startX) * slashProgress
+            val currentEndY = startY + (endY - startY) * slashProgress
+
+            canvas.drawLine(
+                startX, startY, currentEndX, currentEndY, slashPaint
+            )
+        }
+    }
+
 }
