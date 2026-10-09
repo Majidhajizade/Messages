@@ -2165,11 +2165,17 @@ companion object {
             }
         )
 
-        rowViews.forEach { (address, _) ->
-            val overlay = selectionOverlays[address] ?: return@forEach
+        selectionOverlays.forEach { (address, overlay) ->
             val selected = selectedAddresses.contains(address)
 
             overlay.visibility = if (selected) View.VISIBLE else View.GONE
+
+            if (selected) {
+                overlay.bringToFront()
+                overlay.elevation = dp(8).toFloat()
+            }
+
+            overlay.invalidate()
         }
     }
 
