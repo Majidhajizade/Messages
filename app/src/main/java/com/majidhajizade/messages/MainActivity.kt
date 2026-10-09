@@ -443,6 +443,7 @@ companion object {
     private fun loadMessages() {
         messagesContainer.removeAllViews()
         rowViews.clear()
+        selectionOverlays.clear()
 
         val projection = arrayOf(
             Telephony.Sms._ID,
@@ -1608,8 +1609,8 @@ companion object {
             selectionOverlay,
             FrameLayout.LayoutParams(dp(26), dp(26)).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
-                rightMargin = dp(2)
-                bottomMargin = dp(2)
+                rightMargin = 0
+                bottomMargin = 0
             }
         )
 
@@ -2290,7 +2291,6 @@ companion object {
         floatingComposeButton?.visibility = View.VISIBLE
 
         selectionOverlays.values.forEach { it.visibility = View.GONE }
-        selectionOverlays.clear()
     }
 
     private fun getPinnedNumbers(): Set<String> {
