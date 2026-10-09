@@ -1982,7 +1982,7 @@ companion object {
             if (iconType == 0) {
                 selectionNotificationIcon =
                     android.widget.ImageView(this@MainActivity).apply {
-                        setImageResource(R.drawable.ic_notification_on)
+                        setImageResource(R.drawable.ic_notification)
                         scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                         contentDescription = label
                     }
@@ -2151,9 +2151,9 @@ companion object {
         val anySelectedMuted = selectedAddresses.any { muted.contains(it) }
         selectionNotificationIcon.setImageResource(
             if (anySelectedMuted) {
-                R.drawable.ic_notification_off
+                R.drawable.ic_notification
             } else {
-                R.drawable.ic_notification_on
+                R.drawable.ic_notification
             }
         )
 
@@ -2328,7 +2328,7 @@ companion object {
     ) : ImageView(context) {
 
         init {
-            setImageResource(R.drawable.ic_plus)
+            setImageResource(R.drawable.floti)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt())
             contentDescription = "New message"
