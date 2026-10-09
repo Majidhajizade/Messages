@@ -1882,7 +1882,8 @@ companion object {
         selectionAllButton = android.widget.ImageView(this).apply {
             scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
             contentDescription = "Select all chats"
-            setPadding(dp(3), dp(3), dp(3), dp(3))
+            translationY = dp(4).toFloat()
+            setPadding(0, 0, 0, 0)
 
             setOnClickListener {
                 if (rowViews.isEmpty()) return@setOnClickListener
@@ -1907,6 +1908,7 @@ companion object {
         allContainer.addView(
             TextView(this).apply {
                 text = "All"
+                translationY = dp(4).toFloat()
                 textSize = 13f
                 setTextColor(Color.rgb(35, 35, 38))
                 gravity = Gravity.CENTER
@@ -2190,6 +2192,7 @@ companion object {
         if (allSelected) {
             selectionAllButton.setImageResource(R.drawable.check)
             selectionAllButton.background = null
+            selectionAllButton.setPadding(0, 0, 0, 0)
         } else {
             selectionAllButton.setImageDrawable(null)
             selectionAllButton.background = GradientDrawable().apply {
@@ -2197,6 +2200,7 @@ companion object {
                 setColor(Color.TRANSPARENT)
                 setStroke(dp(2), Color.rgb(50, 50, 50))
             }
+            selectionAllButton.setPadding(dp(1), dp(1), dp(1), dp(1))
         }
 
         val muted = getSharedPreferences(PREFS, MODE_PRIVATE)
