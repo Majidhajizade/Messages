@@ -93,7 +93,7 @@ class MainActivity : Activity() {
     private var selectionMode = false
     private lateinit var selectionHeader: LinearLayout
     private lateinit var selectionSelectedText: TextView
-    private lateinit var selectionAllButton: TextView
+    private lateinit var selectionAllButton: android.widget.ImageView
     private lateinit var selectionActionBar: LinearLayout
 private lateinit var selectionPinIcon: android.widget.ImageView
 private lateinit var selectionNotificationIcon: android.widget.ImageView
@@ -537,6 +537,15 @@ companion object {
                     it.type
                 )
             }
+
+        if (selectionMode) {
+            selectedAddresses.retainAll(rowViews.keys)
+            if (selectedAddresses.isNotEmpty()) {
+                updateSelectionUI()
+            } else {
+                exitSelectionMode()
+            }
+        }
     }
 
 
@@ -1866,16 +1875,16 @@ companion object {
             gravity = Gravity.CENTER
         }
 
-        selectionAllButton = TextView(this).apply {
-            text = "○"
-            textSize = 28f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT
+        selectionAllButton = android.widget.ImageView(this).apply {
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            contentDescription = "Select all chats"
+            setPadding(dp(3), dp(3), dp(3), dp(3))
+
             setOnClickListener {
                 if (rowViews.isEmpty()) return@setOnClickListener
 
-                if (selectedAddresses.size == rowViews.size) {
+                val allSelected = selectedAddresses.containsAll(rowViews.keys)
+                if (allSelected) {
                     selectedAddresses.clear()
                 } else {
                     selectedAddresses.clear()
@@ -1888,7 +1897,7 @@ companion object {
 
         allContainer.addView(
             selectionAllButton,
-            LinearLayout.LayoutParams(dp(38), dp(38))
+            LinearLayout.LayoutParams(dp(76), dp(76))
         )
 
         allContainer.addView(
@@ -1899,12 +1908,14 @@ companion object {
                 gravity = Gravity.CENTER
                 typeface = Typeface.DEFAULT_BOLD
             },
-            LinearLayout.LayoutParams(dp(38), dp(22))
+            LinearLayout.LayoutParams(dp(80), dp(20)).apply {
+                topMargin = dp(-2)
+            }
         )
 
         header.addView(
             allContainer,
-            LinearLayout.LayoutParams(dp(58), dp(72))
+            LinearLayout.LayoutParams(dp(80), dp(100))
         )
 
         selectionSelectedText = TextView(this).apply {
@@ -2156,8 +2167,20 @@ companion object {
 
         selectionSelectedText.text = "${selectedAddresses.size} Selected"
 
-        selectionAllButton.text =
-            if (selectedAddresses.size == rowViews.size) "●" else "○"
+        val allSelected = rowViews.isNotEmpty() &&
+            selectedAddresses.containsAll(rowViews.keys)
+
+        if (allSelected) {
+            selectionAllButton.setImageResource(R.drawable.check)
+            selectionAllButton.background = null
+        } else {
+            selectionAllButton.setImageDrawable(null)
+            selectionAllButton.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.TRANSPARENT)
+                setStroke(dp(2), Color.rgb(50, 50, 50))
+            }
+        }
 
         val muted = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getStringSet(MUTED, emptySet()) ?: emptySet()
