@@ -14,6 +14,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import android.provider.Telephony
 import android.app.role.RoleManager
 import android.view.Gravity
@@ -91,6 +93,7 @@ class MainActivity : Activity() {
     private val selectedAddresses = linkedSetOf<String>()
     private val selectionOverlays = mutableMapOf<String, android.widget.ImageView>()
     private var selectionMode = false
+    private var selectionBackCallback: OnBackInvokedCallback? = null
     private lateinit var selectionHeader: LinearLayout
     private lateinit var selectionSelectedText: TextView
     private lateinit var selectionAllButton: android.widget.ImageView
@@ -1416,31 +1419,32 @@ companion object {
         updateMeshStatus()
     }
 
+    @Suppress("DEPRECATION")
     override fun onBackPressed() {
-        when {
-            isMeshLogPageVisible -> {
-                isMeshLogPageVisible = false
-                showMeshIdSettings()
-            }
-
-            isSettingsPageVisible -> {
-                isSettingsPageVisible = false
-                setContentView(createHomeScreen())
-                updateMeshStatus()
-            }
-
-            isMeshPanelVisible -> {
-                returnToHome()
-            }
-
-            selectionMode || selectionHeader.visibility == View.VISIBLE -> {
-                exitSelectionMode()
-            }
-
-            else -> {
-                super.onBackPressed()
-            }
+        if (selectionMode) {
+            exitSelectionMode()
+            return
         }
+
+        if (isMeshLogPageVisible) {
+            isMeshLogPageVisible = false
+            showMeshIdSettings()
+            return
+        }
+
+        if (isSettingsPageVisible) {
+            isSettingsPageVisible = false
+            setContentView(createHomeScreen())
+            updateMeshStatus()
+            return
+        }
+
+        if (isMeshPanelVisible) {
+            returnToHome()
+            return
+        }
+
+        super.onBackPressed()
     }
 
     private fun requestContactsPermission() {
@@ -1897,7 +1901,7 @@ companion object {
 
         allContainer.addView(
             selectionAllButton,
-            LinearLayout.LayoutParams(dp(76), dp(76))
+            LinearLayout.LayoutParams(dp(32), dp(32))
         )
 
         allContainer.addView(
@@ -1908,14 +1912,14 @@ companion object {
                 gravity = Gravity.CENTER
                 typeface = Typeface.DEFAULT_BOLD
             },
-            LinearLayout.LayoutParams(dp(80), dp(20)).apply {
-                topMargin = dp(-2)
+            LinearLayout.LayoutParams(dp(80), dp(24)).apply {
+                topMargin = dp(2)
             }
         )
 
         header.addView(
             allContainer,
-            LinearLayout.LayoutParams(dp(80), dp(100))
+            LinearLayout.LayoutParams(dp(80), dp(64))
         )
 
         selectionSelectedText = TextView(this).apply {
@@ -2132,6 +2136,19 @@ companion object {
 
     private fun enterSelectionMode(address: String) {
         selectionMode = true
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            selectionBackCallback == null
+        ) {
+            selectionBackCallback = OnBackInvokedCallback {
+                runOnUiThread {
+                    if (selectionMode) exitSelectionMode()
+                }
+            }
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_OVERLAY,
+                selectionBackCallback!!
+            )
+        }
         selectedAddresses.clear()
         selectedAddresses.add(address)
 
@@ -2312,6 +2329,13 @@ companion object {
     }
 
     private fun exitSelectionMode() {
+        selectionBackCallback?.let {
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it)
+            }
+        }
+        selectionBackCallback = null
+
         selectionMode = false
         selectedAddresses.clear()
 
@@ -2532,7 +2556,7 @@ companion object {
 
         logCard.addView(
             logIcon,
-            LinearLayout.LayoutParams(dp(48), dp(48))
+            LinearLayout.LayoutParams(dp(32), dp(32))
         )
 
         val logTitle = TextView(this).apply {
