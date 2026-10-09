@@ -531,14 +531,12 @@ class ConversationActivity : Activity() {
             }
         }
 
-        val addContact = TextView(this).apply {
-            text = "+"
-            textSize = 28f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER
-            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+        val addContact = ImageButton(this).apply {
+            setImageResource(R.drawable.ic_plus_chat)
+            contentDescription = "Add contact"
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(9), dp(9), dp(9), dp(9))
             background = null
-            setPadding(0, 0, 0, dp(2))
 
             setOnClickListener {
                 val intent = Intent(

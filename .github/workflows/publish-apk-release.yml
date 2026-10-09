@@ -1,0 +1,46 @@
+name: Publish APK Release
+
+on:
+  workflow_run:
+    workflows: ["Android APK"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Messages-debug
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          path: release-assets
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          APK_PATH="$(find release-assets -type f -name '*.apk' -print -quit)"
+          test -n "$APK_PATH"
+          cp "$APK_PATH" Messages.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.event.workflow_run.id }}
+          name: "Messages APK build #${{ github.event.workflow_run.run_number }}"
+          body: |
+            Automatically published after a successful Android APK build.
+            Source commit: ${{ github.event.workflow_run.head_sha }}
+          files: Messages.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
