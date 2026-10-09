@@ -1901,7 +1901,7 @@ companion object {
 
         allContainer.addView(
             selectionAllButton,
-            LinearLayout.LayoutParams(dp(32), dp(32))
+            LinearLayout.LayoutParams(dp(26), dp(26))
         )
 
         allContainer.addView(
@@ -1912,14 +1912,14 @@ companion object {
                 gravity = Gravity.CENTER
                 typeface = Typeface.DEFAULT_BOLD
             },
-            LinearLayout.LayoutParams(dp(80), dp(24)).apply {
-                topMargin = dp(2)
+            LinearLayout.LayoutParams(dp(52), dp(20)).apply {
+                topMargin = 0
             }
         )
 
         header.addView(
             allContainer,
-            LinearLayout.LayoutParams(dp(80), dp(64))
+            LinearLayout.LayoutParams(dp(52), dp(52))
         )
 
         selectionSelectedText = TextView(this).apply {
