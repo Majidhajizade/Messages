@@ -285,6 +285,8 @@ companion object {
         )
 
         messagesContainer = LinearLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
             clipToOutline = false
@@ -1506,6 +1508,8 @@ companion object {
     ) {
         val actionLayer = FrameLayout(this).apply {
             tag = address
+            clipChildren = false
+            clipToPadding = false
         }
 
         val actionBackground = LinearLayout(this).apply {
@@ -1558,6 +1562,8 @@ companion object {
         val foreground = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            clipChildren = false
+            clipToPadding = false
             background = null
             setPadding(0, dp(8), 0, dp(8))
             clipToOutline = false
@@ -1565,6 +1571,8 @@ companion object {
         }
 
         val contactFrame = FrameLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
             layoutParams = LinearLayout.LayoutParams(dp(52), dp(52)).apply {
                 rightMargin = dp(12)
             }
@@ -1600,6 +1608,8 @@ companion object {
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             visibility = View.GONE
             contentDescription = "Selected"
+            translationX = dp(13).toFloat()
+            translationY = dp(13).toFloat()
         }
 
         selectionOverlay.tag = 1001
@@ -1772,6 +1782,46 @@ companion object {
 
     }
 
+    private fun findConversationAddressesCrossed(
+        rawX: Float,
+        fromY: Float,
+        toY: Float
+    ): List<String> {
+        if (fromY == toY) return emptyList()
+
+        val movingDown = toY > fromY
+        val crossed = mutableListOf<Pair<String, Float>>()
+
+        rowViews.keys.toList().forEach { address ->
+            val row = findRowByAddress(address) ?: return@forEach
+            if (row.width <= 0 || row.height <= 0) return@forEach
+
+            val location = IntArray(2)
+            row.getLocationOnScreen(location)
+
+            val left = location[0].toFloat()
+            val right = left + row.width
+            if (rawX < left || rawX > right) return@forEach
+
+            val centerY = location[1] + row.height / 2f
+            val isCrossed = if (movingDown) {
+                centerY > fromY && centerY <= toY
+            } else {
+                centerY < fromY && centerY >= toY
+            }
+
+            if (isCrossed) crossed.add(address to centerY)
+        }
+
+        val ordered = if (movingDown) {
+            crossed.sortedBy { it.second }
+        } else {
+            crossed.sortedByDescending { it.second }
+        }
+
+        return ordered.map { it.first }
+    }
+
     private fun setupRowTouch(
         container: FrameLayout,
         foreground: View,
@@ -1784,6 +1834,9 @@ companion object {
         var downY = 0f
         var moved = false
         var longPressed = false
+        var lastMoveY = 0f
+        var lastProcessedAddress: String? = null
+        var lastProcessedDirection = 0
 
         val handler = android.os.Handler(mainLooper)
         val longPressRunnable = Runnable {
@@ -1803,6 +1856,9 @@ companion object {
                     downY = event.rawY
                     moved = false
                     longPressed = false
+                    lastMoveY = event.rawY
+                    lastProcessedAddress = address
+                    lastProcessedDirection = 0
                     handler.postDelayed(longPressRunnable, 500)
                     true
                 }
@@ -1814,6 +1870,49 @@ companion object {
                     if (abs(dx) > dp(10) || abs(dy) > dp(10)) {
                         moved = true
                         handler.removeCallbacks(longPressRunnable)
+                    }
+
+                    if (selectionMode && moved) {
+                        val currentY = event.rawY
+                        val direction = when {
+                            currentY > lastMoveY -> 1
+                            currentY < lastMoveY -> -1
+                            else -> 0
+                        }
+
+                        if (direction != 0) {
+                            var changed = false
+
+                            findConversationAddressesCrossed(
+                                event.rawX,
+                                lastMoveY,
+                                currentY
+                            ).forEach { crossedAddress ->
+                                if (
+                                    crossedAddress == lastProcessedAddress &&
+                                    direction == lastProcessedDirection
+                                ) {
+                                    return@forEach
+                                }
+
+                                if (direction > 0) {
+                                    if (selectedAddresses.add(crossedAddress)) {
+                                        changed = true
+                                    }
+                                } else {
+                                    if (selectedAddresses.remove(crossedAddress)) {
+                                        changed = true
+                                    }
+                                }
+
+                                lastProcessedAddress = crossedAddress
+                                lastProcessedDirection = direction
+                            }
+
+                            if (changed) updateSelectionUI()
+                        }
+
+                        lastMoveY = currentY
                     }
 
                     true
