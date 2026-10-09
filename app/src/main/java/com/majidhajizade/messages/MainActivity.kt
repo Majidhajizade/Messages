@@ -1745,6 +1745,8 @@ companion object {
 
 
 
+        rowViews[address] = name
+
         setupRowTouch(
             actionLayer,
             foreground,
