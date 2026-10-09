@@ -96,6 +96,7 @@ class MainActivity : Activity() {
     private lateinit var selectionAllButton: TextView
     private lateinit var selectionActionBar: LinearLayout
 private lateinit var selectionPinIcon: android.widget.ImageView
+private lateinit var selectionNotificationIcon: android.widget.ImageView
 companion object {
         private const val SMS_PERMISSION_REQUEST = 2001
         private const val PREFS = "messages_settings"
@@ -1594,7 +1595,7 @@ companion object {
         )
 
         val selectionOverlay = android.widget.ImageView(this).apply {
-            setImageResource(R.drawable.ic_check_circle)
+            setImageResource(R.drawable.check)
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             visibility = View.GONE
             contentDescription = "Selected"
@@ -1978,24 +1979,26 @@ companion object {
             gravity = Gravity.CENTER
             setOnClickListener { action() }
 
-            if (iconType == 0 || iconType == 1) {
+            if (iconType == 0) {
+                selectionNotificationIcon =
+                    android.widget.ImageView(this@MainActivity).apply {
+                        setImageResource(R.drawable.ic_notification_on)
+                        scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                        contentDescription = label
+                    }
+                addView(
+                    selectionNotificationIcon,
+                    LinearLayout.LayoutParams(dp(26), dp(25))
+                )
+            } else if (iconType == 1) {
                 addView(
                     android.widget.ImageView(this@MainActivity).apply {
-                        setImageResource(
-                            if (iconType == 0) {
-                                R.drawable.ic_notification
-                            } else {
-                                R.drawable.ic_delete
-                            }
-                        )
+                        setImageResource(R.drawable.ic_delete)
                         setColorFilter(Color.BLACK)
                         scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                         contentDescription = label
                     },
-                    LinearLayout.LayoutParams(
-                        dp(26),
-                        dp(25)
-                    )
+                    LinearLayout.LayoutParams(dp(26), dp(25))
                 )
             } else {
                 selectionPinIcon = android.widget.ImageView(this@MainActivity).apply {
@@ -2143,6 +2146,17 @@ companion object {
         selectionAllButton.text =
             if (selectedAddresses.size == rowViews.size) "●" else "○"
 
+        val muted = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getStringSet(MUTED, emptySet()) ?: emptySet()
+        val anySelectedMuted = selectedAddresses.any { muted.contains(it) }
+        selectionNotificationIcon.setImageResource(
+            if (anySelectedMuted) {
+                R.drawable.ic_notification_off
+            } else {
+                R.drawable.ic_notification_on
+            }
+        )
+
         val pinned = getPinnedNumbers()
         val anySelectedPinned = selectedAddresses.any { pinned.contains(it) }
 
@@ -2192,11 +2206,16 @@ companion object {
         val muted = prefs.getStringSet(MUTED, emptySet())?.toMutableSet()
             ?: mutableSetOf()
 
-        selectedAddresses.forEach {
-            if (muted.contains(it)) muted.remove(it) else muted.add(it)
+        val anySelectedMuted = selectedAddresses.any { muted.contains(it) }
+
+        if (anySelectedMuted) {
+            selectedAddresses.forEach { muted.remove(it) }
+        } else {
+            muted.addAll(selectedAddresses)
         }
 
         prefs.edit().putStringSet(MUTED, muted).apply()
+        updateSelectionUI()
         Toast.makeText(this, "Notifications updated", Toast.LENGTH_SHORT).show()
     }
 
@@ -2309,7 +2328,7 @@ companion object {
     ) : ImageView(context) {
 
         init {
-            setImageResource(R.drawable.floti)
+            setImageResource(R.drawable.ic_plus)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt())
             contentDescription = "New message"
