@@ -96,7 +96,6 @@ class MainActivity : Activity() {
     private var selectionBackCallback: OnBackInvokedCallback? = null
     private lateinit var selectionHeader: LinearLayout
     private lateinit var selectionSelectedText: TextView
-    private lateinit var selectionAllButton: android.widget.ImageView
     private lateinit var selectionActionBar: LinearLayout
 private lateinit var selectionPinIcon: android.widget.ImageView
 private lateinit var selectionNotificationIcon: android.widget.ImageView
@@ -202,7 +201,16 @@ companion object {
             setPadding(dp(20), dp(18), dp(20), dp(12))
         }
 
-        selectionHeader = createSelectionHeader()
+        selectionHeader = createSelectionHeader().apply {
+            translationX = -dp(20).toFloat()
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(72)
+            ).apply {
+                leftMargin = -dp(20)
+                rightMargin = -dp(20)
+            }
+        }
         selectionHeader.visibility = View.GONE
 
         selectionActionBar = createSelectionActionBar()
@@ -1874,54 +1882,21 @@ companion object {
             setPadding(0, 0, 0, 0)
         }
 
-        val allContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-        }
-
-        selectionAllButton = android.widget.ImageView(this).apply {
+        val cancel = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_cross)
             scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-            contentDescription = "Select all chats"
-            translationY = dp(4).toFloat()
-            setPadding(0, 0, 0, 0)
-
+            contentDescription = "Cancel selection"
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            isClickable = true
+            isFocusable = true
             setOnClickListener {
-                if (rowViews.isEmpty()) return@setOnClickListener
-
-                val allSelected = selectedAddresses.containsAll(rowViews.keys)
-                if (allSelected) {
-                    selectedAddresses.clear()
-                } else {
-                    selectedAddresses.clear()
-                    selectedAddresses.addAll(rowViews.keys)
-                }
-
-                updateSelectionUI()
+                exitSelectionMode()
             }
         }
-
-        allContainer.addView(
-            selectionAllButton,
-            LinearLayout.LayoutParams(dp(26), dp(26))
-        )
-
-        allContainer.addView(
-            TextView(this).apply {
-                text = "All"
-                translationY = dp(4).toFloat()
-                textSize = 13f
-                setTextColor(Color.rgb(35, 35, 38))
-                gravity = Gravity.CENTER
-                typeface = Typeface.DEFAULT_BOLD
-            },
-            LinearLayout.LayoutParams(dp(52), dp(20)).apply {
-                topMargin = 0
-            }
-        )
 
         header.addView(
-            allContainer,
-            LinearLayout.LayoutParams(dp(52), dp(52))
+            cancel,
+            LinearLayout.LayoutParams(dp(48), dp(48))
         )
 
         selectionSelectedText = TextView(this).apply {
@@ -1941,22 +1916,6 @@ companion object {
             ).apply {
                 leftMargin = dp(8)
             }
-        )
-
-        val cancel = TextView(this).apply {
-            text = "Cancel"
-            textSize = 17f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setOnClickListener {
-                exitSelectionMode()
-            }
-        }
-
-        header.addView(
-            cancel,
-            LinearLayout.LayoutParams(dp(78), dp(72))
         )
 
         return header
@@ -2185,23 +2144,6 @@ companion object {
         selectionActionBar.visibility = View.VISIBLE
 
         selectionSelectedText.text = "${selectedAddresses.size} Selected"
-
-        val allSelected = rowViews.isNotEmpty() &&
-            selectedAddresses.containsAll(rowViews.keys)
-
-        if (allSelected) {
-            selectionAllButton.setImageResource(R.drawable.check)
-            selectionAllButton.background = null
-            selectionAllButton.setPadding(0, 0, 0, 0)
-        } else {
-            selectionAllButton.setImageDrawable(null)
-            selectionAllButton.background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.TRANSPARENT)
-                setStroke(dp(2), Color.rgb(50, 50, 50))
-            }
-            selectionAllButton.setPadding(dp(1), dp(1), dp(1), dp(1))
-        }
 
         val muted = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getStringSet(MUTED, emptySet()) ?: emptySet()
