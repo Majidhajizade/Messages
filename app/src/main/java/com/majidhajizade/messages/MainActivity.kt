@@ -202,14 +202,10 @@ companion object {
         }
 
         selectionHeader = createSelectionHeader().apply {
-            translationX = -dp(20).toFloat()
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(72)
-            ).apply {
-                leftMargin = -dp(20)
-                rightMargin = -dp(20)
-            }
+            )
         }
         selectionHeader.visibility = View.GONE
 

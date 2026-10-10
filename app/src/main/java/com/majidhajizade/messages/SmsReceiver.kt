@@ -54,7 +54,14 @@ class SmsReceiver : BroadcastReceiver() {
             .apply()
 
         if (sender.isNotBlank() && body.isNotBlank()) {
-            showNotification(context, sender, body)
+            val blocked = context.getSharedPreferences(
+                "messages_settings",
+                Context.MODE_PRIVATE
+            ).getStringSet("blocked_numbers", emptySet()) ?: emptySet()
+
+            if (!blocked.contains(sender.trim())) {
+                showNotification(context, sender, body)
+            }
         }
     }
 

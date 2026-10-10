@@ -150,7 +150,7 @@ class ConversationActivity : Activity() {
                 senderId.equals(
                     phone.trim().uppercase(Locale.US),
                     ignoreCase = true
-                )
+                ) && !isContactBlocked()
             ) {
                 runOnUiThread {
                     val receivedDate = System.currentTimeMillis()
@@ -761,7 +761,7 @@ class ConversationActivity : Activity() {
                 }
                 isClickable = true
                 isFocusable = true
-                setPadding(dp(4), dp(14), dp(4), dp(14))
+                setPadding(dp(4), dp(8), dp(4), dp(8))
                 setOnClickListener { onClick() }
             }
 
@@ -782,11 +782,12 @@ class ConversationActivity : Activity() {
                 maxLines = 2
             }
 
+            text.tag = "contact_action_label"
             card.addView(text, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = dp(8)
+                topMargin = dp(5)
             })
 
             return card
@@ -801,7 +802,7 @@ class ConversationActivity : Activity() {
                     Toast.LENGTH_SHORT
                 ).show()
             },
-            LinearLayout.LayoutParams(0, dp(94), 1f).apply {
+            LinearLayout.LayoutParams(0, dp(78), 1f).apply {
                 rightMargin = dp(7)
             }
         )
@@ -821,22 +822,62 @@ class ConversationActivity : Activity() {
                     ).show()
                 }
             },
-            LinearLayout.LayoutParams(0, dp(94), 1f).apply {
+            LinearLayout.LayoutParams(0, dp(78), 1f).apply {
                 leftMargin = dp(3)
                 rightMargin = dp(3)
             }
         )
 
         actions.addView(
-            makeAction("Block", R.drawable.ic_block) {
+            makeAction(
+                if (isContactBlocked()) "Unblock" else "Block",
+                R.drawable.ic_block
+            ) {
+                val wasBlocked = isContactBlocked()
+                val action = if (wasBlocked) "Unblock" else "Block"
+
                 android.app.AlertDialog.Builder(this)
-                    .setTitle("Block contact?")
-                    .setMessage("System-level blocking is not configured yet.")
+                    .setTitle("$action contact?")
+                    .setMessage(
+                        if (wasBlocked)
+                            "This contact will be allowed to message you again."
+                        else
+                            "Messages from this contact will be blocked in this app, and you won't be able to send messages to them."
+                    )
                     .setNegativeButton("Cancel", null)
-                    .setPositiveButton("OK", null)
+                    .setPositiveButton(action) { _, _ ->
+                        val prefs = getSharedPreferences(
+                            "messages_settings",
+                            MODE_PRIVATE
+                        )
+                        val blocked = prefs.getStringSet(
+                            "blocked_numbers",
+                            emptySet()
+                        )?.toMutableSet() ?: mutableSetOf()
+
+                        if (wasBlocked) {
+                            blocked.remove(phone.trim())
+                        } else {
+                            blocked.add(phone.trim())
+                        }
+
+                        prefs.edit()
+                            .putStringSet("blocked_numbers", blocked)
+                            .apply()
+
+                        val label = actions.getChildAt(2)
+                            .findViewWithTag<TextView>("contact_action_label")
+                        label?.text = if (wasBlocked) "Block" else "Unblock"
+
+                        Toast.makeText(
+                            this,
+                            if (wasBlocked) "Contact unblocked" else "Contact blocked",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                     .show()
             },
-            LinearLayout.LayoutParams(0, dp(94), 1f).apply {
+            LinearLayout.LayoutParams(0, dp(78), 1f).apply {
                 leftMargin = dp(7)
             }
         )
@@ -845,7 +886,7 @@ class ConversationActivity : Activity() {
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply {
-            topMargin = dp(30)
+            topMargin = dp(18)
         })
 
         setContentView(page)
@@ -1243,10 +1284,27 @@ class ConversationActivity : Activity() {
         }
     }
 
+    private fun isContactBlocked(): Boolean {
+        val blocked = getSharedPreferences(
+            "messages_settings",
+            MODE_PRIVATE
+        ).getStringSet("blocked_numbers", emptySet()) ?: emptySet()
+        return blocked.contains(phone.trim())
+    }
+
     private fun sendMessage() {
         val message = messageInput.text.toString().trim()
 
         if (message.isEmpty()) {
+            return
+        }
+
+        if (isContactBlocked()) {
+            Toast.makeText(
+                this,
+                "This contact is blocked. Unblock to send messages.",
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
