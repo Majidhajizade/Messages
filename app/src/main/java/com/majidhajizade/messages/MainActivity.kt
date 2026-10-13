@@ -1833,7 +1833,7 @@ companion object {
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
                 setPadding(dp(8), 0, dp(8), 0)
                 background = GradientDrawable().apply {
-                    setColor(Color.rgb(75, 75, 82))
+                    setColor(Color.rgb(192, 192, 192))
                     cornerRadius = dp(12).toFloat()
                     setStroke(
                         dp(1),
