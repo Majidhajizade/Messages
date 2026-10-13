@@ -542,6 +542,67 @@ class ConversationActivity : Activity() {
             }
         )
 
+        val floatingDateCapsule = TextView(this).apply {
+            textSize = 12f
+            setTextColor(Color.rgb(90, 90, 95))
+            gravity = Gravity.CENTER
+            setPadding(dp(14), dp(6), dp(14), dp(6))
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(230, 230, 234))
+                cornerRadius = dp(18).toFloat()
+            }
+            elevation = dp(3).toFloat()
+            alpha = 0f
+            visibility = View.GONE
+        }
+
+        root.addView(
+            floatingDateCapsule,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                topMargin = dp(104)
+            }
+        )
+
+        val hideDateCapsule = Runnable {
+            floatingDateCapsule.animate()
+                .alpha(0f)
+                .setDuration(250L)
+                .withEndAction {
+                    floatingDateCapsule.visibility = View.GONE
+                }
+                .start()
+        }
+
+        scrollView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+            if (scrollY != oldScrollY) {
+                var activeDate: TextView? = null
+
+                for (i in 0 until messagesContainer.childCount) {
+                    val child = messagesContainer.getChildAt(i)
+                    if (
+                        child.tag == "date_header_row" &&
+                        child.top <= scrollY + dp(120)
+                    ) {
+                        activeDate =
+                            (child as? LinearLayout)?.getChildAt(0) as? TextView
+                    }
+                }
+
+                if (activeDate != null) {
+                    floatingDateCapsule.text = activeDate.text
+                    floatingDateCapsule.animate().cancel()
+                    floatingDateCapsule.alpha = 1f
+                    floatingDateCapsule.visibility = View.VISIBLE
+                    floatingDateCapsule.removeCallbacks(hideDateCapsule)
+                    floatingDateCapsule.postDelayed(hideDateCapsule, 2000L)
+                }
+            }
+        }
+
         val composer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
