@@ -1644,14 +1644,21 @@ companion object {
         }
 
         val archivePanel = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+            background = solidDrawable(Color.TRANSPARENT, 0f)
+        }
+
+        val archiveBlueHalf = View(this).apply {
+            setBackgroundColor(Color.rgb(0, 129, 255))
+        }
+
+        val archiveRightHalf = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(8), 0, dp(8), 0)
-            visibility = View.GONE
-            background = GradientDrawable().apply {
-                setColor(Color.rgb(0, 129, 255))
-                cornerRadius = dp(14).toFloat()
-            }
+            setPadding(0, 0, dp(16), 0)
+            setBackgroundColor(Color.rgb(192, 192, 192))
         }
 
         val archiveIcon = android.widget.ImageView(this).apply {
@@ -1668,16 +1675,25 @@ companion object {
             includeFontPadding = false
         }
 
-        archivePanel.addView(
+        archiveRightHalf.addView(
             archiveIcon,
             LinearLayout.LayoutParams(dp(22), dp(22))
         )
-        archivePanel.addView(
+        archiveRightHalf.addView(
             archiveLabel,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
+        )
+
+        archivePanel.addView(
+            archiveBlueHalf,
+            LinearLayout.LayoutParams(0, dp(64), 1f)
+        )
+        archivePanel.addView(
+            archiveRightHalf,
+            LinearLayout.LayoutParams(0, dp(64), 1f)
         )
 
         actionLayer.addView(
@@ -2129,10 +2145,6 @@ companion object {
                             )
                         }
                         archiveReady = -dx >= archiveThreshold
-                        (archivePanel.background as? GradientDrawable)?.setColor(
-                            if (archiveReady) Color.rgb(192, 192, 192)
-                            else Color.rgb(0, 129, 255)
-                        )
                     }
 
                     true
@@ -2160,8 +2172,6 @@ companion object {
                             foreground.animate().translationX(0f).setDuration(180).start()
                             foreground.background = null
                             archivePanel.visibility = View.GONE
-                            (archivePanel.background as? GradientDrawable)
-                                ?.setColor(Color.rgb(0, 129, 255))
                         }
                         return@setOnTouchListener true
                     }
@@ -2184,8 +2194,6 @@ companion object {
                         foreground.animate().translationX(0f).setDuration(180).start()
                         foreground.background = null
                         archivePanel.visibility = View.GONE
-                        (archivePanel.background as? GradientDrawable)
-                            ?.setColor(Color.rgb(0, 129, 255))
                     }
                     true
                 }
