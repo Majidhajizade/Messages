@@ -2095,8 +2095,9 @@ companion object {
         var longPressed = false
         var archiveSwipe = false
         var archiveReady = false
-        val archiveThreshold = dp(100)
-        val archiveLimit = resources.displayMetrics.widthPixels * 0.75f
+        val screenWidth = resources.displayMetrics.widthPixels.toFloat()
+        val archiveLimit = screenWidth * 0.75f
+        val archiveThreshold = screenWidth / 2f
 
         val handler = android.os.Handler(mainLooper)
         val longPressRunnable = Runnable {
@@ -2144,7 +2145,28 @@ companion object {
                                 0f, 0f
                             )
                         }
-                        archiveReady = -dx >= archiveThreshold
+                        // Archive only when the floating chat's right edge reaches screen center.
+                        val parentLocation = IntArray(2)
+                        container.getLocationOnScreen(parentLocation)
+                        val chatRightEdge = parentLocation[0] +
+                            foreground.left + foreground.width +
+                            foreground.translationX
+                        archiveReady = chatRightEdge <= screenWidth / 2f
+
+                        val panelColor = if (archiveReady) {
+                            Color.rgb(192, 192, 192)
+                        } else {
+                            Color.rgb(0, 129, 255)
+                        }
+                        archivePanel.setBackgroundColor(Color.TRANSPARENT)
+                        val blueHalf = (archivePanel as? android.widget.LinearLayout)
+                            ?.getChildAt(0)
+                        val rightHalf = (archivePanel as? android.widget.LinearLayout)
+                            ?.getChildAt(1)
+                        blueHalf?.setBackgroundColor(
+                            if (archiveReady) panelColor else Color.rgb(0, 129, 255)
+                        )
+                        rightHalf?.setBackgroundColor(panelColor)
                     }
 
                     true
