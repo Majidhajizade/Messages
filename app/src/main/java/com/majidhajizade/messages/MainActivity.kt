@@ -1829,17 +1829,17 @@ companion object {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
-                setPadding(dp(5), 0, dp(5), 0)
+                setPadding(dp(7), 0, dp(7), 0)
                 background = GradientDrawable().apply {
                     setColor(
-                        if (isDarkMode) Color.rgb(48, 48, 55)
-                        else Color.rgb(239, 239, 243)
+                        if (isDarkMode) Color.rgb(54, 54, 60)
+                        else Color.rgb(226, 226, 231)
                     )
-                    cornerRadius = dp(11).toFloat()
+                    cornerRadius = dp(12).toFloat()
                     setStroke(
                         dp(1),
-                        if (isDarkMode) Color.rgb(82, 82, 92)
-                        else Color.rgb(211, 211, 219)
+                        if (isDarkMode) Color.rgb(78, 78, 86)
+                        else Color.rgb(205, 205, 212)
                     )
                 }
             }
@@ -1855,7 +1855,7 @@ companion object {
                     contentDescription = "Pinned"
                 },
                 LinearLayout.LayoutParams(dp(12), dp(12)).apply {
-                    rightMargin = dp(3)
+                    rightMargin = dp(4)
                 }
             )
 
@@ -1867,11 +1867,14 @@ companion object {
                 )
             )
 
+            dateText.minWidth = dp(38)
+            dateText.includeFontPadding = false
+
             metaContainer.addView(
                 dateCapsule,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    dp(22)
+                    dp(26)
                 )
             )
 
@@ -1930,7 +1933,8 @@ companion object {
                         dragHandle.alpha = 1f
                         if (didDrag) {
                             val finalTargetAddress =
-                                findPinnedAddressAtY(event.rawY) ?: lastTargetAddress
+                                findPinnedAddressAtY(event.rawY)
+                                    ?: lastTargetAddress
                             reorderPinnedConversation(
                                 address,
                                 event.rawY,
@@ -1965,7 +1969,7 @@ companion object {
         foreground.addView(
             metaContainer,
             LinearLayout.LayoutParams(
-                dp(54),
+                if (pinned) dp(76) else dp(54),
                 dp(52)
             ).apply {
                 leftMargin = dp(6)
@@ -2568,9 +2572,7 @@ companion object {
         if (from < 0 || to < 0 || from == to) return
 
         val moving = order.removeAt(from)
-        val targetIndex = order.indexOf(targetAddress)
-        if (targetIndex < 0) return
-        order.add(targetIndex, moving)
+        order.add(to.coerceIn(0, order.size), moving)
 
         savePinnedOrder(order)
         loadMessages()
