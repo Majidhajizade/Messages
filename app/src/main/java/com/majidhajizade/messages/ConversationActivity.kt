@@ -28,6 +28,9 @@ import android.widget.Toast
 import android.graphics.drawable.GradientDrawable
 import android.text.Editable
 import android.text.TextWatcher
+import android.text.util.Linkify
+import android.text.method.LinkMovementMethod
+import android.view.MotionEvent
 import android.view.animation.DecelerateInterpolator
 import android.animation.ValueAnimator
 import java.text.SimpleDateFormat
@@ -39,6 +42,11 @@ class ConversationActivity : Activity() {
     private lateinit var messagesContainer: LinearLayout
     private lateinit var messageInput: EditText
     private lateinit var scrollView: ScrollView
+    private lateinit var profileCapsule: android.widget.FrameLayout
+    private lateinit var profile: TextView
+    private lateinit var contactTitle: TextView
+    private var searchMode = false
+    private var searchQuery = ""
 
     private val blue = Color.rgb(0, 122, 255)
     private val secondaryText = Color.rgb(110, 110, 115)
@@ -57,6 +65,11 @@ class ConversationActivity : Activity() {
             private set
     }
 
+    private val savedSentMessageIds = mutableSetOf<String>()
+    private val smsAttemptResults = mutableMapOf<String, MutableMap<Int, Boolean>>()
+    private val smsAttemptMessages = mutableMapOf<String, String>()
+    private val smsAttemptErrorCodes = mutableMapOf<String, Int>()
+
     private val smsDeliveredReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val messageId = intent?.getStringExtra("message_id")
@@ -68,29 +81,54 @@ class ConversationActivity : Activity() {
 
     private val smsSentReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val messageId = intent?.getStringExtra("message_id")
+            val messageId = intent?.getStringExtra("message_id") ?: return
+            val attemptId = intent.getStringExtra("attempt_id") ?: messageId
+            val partIndex = intent.getIntExtra("part_index", 0)
+            val totalParts = intent.getIntExtra("total_parts", 1).coerceAtLeast(1)
             val success = resultCode == Activity.RESULT_OK
 
-            if (messageId != null) {
-                updateMessageStatus(messageId, success)
-                if (success) { saveSentMessage(intent?.getStringExtra("message") ?: return); loadConversation() }
+            val results = smsAttemptResults.getOrPut(attemptId) { mutableMapOf() }
+            intent.getStringExtra("message")?.let {
+                smsAttemptMessages[attemptId] = it
+            }
+            if (!success) smsAttemptErrorCodes[attemptId] = resultCode
+            results[partIndex] = success
 
-                val errorText = when (resultCode) {
-                    Activity.RESULT_OK -> "SMS sent successfully"
+            if (results.size < totalParts) return
+
+            val attemptSucceeded =
+                (0 until totalParts).all { results[it] == true }
+            val sentMessage = smsAttemptMessages.remove(attemptId)
+            smsAttemptResults.remove(attemptId)
+            val errorCode = smsAttemptErrorCodes.remove(attemptId)
+
+            updateMessageStatus(messageId, attemptSucceeded)
+
+            if (attemptSucceeded && sentMessage != null &&
+                savedSentMessageIds.add(messageId)
+            ) {
+                saveSentMessage(sentMessage)
+                loadConversation()
+            }
+
+            val errorText = if (attemptSucceeded) {
+                "SMS sent successfully"
+            } else {
+                when (errorCode) {
                     SmsManager.RESULT_ERROR_GENERIC_FAILURE -> "Generic failure"
                     SmsManager.RESULT_ERROR_RADIO_OFF -> "Radio is off"
                     SmsManager.RESULT_ERROR_NULL_PDU -> "Null PDU"
                     SmsManager.RESULT_ERROR_NO_SERVICE -> "No cellular service"
                     SmsManager.RESULT_ERROR_LIMIT_EXCEEDED -> "SMS limit exceeded"
-                    else -> "SMS error code: $resultCode"
+                    else -> "SMS error code: ${errorCode ?: resultCode}"
                 }
-
-                Toast.makeText(
-                    this@ConversationActivity,
-                    errorText,
-                    Toast.LENGTH_LONG
-                ).show()
             }
+
+            Toast.makeText(
+                this@ConversationActivity,
+                errorText,
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -370,7 +408,7 @@ class ConversationActivity : Activity() {
 
         val contactName = getContactDisplayName(phone)
 
-        val profileCapsule = android.widget.FrameLayout(this).apply {
+        profileCapsule = android.widget.FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 setColor(Color.argb(115, 255, 255, 255))
                 cornerRadius = dp(24).toFloat()
@@ -379,7 +417,7 @@ class ConversationActivity : Activity() {
             elevation = dp(3).toFloat()
         }
 
-        val profile = TextView(this).apply {
+        profile = TextView(this).apply {
             text = contactName.firstOrNull()?.uppercase() ?: "?"
             textSize = 17f
             setTextColor(Color.BLACK)
@@ -402,6 +440,7 @@ class ConversationActivity : Activity() {
         profileCapsule.addView(
             TextView(this).apply {
                 text = contactName
+                tag = "contact_title"
                 textSize = 16f
                 setTextColor(Color.BLACK)
                 typeface = Typeface.DEFAULT_BOLD
@@ -430,10 +469,15 @@ class ConversationActivity : Activity() {
             }
         )
 
+        contactTitle = profileCapsule.findViewWithTag("contact_title")
         profileCapsule.isClickable = true
         profileCapsule.isFocusable = true
         profileCapsule.setOnClickListener {
-            showContactDetails(contactName)
+            if (!searchMode) showContactDetails(contactName)
+        }
+        profileCapsule.setOnLongClickListener {
+            enterSearchMode()
+            true
         }
 
         val moreCapsule = LinearLayout(this).apply {
@@ -947,6 +991,10 @@ class ConversationActivity : Activity() {
         val bubble = wrapper.findViewWithTag<LinearLayout>("message_bubble")
             ?: return
 
+        bubble.findViewWithTag<View>("sending_icon")?.let {
+            bubble.removeView(it)
+        }
+
         if (success) {
             bubble.findViewWithTag<View>("failed_icon")?.let {
                 bubble.removeView(it)
@@ -986,9 +1034,15 @@ class ConversationActivity : Activity() {
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
+            contentDescription = "Tap to retry sending"
+            isClickable = true
+            isFocusable = true
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.RED)
+            }
+            setOnClickListener {
+                retryFailedMessage(messageId)
             }
         }
 
@@ -1000,6 +1054,67 @@ class ConversationActivity : Activity() {
                 setMargins(dp(8), 0, dp(7), 0)
             }
         )
+    }
+
+    private fun retryFailedMessage(messageId: String) {
+        val wrapper = messagesContainer.findViewWithTag<LinearLayout>(messageId)
+            ?: return
+        val bubble = wrapper.findViewWithTag<LinearLayout>("message_bubble")
+            ?: return
+        val failedIcon = bubble.findViewWithTag<View>("failed_icon")
+            ?: return
+        val message = bubble.findViewWithTag<TextView>("message_body")
+            ?.text?.toString().orEmpty()
+
+        if (message.isBlank()) return
+
+        if (isContactBlocked()) {
+            Toast.makeText(
+                this,
+                "This contact is blocked. Unblock to retry.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        if (checkSelfPermission(Manifest.permission.SEND_SMS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.SEND_SMS),
+                SEND_PERMISSION
+            )
+            return
+        }
+
+        // Remove the retry button while this one manual attempt is in progress.
+        bubble.removeView(failedIcon)
+        val sendingIcon = TextView(this).apply {
+            tag = "sending_icon"
+            text = "…"
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+        }
+        bubble.addView(
+            sendingIcon,
+            0,
+            LinearLayout.LayoutParams(dp(22), dp(22)).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setMargins(dp(8), 0, dp(7), 0)
+            }
+        )
+
+        try {
+            sendSmsAttempt(messageId, message, true)
+        } catch (e: Exception) {
+            updateMessageStatus(messageId, false)
+            Toast.makeText(
+                this,
+                "SMS retry failed: ${e.message ?: "Unknown error"}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun updateMessageDelivered(messageId: String) {
@@ -1019,8 +1134,166 @@ class ConversationActivity : Activity() {
         icon.setTextColor(blue)
     }
 
+    private fun enterSearchMode() {
+        if (searchMode) return
+        searchMode = true
+        searchQuery = ""
+
+        profileCapsule.removeAllViews()
+        profileCapsule.background = GradientDrawable().apply {
+            setColor(Color.WHITE)
+            cornerRadius = dp(24).toFloat()
+            setStroke(dp(1), Color.rgb(220, 220, 225))
+        }
+
+        val searchIcon = TextView(this).apply {
+            text = "⌕"
+            textSize = 28f
+            gravity = Gravity.CENTER
+            setTextColor(Color.DKGRAY)
+            contentDescription = "Search"
+        }
+        profileCapsule.addView(
+            searchIcon,
+            android.widget.FrameLayout.LayoutParams(dp(40), dp(48)).apply {
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            }
+        )
+
+        val searchInput = EditText(this).apply {
+            tag = "chat_search_input"
+            hint = "Search"
+            textSize = 16f
+            singleLine = true
+            setTextColor(Color.BLACK)
+            setHintTextColor(Color.GRAY)
+            background = null
+            setPadding(dp(2), 0, dp(2), 0)
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    searchQuery = s?.toString().orEmpty()
+                    filterVisibleMessages()
+                }
+                override fun afterTextChanged(s: Editable?) = Unit
+            })
+        }
+        profileCapsule.addView(
+            searchInput,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(48)
+            ).apply {
+                leftMargin = dp(40)
+                rightMargin = dp(44)
+                gravity = Gravity.CENTER_VERTICAL
+            }
+        )
+
+        val close = TextView(this).apply {
+            text = "×"
+            textSize = 28f
+            gravity = Gravity.CENTER
+            setTextColor(Color.DKGRAY)
+            contentDescription = "Close search"
+            setOnClickListener {
+                searchMode = false
+                searchQuery = ""
+                profileCapsule.removeAllViews()
+                profileCapsule.background = GradientDrawable().apply {
+                    setColor(Color.argb(115, 255, 255, 255))
+                    cornerRadius = dp(24).toFloat()
+                    setStroke(dp(1), Color.argb(180, 255, 255, 255))
+                }
+                profileCapsule.addView(
+                    profile,
+                    android.widget.FrameLayout.LayoutParams(dp(34), dp(34)).apply {
+                        gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                        leftMargin = dp(6)
+                    }
+                )
+                profileCapsule.addView(
+                    contactTitle,
+                    android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        dp(48)
+                    ).apply {
+                        leftMargin = dp(46)
+                        rightMargin = dp(46)
+                    }
+                )
+                filterVisibleMessages()
+            }
+        }
+        profileCapsule.addView(
+            close,
+            android.widget.FrameLayout.LayoutParams(dp(44), dp(48)).apply {
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            }
+        )
+
+        searchInput.requestFocus()
+        searchInput.post {
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.showSoftInput(searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    private fun filterVisibleMessages() {
+        if (!::messagesContainer.isInitialized) return
+
+        val query = searchQuery.trim()
+        val count = messagesContainer.childCount
+
+        if (query.isEmpty()) {
+            for (i in 0 until count) {
+                messagesContainer.getChildAt(i).visibility = View.VISIBLE
+            }
+            return
+        }
+
+        // Filter message rows by their message body.
+        for (i in 0 until count) {
+            val child = messagesContainer.getChildAt(i)
+            val body = child.findViewWithTag<TextView>("message_body")
+
+            if (body != null) {
+                child.visibility = if (
+                    body.text.toString().contains(query, ignoreCase = true)
+                ) View.VISIBLE else View.GONE
+            }
+        }
+
+        // Only toggle explicitly tagged date separators.
+        for (i in 0 until count) {
+            val child = messagesContainer.getChildAt(i)
+            if (child.tag != "date_header_row") continue
+
+            var hasMatch = false
+            var j = i + 1
+
+            while (j < count) {
+                val next = messagesContainer.getChildAt(j)
+                if (next.tag == "date_header_row") break
+
+                val body = next.findViewWithTag<TextView>("message_body")
+                if (body != null && next.visibility == View.VISIBLE) {
+                    hasMatch = true
+                    break
+                }
+                j++
+            }
+
+            child.visibility = if (hasMatch) View.VISIBLE else View.GONE
+        }
+    }
+
     private fun loadConversation() {
         messagesContainer.removeAllViews()
+        lastMessageDate = null
+        lastTimeView = null
+        lastDateHeaderKey = null
 
         if (activeMeshId != null) {
             MeshMessageStore.loadMessages(
@@ -1034,6 +1307,7 @@ class ConversationActivity : Activity() {
                 )
             }
 
+            filterVisibleMessages()
             scrollView.post {
                 scrollView.fullScroll(View.FOCUS_DOWN)
             }
@@ -1082,12 +1356,14 @@ class ConversationActivity : Activity() {
             }
         }
 
+        filterVisibleMessages()
         scrollView.post {
             scrollView.fullScroll(View.FOCUS_DOWN)
         }
     }
 
     private var lastMessageDate: Long? = null
+    private var lastDateHeaderKey: String? = null
     private var lastTimeView: TextView? = null
 
     private fun addMessage(
@@ -1096,6 +1372,32 @@ class ConversationActivity : Activity() {
         incoming: Boolean,
         messageId: String? = null
     ) {
+        val dayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(date))
+        if (dayKey != lastDateHeaderKey) {
+            val dateHeader = TextView(this).apply {
+                text = SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(date))
+                textSize = 12f
+                setTextColor(Color.rgb(90, 90, 95))
+                gravity = Gravity.CENTER
+                setPadding(dp(14), dp(5), dp(14), dp(5))
+                background = GradientDrawable().apply {
+                    setColor(Color.rgb(230, 230, 234))
+                    cornerRadius = dp(18).toFloat()
+                }
+            }
+            val dateHeaderRow = LinearLayout(this).apply {
+                tag = "date_header_row"
+                gravity = Gravity.CENTER
+                setPadding(0, dp(10), 0, dp(8))
+                addView(dateHeader, LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ))
+            }
+            messagesContainer.addView(dateHeaderRow)
+            lastDateHeaderKey = dayKey
+        }
+
         val previousDate = lastMessageDate
         val closeToPrevious = previousDate != null &&
             date - previousDate < 60_000L
@@ -1121,10 +1423,13 @@ class ConversationActivity : Activity() {
         val animatedEmoji = isAnimatedEmoji(body)
 
         val messageText = TextView(this).apply {
+            tag = "message_body"
             text = body
             textSize = if (animatedEmoji) 42f else 16f
             setTextColor(Color.BLACK)
             maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
+            autoLinkMask = Linkify.WEB_URLS or Linkify.PHONE_NUMBERS
+            movementMethod = LinkMovementMethod.getInstance()
             setPadding(
                 if (animatedEmoji) dp(8) else dp(14),
                 if (animatedEmoji) dp(4) else dp(7),
@@ -1373,96 +1678,7 @@ class ConversationActivity : Activity() {
         }
 
         try {
-            val normalizedPhone = normalizePhoneNumber(phone)
-
-            val sentIntent = Intent("com.majidhajizade.messages.SMS_SENT").apply {
-                setPackage(packageName)
-                putExtra("message_id", messageId)
-            putExtra("message", message)
-            }
-
-            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    PendingIntent.FLAG_IMMUTABLE
-                } else {
-                    0
-                }
-
-            val sentPendingIntent = PendingIntent.getBroadcast(
-                this,
-                messageId.hashCode(),
-                sentIntent,
-                flags
-            )
-
-            val deliveredIntent = Intent(ACTION_DELIVERED).apply {
-                setPackage(packageName)
-                putExtra("message_id", messageId)
-            }
-
-            val deliveredPendingIntent = PendingIntent.getBroadcast(
-                this,
-                messageId.hashCode() + 100000,
-                deliveredIntent,
-                flags
-            )
-
-            val smsManager = SmsManager.getDefault()
-            val parts = smsManager.divideMessage(message)
-
-            if (parts.size == 1) {
-                smsManager.sendTextMessage(
-                    normalizedPhone,
-                    null,
-                    message,
-                    sentPendingIntent,
-                    deliveredPendingIntent
-                )
-            } else {
-                val sentIntents = ArrayList<PendingIntent>()
-                val deliveryIntents = ArrayList<PendingIntent>()
-
-                parts.forEachIndexed { index, _ ->
-                    val partIntent = Intent(
-                        "com.majidhajizade.messages.SMS_SENT"
-                    ).apply {
-                        setPackage(packageName)
-                        putExtra("message_id", messageId)
-                        putExtra("message", message)
-                    }
-
-                    sentIntents.add(
-                        PendingIntent.getBroadcast(
-                            this,
-                            messageId.hashCode() + index + 1,
-                            partIntent,
-                            flags
-                        )
-                    )
-
-                    val partDeliveredIntent = Intent(ACTION_DELIVERED).apply {
-                        setPackage(packageName)
-                        putExtra("message_id", messageId)
-                    }
-
-                    deliveryIntents.add(
-                        PendingIntent.getBroadcast(
-                            this,
-                            messageId.hashCode() + 100001 + index,
-                            partDeliveredIntent,
-                            flags
-                        )
-                    )
-                }
-
-                smsManager.sendMultipartTextMessage(
-                    normalizedPhone,
-                    null,
-                    parts,
-                    sentIntents,
-                    deliveryIntents
-                )
-            }
+            sendSmsAttempt(messageId, message, false)
 
         } catch (e: Exception) {
             updateMessageStatus(messageId, false)
@@ -1472,6 +1688,78 @@ class ConversationActivity : Activity() {
                 "SMS failed: ${e.message ?: "Unknown error"}",
                 Toast.LENGTH_LONG
             ).show()
+        }
+    }
+
+    private fun sendSmsAttempt(
+        messageId: String,
+        message: String,
+        isRetry: Boolean
+    ) {
+        val normalizedPhone = normalizePhoneNumber(phone)
+        val smsManager = SmsManager.getDefault()
+        val parts = smsManager.divideMessage(message)
+        val attemptCode = (System.nanoTime() and 0x3fffffffL).toInt()
+        val attemptId = if (isRetry) "$messageId-$attemptCode" else messageId
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE
+            } else {
+                0
+            }
+
+        fun sentPendingIntent(index: Int): PendingIntent {
+            val sentIntent = Intent("com.majidhajizade.messages.SMS_SENT").apply {
+                setPackage(packageName)
+                putExtra("message_id", messageId)
+                putExtra("message", message)
+                putExtra("attempt_id", attemptId)
+                putExtra("part_index", index)
+                putExtra("total_parts", parts.size)
+            }
+            return PendingIntent.getBroadcast(
+                this,
+                attemptCode + index + 1,
+                sentIntent,
+                flags
+            )
+        }
+
+        fun deliveredPendingIntent(index: Int): PendingIntent {
+            val deliveredIntent = Intent(ACTION_DELIVERED).apply {
+                setPackage(packageName)
+                putExtra("message_id", messageId)
+            }
+            return PendingIntent.getBroadcast(
+                this,
+                attemptCode + 100001 + index,
+                deliveredIntent,
+                flags
+            )
+        }
+
+        if (parts.size == 1) {
+            smsManager.sendTextMessage(
+                normalizedPhone,
+                null,
+                message,
+                sentPendingIntent(0),
+                deliveredPendingIntent(0)
+            )
+        } else {
+            val sentIntents = ArrayList<PendingIntent>()
+            val deliveryIntents = ArrayList<PendingIntent>()
+            parts.indices.forEach { index ->
+                sentIntents.add(sentPendingIntent(index))
+                deliveryIntents.add(deliveredPendingIntent(index))
+            }
+            smsManager.sendMultipartTextMessage(
+                normalizedPhone,
+                null,
+                parts,
+                sentIntents,
+                deliveryIntents
+            )
         }
     }
 
