@@ -34,6 +34,7 @@ import android.graphics.drawable.GradientDrawable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.json.JSONArray
 import kotlin.math.abs
 
 class MainActivity : Activity() {
@@ -99,6 +100,7 @@ class MainActivity : Activity() {
     private val rowViews = mutableMapOf<String, TextView>()
     private val selectedAddresses = linkedSetOf<String>()
     private val selectionOverlays = mutableMapOf<String, android.widget.ImageView>()
+    private val selectionDragHandles = mutableMapOf<String, View>()
     private var selectionMode = false
     private var selectionBackCallback: OnBackInvokedCallback? = null
     private lateinit var selectionHeader: LinearLayout
@@ -111,6 +113,7 @@ companion object {
         private const val PREFS = "messages_settings"
         private const val MESH_ID = "mesh_id"
         private const val PINNED = "pinned_numbers"
+        private const val PINNED_ORDER = "pinned_order"
         private const val BLOCKED = "blocked_numbers"
         private const val MUTED = "muted_numbers"
     }
@@ -506,6 +509,7 @@ companion object {
         messagesContainer.removeAllViews()
         rowViews.clear()
         selectionOverlays.clear()
+        selectionDragHandles.clear()
 
         val projection = arrayOf(
             Telephony.Sms._ID,
@@ -580,11 +584,26 @@ companion object {
         }
 
         val pinned = getPinnedNumbers()
+        val pinnedOrder = getPinnedOrder()
+        pinned.forEach { address ->
+            if (!pinnedOrder.contains(address)) pinnedOrder.add(address)
+        }
+        if (pinnedOrder != getPinnedOrder()) savePinnedOrder(pinnedOrder)
+
+        val pinnedRank = pinnedOrder.withIndex().associate {
+            it.value to it.index
+        }
 
         conversations.values
             .sortedWith(
                 compareByDescending<ConversationData> {
                     pinned.contains(it.address)
+                }.thenBy {
+                    if (pinned.contains(it.address)) {
+                        pinnedRank[it.address] ?: Int.MAX_VALUE
+                    } else {
+                        Int.MAX_VALUE
+                    }
                 }.thenByDescending {
                     it.date
                 }
@@ -1791,56 +1810,144 @@ companion object {
             layoutDirection = View.LAYOUT_DIRECTION_LTR
         }
 
+        val pinned = getPinnedNumbers().contains(address)
+
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
             textSize = 13f
-            setTextColor(if (isDarkMode) Color.rgb(185, 185, 195) else Color.rgb(165, 165, 170))
+            setTextColor(
+                if (isDarkMode) Color.rgb(205, 205, 212)
+                else Color.rgb(125, 125, 132)
+            )
             gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
             setPadding(0, 0, 0, 0)
         }
 
-        metaContainer.addView(
-            dateText,
-            LinearLayout.LayoutParams(
-                dp(54),
-                dp(22)
-            )
-        )
-
-        val pinned = getPinnedNumbers().contains(address)
-
         if (pinned) {
-            val pinCircle = FrameLayout(this).apply {
+            val dateCapsule = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                layoutDirection = View.LAYOUT_DIRECTION_LTR
+                setPadding(dp(5), 0, dp(5), 0)
                 background = GradientDrawable().apply {
-                    setColor(if (isDarkMode) Color.rgb(38, 38, 43) else Color.rgb(246, 246, 248))
-                    shape = GradientDrawable.OVAL
-                    setStroke(dp(1), if (isDarkMode) Color.rgb(65, 65, 72) else Color.rgb(225, 225, 230))
+                    setColor(
+                        if (isDarkMode) Color.rgb(34, 34, 39)
+                        else Color.rgb(249, 249, 250)
+                    )
+                    cornerRadius = dp(11).toFloat()
+                    setStroke(
+                        dp(1),
+                        if (isDarkMode) Color.rgb(70, 70, 77)
+                        else Color.rgb(224, 224, 229)
+                    )
                 }
             }
 
-            pinCircle.addView(
-                android.widget.ImageView(this@MainActivity).apply {
+            dateCapsule.addView(
+                ImageView(this@MainActivity).apply {
                     setImageResource(R.drawable.ic_pin)
-                    scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    setColorFilter(
+                        if (isDarkMode) Color.rgb(190, 190, 198)
+                        else Color.rgb(130, 130, 138)
+                    )
                     contentDescription = "Pinned"
                 },
-                FrameLayout.LayoutParams(
-                    dp(18),
-                    dp(18)
-                ).apply {
-                    gravity = Gravity.CENTER
+                LinearLayout.LayoutParams(dp(12), dp(12)).apply {
+                    rightMargin = dp(3)
                 }
             )
 
-            metaContainer.addView(
-                pinCircle,
+            dateCapsule.addView(
+                dateText,
                 LinearLayout.LayoutParams(
-                    dp(26),
-                    dp(26)
-                ).apply {
-                    topMargin = dp(3)
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    dp(22)
+                )
+            )
+
+            metaContainer.addView(
+                dateCapsule,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    dp(22)
+                )
+            )
+
+            val dragHandle = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(3), dp(2), dp(3), dp(2))
+                contentDescription = "Reorder pinned conversation"
+                visibility = View.GONE
+            }
+
+            repeat(2) { index ->
+                dragHandle.addView(
+                    View(this@MainActivity).apply {
+                        background = GradientDrawable().apply {
+                            setColor(
+                                if (isDarkMode) Color.rgb(145, 145, 153)
+                                else Color.rgb(165, 165, 172)
+                            )
+                            cornerRadius = dp(1).toFloat()
+                        }
+                    },
+                    LinearLayout.LayoutParams(dp(18), dp(2)).apply {
+                        if (index == 0) bottomMargin = dp(4)
+                    }
+                )
+            }
+
+            selectionDragHandles[address] = dragHandle
+
+            var dragStartY = 0f
+            var didDrag = false
+
+            dragHandle.setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        dragStartY = event.rawY
+                        didDrag = false
+                        dragHandle.alpha = 0.65f
+                        true
+                    }
+
+                    MotionEvent.ACTION_MOVE -> {
+                        if (kotlin.math.abs(event.rawY - dragStartY) > dp(8)) {
+                            didDrag = true
+                        }
+                        true
+                    }
+
+                    MotionEvent.ACTION_UP -> {
+                        dragHandle.alpha = 1f
+                        if (didDrag) {
+                            reorderPinnedConversation(address, event.rawY)
+                        }
+                        true
+                    }
+
+                    MotionEvent.ACTION_CANCEL -> {
+                        dragHandle.alpha = 1f
+                        true
+                    }
+
+                    else -> true
                 }
+            }
+
+            metaContainer.addView(
+                dragHandle,
+                LinearLayout.LayoutParams(dp(26), dp(18)).apply {
+                    topMargin = dp(4)
+                }
+            )
+        } else {
+            metaContainer.addView(
+                dateText,
+                LinearLayout.LayoutParams(dp(54), dp(22))
             )
         }
 
@@ -2268,6 +2375,15 @@ companion object {
 
             overlay.invalidate()
         }
+
+        val showDragHandles = selectionMode && pinned.size >= 2
+        selectionDragHandles.forEach { (address, handle) ->
+            handle.visibility = if (showDragHandles && pinned.contains(address)) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
+        }
     }
 
     private fun findRowByAddress(address: String): View? {
@@ -2320,17 +2436,22 @@ companion object {
 
         val anySelectedPinned = selectedAddresses.any { pinned.contains(it) }
 
+        val order = getPinnedOrder()
+
         if (anySelectedPinned) {
             selectedAddresses.forEach {
                 pinned.remove(it)
+                order.remove(it)
             }
         } else {
             selectedAddresses.forEach {
                 pinned.add(it)
+                if (!order.contains(it)) order.add(it)
             }
         }
 
         prefs.edit().putStringSet(PINNED, pinned).apply()
+        savePinnedOrder(order)
         exitSelectionMode()
         loadMessages()
     }
@@ -2388,11 +2509,71 @@ companion object {
         floatingComposeButton?.visibility = View.VISIBLE
 
         selectionOverlays.values.forEach { it.visibility = View.GONE }
+        selectionDragHandles.values.forEach { it.visibility = View.GONE }
     }
 
     private fun getPinnedNumbers(): Set<String> {
         return getSharedPreferences(PREFS, MODE_PRIVATE)
             .getStringSet(PINNED, emptySet()) ?: emptySet()
+    }
+
+    private fun reorderPinnedConversation(address: String, rawY: Float) {
+        if (!selectionMode) return
+
+        val pinned = getPinnedNumbers()
+        if (pinned.size < 2 || !pinned.contains(address)) return
+
+        val targetY = rawY
+
+        var targetAddress: String? = null
+        for (index in 0 until messagesContainer.childCount) {
+            val child = messagesContainer.getChildAt(index)
+            val location = IntArray(2)
+            child.getLocationOnScreen(location)
+            if (targetY >= location[1] &&
+                targetY <= location[1] + child.height
+            ) {
+                targetAddress = child.tag as? String
+                break
+            }
+        }
+
+        if (targetAddress == null || !pinned.contains(targetAddress)) return
+
+        val order = getPinnedOrder()
+        pinned.forEach { if (!order.contains(it)) order.add(it) }
+
+        val from = order.indexOf(address)
+        val to = order.indexOf(targetAddress)
+        if (from < 0 || to < 0 || from == to) return
+
+        val moving = order.removeAt(from)
+        order.add(to.coerceIn(0, order.size), moving)
+
+        savePinnedOrder(order)
+        loadMessages()
+    }
+
+    private fun getPinnedOrder(): MutableList<String> {
+        val raw = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getString(PINNED_ORDER, null) ?: return mutableListOf()
+
+        return try {
+            val array = JSONArray(raw)
+            MutableList(array.length()) { index -> array.getString(index) }
+        } catch (_: Exception) {
+            mutableListOf()
+        }
+    }
+
+    private fun savePinnedOrder(order: List<String>) {
+        val array = JSONArray()
+        order.forEach { array.put(it) }
+
+        getSharedPreferences(PREFS, MODE_PRIVATE)
+            .edit()
+            .putString(PINNED_ORDER, array.toString())
+            .apply()
     }
 
     private fun formatShortDate(timestamp: Long): String {
