@@ -544,11 +544,11 @@ class ConversationActivity : Activity() {
 
         val floatingDateCapsule = TextView(this).apply {
             textSize = 12f
-            setTextColor(Color.rgb(90, 90, 95))
+            setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             setPadding(dp(14), dp(6), dp(14), dp(6))
             background = GradientDrawable().apply {
-                setColor(Color.rgb(230, 230, 234))
+                setColor(Color.argb(115, 0, 0, 0))
                 cornerRadius = dp(18).toFloat()
             }
             elevation = dp(3).toFloat()
