@@ -582,7 +582,7 @@ class ConversationActivity : Activity() {
             setOnClickListener {
                 val maxY =
                     (messagesContainer.height - scrollView.height).coerceAtLeast(0)
-                val targetY = if (rotation < 180f) maxY else 0
+                val targetY = if (tag == "jump_bottom") maxY else 0
                 scrollView.post {
                     scrollView.smoothScrollTo(0, targetY)
                 }
@@ -627,26 +627,32 @@ class ConversationActivity : Activity() {
                 val atBottom = scrollY >= maxY - dp(4)
                 val scrollingUp = scrollY < oldScrollY
                 val targetRotation = if (scrollingUp) 90f else 270f
-                val shouldHide = maxY == 0 ||
-                    (scrollingUp && atTop) ||
-                    (!scrollingUp && atBottom)
+                val shouldHide = maxY == 0 || atTop || atBottom
 
                 scrollJumpButton.animate().cancel()
-                if (shouldHide) {
-                    scrollJumpButton.animate()
-                        .alpha(0f)
-                        .setDuration(220L)
-                        .withEndAction {
-                            scrollJumpButton.visibility = View.GONE
+                scrollJumpButton.alpha = 0f
+                scrollJumpButton.visibility = View.GONE
+
+                if (!shouldHide) {
+                    scrollJumpButton.tag =
+                        if (scrollingUp) "jump_bottom" else "jump_top"
+                    scrollJumpButton.rotation = targetRotation
+                    scrollJumpButton.postDelayed({
+                        val currentMaxY =
+                            (messagesContainer.height - scrollView.height)
+                                .coerceAtLeast(0)
+                        val nowAtTop = scrollView.scrollY <= dp(4)
+                        val nowAtBottom =
+                            scrollView.scrollY >= currentMaxY - dp(4)
+
+                        if (currentMaxY > 0 && !nowAtTop && !nowAtBottom) {
+                            scrollJumpButton.visibility = View.VISIBLE
+                            scrollJumpButton.animate()
+                                .alpha(1f)
+                                .setDuration(180L)
+                                .start()
                         }
-                        .start()
-                } else {
-                    scrollJumpButton.visibility = View.VISIBLE
-                    scrollJumpButton.animate()
-                        .alpha(1f)
-                        .rotation(targetRotation)
-                        .setDuration(320L)
-                        .start()
+                    }, 250L)
                 }
             }
         }
