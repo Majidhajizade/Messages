@@ -136,16 +136,32 @@ class ConversationActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
-        phone = intent.getStringExtra("phone")
-            ?: intent.data?.schemeSpecificPart
-                ?.substringBefore('?')
-                ?.let { android.net.Uri.decode(it).trim() }
-                ?.takeIf { it.isNotBlank() }
-            ?: intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER)
-            ?: run {
-                finish()
-                return
-            }
+        val uriPhone = intent.data?.schemeSpecificPart
+            ?.substringBefore('?')
+            ?.removePrefix("//")
+            ?.trim('/')
+            ?.let { Uri.decode(it).trim() }
+            ?.takeIf { it.isNotBlank() }
+
+        val extraPhone = listOf(
+            "phone",
+            Intent.EXTRA_PHONE_NUMBER,
+            "address",
+            "recipient",
+            "phone_number"
+        ).firstNotNullOfOrNull { key ->
+            intent.getStringExtra(key)?.trim()?.takeIf { it.isNotBlank() }
+        }
+
+        phone = extraPhone ?: uriPhone ?: run {
+            Toast.makeText(
+                this,
+                "شماره مخاطب از برنامه تلفن دریافت نشد",
+                Toast.LENGTH_LONG
+            ).show()
+            finish()
+            return
+        }
 
         if (intent.getBooleanExtra("offline_mesh", false)) {
             activeMeshId = phone
