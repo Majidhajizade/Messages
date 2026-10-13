@@ -567,11 +567,10 @@ class ConversationActivity : Activity() {
             }
         )
 
-        val scrollJumpButton = TextView(this).apply {
-            text = "↓"
-            textSize = 25f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER
+        val scrollJumpButton = android.widget.ImageButton(this).apply {
+            setImageResource(R.drawable.ic_back_arrow)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(10), dp(10), dp(10), dp(10))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.WHITE)
@@ -581,7 +580,7 @@ class ConversationActivity : Activity() {
             visibility = View.GONE
             contentDescription = "Jump through messages"
             setOnClickListener {
-                val targetY = if (rotation < 90f) messagesContainer.height else 0
+                val targetY = if (rotation < 180f) messagesContainer.height else 0
                 scrollView.smoothScrollTo(0, targetY)
             }
         }
@@ -623,7 +622,7 @@ class ConversationActivity : Activity() {
                 val atTop = scrollY <= dp(4)
                 val atBottom = scrollY >= maxY - dp(4)
                 val scrollingUp = scrollY < oldScrollY
-                val targetRotation = if (scrollingUp) 0f else 180f
+                val targetRotation = if (scrollingUp) 90f else 270f
                 val shouldHide = maxY == 0 ||
                     (scrollingUp && atTop) ||
                     (!scrollingUp && atBottom)
