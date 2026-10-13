@@ -580,8 +580,12 @@ class ConversationActivity : Activity() {
             visibility = View.GONE
             contentDescription = "Jump through messages"
             setOnClickListener {
-                val targetY = if (rotation < 180f) messagesContainer.height else 0
-                scrollView.smoothScrollTo(0, targetY)
+                val maxY =
+                    (messagesContainer.height - scrollView.height).coerceAtLeast(0)
+                val targetY = if (rotation < 180f) maxY else 0
+                scrollView.post {
+                    scrollView.smoothScrollTo(0, targetY)
+                }
             }
         }
 
