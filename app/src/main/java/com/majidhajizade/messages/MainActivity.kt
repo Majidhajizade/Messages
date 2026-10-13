@@ -1647,6 +1647,7 @@ companion object {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(dp(8), 0, dp(8), 0)
+            visibility = View.GONE
             background = GradientDrawable().apply {
                 setColor(Color.rgb(0, 129, 255))
                 cornerRadius = dp(14).toFloat()
@@ -1682,7 +1683,7 @@ companion object {
         actionLayer.addView(
             archivePanel,
             FrameLayout.LayoutParams(
-                dp(120),
+                (resources.displayMetrics.widthPixels * 0.75f).toInt(),
                 dp(64),
                 Gravity.RIGHT or Gravity.CENTER_VERTICAL
             )
@@ -1735,6 +1736,7 @@ companion object {
                 dp(76)
             )
         )
+        archivePanel.bringToFront()
 
         val foreground = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -2078,7 +2080,7 @@ companion object {
         var archiveSwipe = false
         var archiveReady = false
         val archiveThreshold = dp(100)
-        val archiveLimit = dp(120).toFloat()
+        val archiveLimit = resources.displayMetrics.widthPixels * 0.75f
 
         val handler = android.os.Handler(mainLooper)
         val longPressRunnable = Runnable {
@@ -2115,6 +2117,7 @@ companion object {
 
                     if (!selectionMode && dx < -dp(10) && abs(dx) > abs(dy)) {
                         archiveSwipe = true
+                        archivePanel.visibility = View.VISIBLE
                         foreground.translationX = dx.coerceAtLeast(-archiveLimit)
                         foreground.background = GradientDrawable().apply {
                             setColor(if (isDarkMode) Color.rgb(28, 28, 30) else Color.WHITE)
@@ -2151,10 +2154,12 @@ companion object {
                                 archived
                             ).apply()
                             foreground.translationX = 0f
+                            archivePanel.visibility = View.GONE
                             loadMessages()
                         } else {
                             foreground.animate().translationX(0f).setDuration(180).start()
                             foreground.background = null
+                            archivePanel.visibility = View.GONE
                             (archivePanel.background as? GradientDrawable)
                                 ?.setColor(Color.rgb(0, 129, 255))
                         }
@@ -2178,6 +2183,7 @@ companion object {
                     if (archiveSwipe) {
                         foreground.animate().translationX(0f).setDuration(180).start()
                         foreground.background = null
+                        archivePanel.visibility = View.GONE
                         (archivePanel.background as? GradientDrawable)
                             ?.setColor(Color.rgb(0, 129, 255))
                     }
