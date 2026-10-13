@@ -1832,14 +1832,14 @@ companion object {
                 setPadding(dp(5), 0, dp(5), 0)
                 background = GradientDrawable().apply {
                     setColor(
-                        if (isDarkMode) Color.rgb(34, 34, 39)
-                        else Color.rgb(249, 249, 250)
+                        if (isDarkMode) Color.rgb(48, 48, 55)
+                        else Color.rgb(239, 239, 243)
                     )
                     cornerRadius = dp(11).toFloat()
                     setStroke(
                         dp(1),
-                        if (isDarkMode) Color.rgb(70, 70, 77)
-                        else Color.rgb(224, 224, 229)
+                        if (isDarkMode) Color.rgb(82, 82, 92)
+                        else Color.rgb(211, 211, 219)
                     )
                 }
             }
@@ -1904,12 +1904,14 @@ companion object {
 
             var dragStartY = 0f
             var didDrag = false
+            var lastTargetAddress: String? = null
 
             dragHandle.setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         dragStartY = event.rawY
                         didDrag = false
+                        lastTargetAddress = address
                         dragHandle.alpha = 0.65f
                         true
                     }
@@ -1918,13 +1920,22 @@ companion object {
                         if (kotlin.math.abs(event.rawY - dragStartY) > dp(8)) {
                             didDrag = true
                         }
+                        if (didDrag) {
+                            lastTargetAddress = findPinnedAddressAtY(event.rawY)
+                        }
                         true
                     }
 
                     MotionEvent.ACTION_UP -> {
                         dragHandle.alpha = 1f
                         if (didDrag) {
-                            reorderPinnedConversation(address, event.rawY)
+                            val finalTargetAddress =
+                                findPinnedAddressAtY(event.rawY) ?: lastTargetAddress
+                            reorderPinnedConversation(
+                                address,
+                                event.rawY,
+                                finalTargetAddress
+                            )
                         }
                         true
                     }
@@ -1971,6 +1982,7 @@ companion object {
 
 
 
+        actionLayer.tag = address
         rowViews[address] = name
 
         setupRowTouch(
@@ -2517,27 +2529,35 @@ companion object {
             .getStringSet(PINNED, emptySet()) ?: emptySet()
     }
 
-    private fun reorderPinnedConversation(address: String, rawY: Float) {
+    private fun findPinnedAddressAtY(rawY: Float): String? {
+        val pinned = getPinnedNumbers()
+        for (index in 0 until messagesContainer.childCount) {
+            val child = messagesContainer.getChildAt(index)
+            val address = child.tag as? String ?: continue
+            if (!pinned.contains(address)) continue
+
+            val location = IntArray(2)
+            child.getLocationOnScreen(location)
+            if (rawY >= location[1] &&
+                rawY <= location[1] + child.height
+            ) {
+                return address
+            }
+        }
+        return null
+    }
+
+    private fun reorderPinnedConversation(
+        address: String,
+        rawY: Float,
+        detectedTargetAddress: String? = null
+    ) {
         if (!selectionMode) return
 
         val pinned = getPinnedNumbers()
         if (pinned.size < 2 || !pinned.contains(address)) return
 
-        val targetY = rawY
-
-        var targetAddress: String? = null
-        for (index in 0 until messagesContainer.childCount) {
-            val child = messagesContainer.getChildAt(index)
-            val location = IntArray(2)
-            child.getLocationOnScreen(location)
-            if (targetY >= location[1] &&
-                targetY <= location[1] + child.height
-            ) {
-                targetAddress = child.tag as? String
-                break
-            }
-        }
-
+        val targetAddress = detectedTargetAddress ?: findPinnedAddressAtY(rawY)
         if (targetAddress == null || !pinned.contains(targetAddress)) return
 
         val order = getPinnedOrder()
@@ -2548,7 +2568,9 @@ companion object {
         if (from < 0 || to < 0 || from == to) return
 
         val moving = order.removeAt(from)
-        order.add(to.coerceIn(0, order.size), moving)
+        val targetIndex = order.indexOf(targetAddress)
+        if (targetIndex < 0) return
+        order.add(targetIndex, moving)
 
         savePinnedOrder(order)
         loadMessages()
@@ -2578,8 +2600,8 @@ companion object {
 
     private fun formatShortDate(timestamp: Long): String {
         return SimpleDateFormat(
-            "dd MMM",
-            Locale.getDefault()
+            "MMM d",
+            Locale.US
         ).format(Date(timestamp))
     }
 
