@@ -1164,7 +1164,7 @@ class ConversationActivity : Activity() {
             tag = "chat_search_input"
             hint = "Search"
             textSize = 16f
-            singleLine = true
+            setSingleLine(true)
             setTextColor(Color.BLACK)
             setHintTextColor(Color.GRAY)
             background = null
