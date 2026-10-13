@@ -206,7 +206,7 @@ class NewMessageActivity : Activity() {
             recipientBox,
             android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(108)
+                dp(280)
             ).apply {
                 topMargin = dp(12)
             }
@@ -440,6 +440,34 @@ class NewMessageActivity : Activity() {
                 "Failed to send message",
                 Toast.LENGTH_LONG
             ).show()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        val granted = grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+
+        when (requestCode) {
+            CONTACTS_PERMISSION_REQUEST -> {
+                if (granted) {
+                    showContacts(contactsScroll, plusButton)
+                } else {
+                    Toast.makeText(this, "Contacts permission denied", Toast.LENGTH_LONG).show()
+                }
+            }
+            SMS_PERMISSION_REQUEST -> {
+                if (granted) {
+                    sendSms()
+                } else {
+                    Toast.makeText(this, "SMS permission denied", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
