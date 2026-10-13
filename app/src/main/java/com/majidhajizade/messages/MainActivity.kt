@@ -407,11 +407,8 @@ companion object {
         val floatingButton = FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(if (isDarkMode) premiumBlue else Color.WHITE)
-                setStroke(
-                    dp(1),
-                    if (isDarkMode) premiumBlue else Color.rgb(218, 218, 223)
-                )
+                setColor(premiumBlue)
+                setStroke(dp(1), premiumBlue)
             }
             elevation = dp(18).toFloat()
             isClickable = true
@@ -2432,6 +2429,7 @@ companion object {
 
         init {
             setImageResource(R.drawable.floti)
+            setColorFilter(Color.WHITE)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt())
             contentDescription = "New message"

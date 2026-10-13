@@ -670,7 +670,7 @@ class ConversationActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(6), dp(5), dp(6), dp(5))
             background = GradientDrawable().apply {
-                setColor(if (isDarkThemeEnabled()) Color.rgb(43, 43, 49) else Color.WHITE)
+                setColor(if (isDarkThemeEnabled()) Color.rgb(48, 48, 55) else Color.WHITE)
                 cornerRadius = dp(28).toFloat()
                 setStroke(
                     dp(1),
@@ -682,6 +682,11 @@ class ConversationActivity : Activity() {
 
         val addContact = ImageButton(this).apply {
             setImageResource(R.drawable.ic_plus_chat)
+            if (isDarkThemeEnabled()) {
+                setColorFilter(Color.WHITE)
+            } else {
+                clearColorFilter()
+            }
             contentDescription = "Add contact"
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(9), dp(9), dp(9), dp(9))
@@ -883,7 +888,7 @@ class ConversationActivity : Activity() {
 
         val avatar = TextView(this).apply {
             text = contactName.firstOrNull()?.uppercase() ?: "?"
-            textSize = 25f
+            textSize = 50f
             setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -895,7 +900,7 @@ class ConversationActivity : Activity() {
 
         content.addView(
             avatar,
-            LinearLayout.LayoutParams(dp(51), dp(51))
+            LinearLayout.LayoutParams(dp(102), dp(102))
         )
 
         val title = TextView(this).apply {
