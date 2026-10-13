@@ -67,6 +67,13 @@ class MainActivity : Activity() {
     private val deleteRed = Color.rgb(235, 55, 65)
     private val background = Color.WHITE
     private val secondaryText = Color.rgb(110, 110, 115)
+    private var isDarkMode = false
+    private val screenBackground: Int
+        get() = if (isDarkMode) Color.rgb(12, 12, 14) else Color.WHITE
+    private val primaryText: Int
+        get() = if (isDarkMode) Color.WHITE else Color.BLACK
+    private val secondaryThemeText: Int
+        get() = if (isDarkMode) Color.rgb(175, 175, 185) else secondaryText
 
     private lateinit var messagesContainer: LinearLayout
     private lateinit var messagesScroll: android.widget.ScrollView
@@ -110,12 +117,14 @@ companion object {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        isDarkMode = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getBoolean("dark_mode", false)
         ensureNearbyPermissions()
 
-        window.statusBarColor = background
-        window.navigationBarColor = background
+        window.statusBarColor = screenBackground
+        window.navigationBarColor = screenBackground
         window.decorView.systemUiVisibility =
-            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 
         setContentView(createHomeScreen())
         setupMeshNotificationChannel()
@@ -194,10 +203,54 @@ companion object {
         }
     }
 
+    private fun toggleThemeWithAnimation() {
+        val oldScrollY = if (::messagesScroll.isInitialized) messagesScroll.scrollY else 0
+        isDarkMode = !isDarkMode
+
+        getSharedPreferences(PREFS, MODE_PRIVATE)
+            .edit()
+            .putBoolean("dark_mode", isDarkMode)
+            .apply()
+
+        window.statusBarColor = screenBackground
+        window.navigationBarColor = screenBackground
+        window.decorView.systemUiVisibility =
+            if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+
+        val newRoot = createHomeScreen()
+        setContentView(newRoot)
+        loadMessages()
+
+        newRoot.post {
+            if (oldScrollY > 0) messagesScroll.scrollTo(0, oldScrollY)
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                val radius = kotlin.math.hypot(
+                    newRoot.width.toDouble(),
+                    newRoot.height.toDouble()
+                ).toFloat()
+                val reveal = android.view.ViewAnimationUtils.createCircularReveal(
+                    newRoot,
+                    0,
+                    newRoot.height,
+                    0f,
+                    radius
+                )
+                reveal.duration = 520L
+                reveal.interpolator =
+                    android.view.animation.AccelerateDecelerateInterpolator()
+                reveal.start()
+            } else {
+                newRoot.alpha = 0f
+                newRoot.animate().alpha(1f).setDuration(260L).start()
+            }
+        }
+    }
+
     private fun createHomeScreen(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(screenBackground)
             setPadding(dp(20), dp(18), dp(20), dp(12))
         }
 
@@ -215,14 +268,14 @@ companion object {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(screenBackground)
         }
         homeHeader = header
 
         val title = TextView(this).apply {
             text = "Messages"
             textSize = 34f
-            setTextColor(Color.BLACK)
+            setTextColor(primaryText)
             typeface = Typeface.DEFAULT_BOLD
             translationY = dp(13).toFloat()
         }
@@ -241,7 +294,7 @@ companion object {
         val menuButton = TextView(this).apply {
             text = "⋮"
             textSize = 30f
-            setTextColor(Color.BLACK)
+            setTextColor(primaryText)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             translationY = dp(13).toFloat()
@@ -262,7 +315,7 @@ companion object {
         )
 
         val headerLayer = FrameLayout(this).apply {
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(screenBackground)
             clipChildren = false
             clipToPadding = false
         }
@@ -295,17 +348,17 @@ companion object {
             clipChildren = false
             clipToPadding = false
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(screenBackground)
             clipToOutline = false
             setPadding(0, dp(4), 0, 0)
         }
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(screenBackground)
 
             val scrollContent = LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
-                setBackgroundColor(Color.WHITE)
+                setBackgroundColor(screenBackground)
             }
 
             scrollContent.addView(
@@ -354,8 +407,11 @@ companion object {
         val floatingButton = FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.WHITE)
-                setStroke(dp(1), Color.rgb(218, 218, 223))
+                setColor(if (isDarkMode) premiumBlue else Color.WHITE)
+                setStroke(
+                    dp(1),
+                    if (isDarkMode) premiumBlue else Color.rgb(218, 218, 223)
+                )
             }
             elevation = dp(18).toFloat()
             isClickable = true
@@ -1085,13 +1141,27 @@ companion object {
             setPadding(dp(10), dp(10), dp(10), dp(10))
 
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(screenBackground)
                 cornerRadius = dp(20).toFloat()
-                setStroke(dp(1), Color.rgb(230, 230, 235))
+                setStroke(dp(1), if (isDarkMode) Color.rgb(55, 55, 62) else Color.rgb(230, 230, 235))
             }
 
             elevation = dp(18).toFloat()
         }
+
+        val themeItem = createMenuItem(
+            title = if (isDarkMode) "Day Mode" else "Night Mode",
+            subtitle = if (isDarkMode) "Switch to light appearance" else "Switch to dark appearance",
+            iconRes = if (isDarkMode) R.drawable.ic_day_mode else R.drawable.ic_night_mode
+        )
+        themeItem.setOnClickListener {
+            meshPopup?.dismiss()
+            toggleThemeWithAnimation()
+        }
+        card.addView(
+            themeItem,
+            LinearLayout.LayoutParams(dp(250), dp(64))
+        )
 
         val mesh = createMenuItem(
             title = "Mesh",
@@ -1154,32 +1224,55 @@ companion object {
 
     private fun createMenuItem(
         title: String,
-        subtitle: String
+        subtitle: String,
+        iconRes: Int? = null
     ): LinearLayout {
         return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(14), 0, dp(14), 0)
 
+            if (iconRes != null) {
+                addView(
+                    ImageView(this@MainActivity).apply {
+                        setImageResource(iconRes)
+                        imageTintList = android.content.res.ColorStateList.valueOf(primaryText)
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                    },
+                    LinearLayout.LayoutParams(dp(24), dp(24)).apply {
+                        rightMargin = dp(12)
+                    }
+                )
+            }
+
+            val labels = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            addView(
+                labels,
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            )
+
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(screenBackground)
                 cornerRadius = dp(14).toFloat()
             }
 
-            addView(
+            labels.addView(
                 TextView(this@MainActivity).apply {
                     text = title
                     textSize = 17f
-                    setTextColor(Color.BLACK)
+                    setTextColor(primaryText)
                     typeface = Typeface.DEFAULT_BOLD
                 }
             )
 
-            addView(
+            labels.addView(
                 TextView(this@MainActivity).apply {
                     text = subtitle
                     textSize = 12f
-                    setTextColor(secondaryText)
+                    setTextColor(secondaryThemeText)
                     setPadding(0, dp(3), 0, 0)
                 }
             )
@@ -1652,7 +1745,7 @@ companion object {
         val name = TextView(this).apply {
             text = contactName ?: address
             textSize = 17f
-            setTextColor(Color.BLACK)
+            setTextColor(primaryText)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.START
             textDirection = View.TEXT_DIRECTION_LOCALE
@@ -1661,7 +1754,7 @@ companion object {
         val preview = TextView(this).apply {
             text = body
             textSize = 15f
-            setTextColor(secondaryText)
+            setTextColor(secondaryThemeText)
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             setPadding(0, dp(4), 0, 0)
@@ -1703,7 +1796,7 @@ companion object {
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
             textSize = 13f
-            setTextColor(Color.rgb(165, 165, 170))
+            setTextColor(if (isDarkMode) Color.rgb(185, 185, 195) else Color.rgb(165, 165, 170))
             gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
             setPadding(0, 0, 0, 0)
@@ -1722,9 +1815,9 @@ companion object {
         if (pinned) {
             val pinCircle = FrameLayout(this).apply {
                 background = GradientDrawable().apply {
-                    setColor(Color.rgb(246, 246, 248))
+                    setColor(if (isDarkMode) Color.rgb(38, 38, 43) else Color.rgb(246, 246, 248))
                     shape = GradientDrawable.OVAL
-                    setStroke(dp(1), Color.rgb(225, 225, 230))
+                    setStroke(dp(1), if (isDarkMode) Color.rgb(65, 65, 72) else Color.rgb(225, 225, 230))
                 }
             }
 

@@ -358,9 +358,17 @@ class ConversationActivity : Activity() {
         }.getOrDefault(address)
     }
 
+    private fun isDarkThemeEnabled(): Boolean =
+        getSharedPreferences("messages_settings", MODE_PRIVATE)
+            .getBoolean("dark_mode", false)
+
     private fun createScreen(): View {
+        val darkTheme = isDarkThemeEnabled()
         val root = android.widget.FrameLayout(this).apply {
-            setBackgroundColor(Color.rgb(245, 245, 247))
+            setBackgroundColor(
+                if (darkTheme) Color.rgb(12, 12, 14)
+                else Color.rgb(245, 245, 247)
+            )
         }
 
         val header = android.widget.FrameLayout(this).apply {
@@ -420,11 +428,11 @@ class ConversationActivity : Activity() {
         profile = TextView(this).apply {
             text = contactName.firstOrNull()?.uppercase() ?: "?"
             textSize = 17f
-            setTextColor(Color.BLACK)
+            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.rgb(232, 232, 234))
+                setColor(if (isDarkThemeEnabled()) Color.rgb(55, 55, 62) else Color.rgb(232, 232, 234))
                 shape = GradientDrawable.OVAL
             }
         }
@@ -442,7 +450,7 @@ class ConversationActivity : Activity() {
                 text = contactName
                 tag = "contact_title"
                 textSize = 16f
-                setTextColor(Color.BLACK)
+                setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
                 maxLines = 1
@@ -493,7 +501,7 @@ class ConversationActivity : Activity() {
         val moreButton = TextView(this).apply {
             text = "⋮"
             textSize = 27f
-            setTextColor(Color.BLACK)
+            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
             gravity = Gravity.CENTER
             includeFontPadding = false
             contentDescription = "More"
@@ -518,7 +526,7 @@ class ConversationActivity : Activity() {
 
         messagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(245, 245, 247))
+            setBackgroundColor(if (isDarkThemeEnabled()) Color.rgb(12, 12, 14) else Color.rgb(245, 245, 247))
             setPadding(dp(16), dp(94), dp(16), dp(12))
         }
 
@@ -694,8 +702,8 @@ class ConversationActivity : Activity() {
             isFocusableInTouchMode = true
             hint = "Message"
             textSize = 16f
-            setTextColor(Color.BLACK)
-            setHintTextColor(Color.rgb(145, 145, 150))
+            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
+            setHintTextColor(if (isDarkThemeEnabled()) Color.rgb(150, 150, 160) else Color.rgb(145, 145, 150))
             setSingleLine(false)
             minLines = 1
             maxLines = 4
@@ -843,7 +851,7 @@ class ConversationActivity : Activity() {
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(16), dp(20), dp(20))
-            setBackgroundColor(Color.rgb(245, 245, 247))
+            setBackgroundColor(if (isDarkThemeEnabled()) Color.rgb(12, 12, 14) else Color.rgb(245, 245, 247))
         }
 
         val topBar = LinearLayout(this).apply {
@@ -1547,8 +1555,13 @@ class ConversationActivity : Activity() {
             setPadding(0, dp(2), 0, dp(2))
             background = GradientDrawable().apply {
                 setColor(
-                    if (incoming) Color.rgb(232, 232, 237)
-                    else Color.rgb(64, 201, 198)
+                    if (isDarkThemeEnabled()) {
+                        if (incoming) Color.rgb(48, 48, 54)
+                        else Color.rgb(0, 95, 220)
+                    } else {
+                        if (incoming) Color.rgb(232, 232, 237)
+                        else Color.rgb(64, 201, 198)
+                    }
                 )
                 cornerRadius = dp(22).toFloat()
             }
@@ -1560,7 +1573,7 @@ class ConversationActivity : Activity() {
             tag = "message_body"
             text = body
             textSize = if (animatedEmoji) 42f else 16f
-            setTextColor(Color.BLACK)
+            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
             maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
             autoLinkMask = Linkify.WEB_URLS or Linkify.PHONE_NUMBERS
             movementMethod = LinkMovementMethod.getInstance()
@@ -1616,7 +1629,7 @@ class ConversationActivity : Activity() {
                 Locale.getDefault()
             ).format(Date(date))
             textSize = 11f
-            setTextColor(secondaryText)
+            setTextColor(if (isDarkThemeEnabled()) Color.rgb(175, 175, 185) else secondaryText)
             setPadding(dp(4), dp(2), dp(4), 0)
             gravity = if (incoming) Gravity.END else Gravity.START
         }
