@@ -567,6 +567,25 @@ class ConversationActivity : Activity() {
             }
         )
 
+        val scrollJumpButton = TextView(this).apply {
+            text = "↓"
+            textSize = 25f
+            setTextColor(Color.BLACK)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.WHITE)
+            }
+            elevation = dp(5).toFloat()
+            alpha = 0f
+            visibility = View.GONE
+            contentDescription = "Jump through messages"
+            setOnClickListener {
+                val targetY = if (rotation < 90f) messagesContainer.height else 0
+                scrollView.smoothScrollTo(0, targetY)
+            }
+        }
+
         val hideDateCapsule = Runnable {
             floatingDateCapsule.animate()
                 .alpha(0f)
@@ -583,10 +602,8 @@ class ConversationActivity : Activity() {
 
                 for (i in 0 until messagesContainer.childCount) {
                     val child = messagesContainer.getChildAt(i)
-                    if (
-                        child.tag == "date_header_row" &&
-                        child.top <= scrollY + dp(120)
-                    ) {
+                    if (child.tag == "date_header_row" &&
+                        child.top <= scrollY + dp(120)) {
                         activeDate =
                             (child as? LinearLayout)?.getChildAt(0) as? TextView
                     }
@@ -599,6 +616,34 @@ class ConversationActivity : Activity() {
                     floatingDateCapsule.visibility = View.VISIBLE
                     floatingDateCapsule.removeCallbacks(hideDateCapsule)
                     floatingDateCapsule.postDelayed(hideDateCapsule, 2000L)
+                }
+
+                val maxY =
+                    (messagesContainer.height - scrollView.height).coerceAtLeast(0)
+                val atTop = scrollY <= dp(4)
+                val atBottom = scrollY >= maxY - dp(4)
+                val scrollingUp = scrollY < oldScrollY
+                val targetRotation = if (scrollingUp) 0f else 180f
+                val shouldHide = maxY == 0 ||
+                    (scrollingUp && atTop) ||
+                    (!scrollingUp && atBottom)
+
+                scrollJumpButton.animate().cancel()
+                if (shouldHide) {
+                    scrollJumpButton.animate()
+                        .alpha(0f)
+                        .setDuration(220L)
+                        .withEndAction {
+                            scrollJumpButton.visibility = View.GONE
+                        }
+                        .start()
+                } else {
+                    scrollJumpButton.visibility = View.VISIBLE
+                    scrollJumpButton.animate()
+                        .alpha(1f)
+                        .rotation(targetRotation)
+                        .setDuration(320L)
+                        .start()
                 }
             }
         }
@@ -739,6 +784,25 @@ class ConversationActivity : Activity() {
         }
 
         root.addView(composer, composerParams)
+
+        root.addView(
+            scrollJumpButton,
+            android.widget.FrameLayout.LayoutParams(dp(46), dp(46)).apply {
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(90)
+            }
+        )
+
+        fun positionScrollJumpButton() {
+            val params = scrollJumpButton.layoutParams as android.widget.FrameLayout.LayoutParams
+            params.bottomMargin = composer.height + dp(32)
+            scrollJumpButton.layoutParams = params
+        }
+
+        composer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            positionScrollJumpButton()
+        }
+        composer.post { positionScrollJumpButton() }
         composer.post {
             val bottomPadding = composer.height + dp(2) + dp(24)
             messagesContainer.setPadding(
