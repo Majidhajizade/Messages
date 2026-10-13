@@ -136,10 +136,16 @@ class ConversationActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
-        phone = intent.getStringExtra("phone") ?: run {
-            finish()
-            return
-        }
+        phone = intent.getStringExtra("phone")
+            ?: intent.data?.schemeSpecificPart
+                ?.substringBefore('?')
+                ?.let { android.net.Uri.decode(it).trim() }
+                ?.takeIf { it.isNotBlank() }
+            ?: intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER)
+            ?: run {
+                finish()
+                return
+            }
 
         if (intent.getBooleanExtra("offline_mesh", false)) {
             activeMeshId = phone
