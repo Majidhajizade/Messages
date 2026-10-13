@@ -670,9 +670,13 @@ class ConversationActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(6), dp(5), dp(6), dp(5))
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(if (isDarkThemeEnabled()) Color.rgb(43, 43, 49) else Color.WHITE)
                 cornerRadius = dp(28).toFloat()
-                setStroke(dp(1), Color.rgb(232, 232, 236))
+                setStroke(
+                    dp(1),
+                    if (isDarkThemeEnabled()) Color.rgb(67, 67, 75)
+                    else Color.rgb(232, 232, 236)
+                )
             }
         }
 
@@ -860,6 +864,7 @@ class ConversationActivity : Activity() {
 
         val back = ImageButton(this).apply {
             setImageResource(R.drawable.ic_back_arrow)
+            if (isDarkThemeEnabled()) setColorFilter(Color.WHITE)
             contentDescription = "Back"
             background = null
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
@@ -879,7 +884,7 @@ class ConversationActivity : Activity() {
         val avatar = TextView(this).apply {
             text = contactName.firstOrNull()?.uppercase() ?: "?"
             textSize = 25f
-            setTextColor(Color.BLACK)
+            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
@@ -896,7 +901,7 @@ class ConversationActivity : Activity() {
         val title = TextView(this).apply {
             text = if (isSavedContact) contactName else phone
             textSize = 22f
-            setTextColor(Color.BLACK)
+            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             maxLines = 2
@@ -914,7 +919,7 @@ class ConversationActivity : Activity() {
             content.addView(TextView(this).apply {
                 text = phone
                 textSize = 16f
-                setTextColor(secondaryText)
+                setTextColor(if (isDarkThemeEnabled()) Color.rgb(175, 175, 185) else secondaryText)
                 gravity = Gravity.CENTER
             }, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -942,7 +947,7 @@ class ConversationActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
-                    setColor(Color.WHITE)
+                    setColor(if (isDarkThemeEnabled()) Color.rgb(43, 43, 49) else Color.WHITE)
                     cornerRadius = dp(18).toFloat()
                 }
                 isClickable = true
@@ -953,7 +958,7 @@ class ConversationActivity : Activity() {
 
             val icon = android.widget.ImageView(this).apply {
                 setImageResource(iconRes)
-                setColorFilter(Color.BLACK)
+                setColorFilter(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
                 scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                 contentDescription = label
             }
@@ -963,7 +968,7 @@ class ConversationActivity : Activity() {
             val text = TextView(this).apply {
                 this.text = label
                 textSize = 12f
-                setTextColor(Color.BLACK)
+                setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
                 gravity = Gravity.CENTER
                 maxLines = 2
             }

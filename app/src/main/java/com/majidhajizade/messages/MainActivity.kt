@@ -1625,6 +1625,7 @@ companion object {
         val actionBackground = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            if (isDarkMode) visibility = View.GONE
         }
 
         val callAction = TextView(this).apply {
@@ -1973,6 +1974,7 @@ companion object {
 
         val cancel = android.widget.ImageView(this).apply {
             setImageResource(R.drawable.ic_cross)
+            if (isDarkMode) setColorFilter(Color.WHITE)
             scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
             contentDescription = "Cancel selection"
             setPadding(dp(12), dp(12), dp(12), dp(12))
@@ -1991,7 +1993,7 @@ companion object {
         selectionSelectedText = TextView(this).apply {
             text = "1 Selected"
             textSize = 19f
-            setTextColor(Color.BLACK)
+            setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER_VERTICAL
         }
@@ -2016,9 +2018,13 @@ companion object {
             gravity = Gravity.CENTER
             setPadding(dp(10), dp(7), dp(10), dp(7))
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
+                setColor(if (isDarkMode) Color.rgb(43, 43, 49) else Color.WHITE)
                 cornerRadius = dp(39).toFloat()
-                setStroke(dp(1), Color.rgb(225, 225, 230))
+                setStroke(
+                    dp(1),
+                    if (isDarkMode) Color.rgb(67, 67, 75)
+                    else Color.rgb(225, 225, 230)
+                )
             }
             elevation = dp(16).toFloat()
         }
@@ -2061,6 +2067,7 @@ companion object {
                 selectionNotificationIcon =
                     NotificationSlashIcon(this@MainActivity).apply {
                         setImageResource(R.drawable.ic_notification)
+                        if (isDarkMode) setColorFilter(Color.WHITE)
                         scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                         contentDescription = label
                     }
@@ -2072,7 +2079,7 @@ companion object {
                 addView(
                     android.widget.ImageView(this@MainActivity).apply {
                         setImageResource(R.drawable.ic_delete)
-                        setColorFilter(Color.BLACK)
+                        setColorFilter(if (isDarkMode) Color.WHITE else Color.BLACK)
                         scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                         contentDescription = label
                     },
@@ -2081,6 +2088,7 @@ companion object {
             } else {
                 selectionPinIcon = android.widget.ImageView(this@MainActivity).apply {
                     setImageResource(R.drawable.ic_pin)
+                    if (isDarkMode) setColorFilter(Color.WHITE)
                     scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                     contentDescription = label
                 }
@@ -2098,7 +2106,7 @@ companion object {
                 TextView(this@MainActivity).apply {
                     text = label
                     textSize = 10.5f
-                    setTextColor(Color.rgb(35, 35, 38))
+                    setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(35, 35, 38))
                     includeFontPadding = false
                     gravity = Gravity.CENTER
                     typeface = Typeface.DEFAULT_BOLD
