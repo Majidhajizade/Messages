@@ -528,6 +528,9 @@ companion object {
         )
 
         val conversations = mutableMapOf<String, ConversationData>()
+        val archivedAddresses = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getStringSet("archived_conversations", emptySet())
+            .orEmpty()
 
         cursor?.use {
             while (it.moveToNext()) {
@@ -577,6 +580,8 @@ companion object {
                 }
             )
         }
+
+        archivedAddresses.forEach { conversations.remove(it) }
 
         if (conversations.isEmpty()) {
             showEmptyState()
@@ -1638,6 +1643,51 @@ companion object {
             clipToPadding = false
         }
 
+        val archivePanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(8), 0, dp(8), 0)
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(0, 129, 255))
+                cornerRadius = dp(14).toFloat()
+            }
+        }
+
+        val archiveIcon = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.archive_down)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            contentDescription = "Archive"
+        }
+
+        val archiveLabel = TextView(this).apply {
+            text = "Archive"
+            textSize = 10f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+        }
+
+        archivePanel.addView(
+            archiveIcon,
+            LinearLayout.LayoutParams(dp(22), dp(22))
+        )
+        archivePanel.addView(
+            archiveLabel,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        actionLayer.addView(
+            archivePanel,
+            FrameLayout.LayoutParams(
+                dp(120),
+                dp(64),
+                Gravity.RIGHT or Gravity.CENTER_VERTICAL
+            )
+        )
+
         val actionBackground = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -1833,7 +1883,7 @@ companion object {
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
                 setPadding(dp(8), 0, dp(8), 0)
                 background = GradientDrawable().apply {
-                    setColor(Color.rgb(192, 192, 192))
+                    setColor(Color.rgb(240, 240, 240))
                     cornerRadius = dp(12).toFloat()
                     setStroke(
                         dp(1),
@@ -1993,7 +2043,8 @@ companion object {
             address,
             callAction,
             deleteAction,
-            selectionOverlay
+            selectionOverlay,
+            archivePanel
         )
 
         messagesContainer.addView(
@@ -2017,12 +2068,17 @@ companion object {
         address: String,
         callAction: TextView,
         deleteAction: TextView,
-        selectionOverlay: android.widget.ImageView
+        selectionOverlay: android.widget.ImageView,
+        archivePanel: View
     ) {
         var downX = 0f
         var downY = 0f
         var moved = false
         var longPressed = false
+        var archiveSwipe = false
+        var archiveReady = false
+        val archiveThreshold = dp(100)
+        val archiveLimit = dp(120).toFloat()
 
         val handler = android.os.Handler(mainLooper)
         val longPressRunnable = Runnable {
@@ -2042,6 +2098,8 @@ companion object {
                     downY = event.rawY
                     moved = false
                     longPressed = false
+                    archiveSwipe = false
+                    archiveReady = false
                     handler.postDelayed(longPressRunnable, 500)
                     true
                 }
@@ -2055,11 +2113,53 @@ companion object {
                         handler.removeCallbacks(longPressRunnable)
                     }
 
+                    if (!selectionMode && dx < -dp(10) && abs(dx) > abs(dy)) {
+                        archiveSwipe = true
+                        foreground.translationX = dx.coerceAtLeast(-archiveLimit)
+                        foreground.background = GradientDrawable().apply {
+                            setColor(if (isDarkMode) Color.rgb(28, 28, 30) else Color.WHITE)
+                            cornerRadii = floatArrayOf(
+                                0f, 0f,
+                                dp(14).toFloat(), dp(14).toFloat(),
+                                dp(14).toFloat(), dp(14).toFloat(),
+                                0f, 0f
+                            )
+                        }
+                        archiveReady = -dx >= archiveThreshold
+                        (archivePanel.background as? GradientDrawable)?.setColor(
+                            if (archiveReady) Color.rgb(192, 192, 192)
+                            else Color.rgb(0, 129, 255)
+                        )
+                    }
+
                     true
                 }
 
                 MotionEvent.ACTION_UP -> {
                     handler.removeCallbacks(longPressRunnable)
+
+                    if (archiveSwipe) {
+                        if (archiveReady) {
+                            val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+                            val archived = prefs.getStringSet(
+                                "archived_conversations",
+                                emptySet()
+                            ).orEmpty().toMutableSet()
+                            archived.add(address)
+                            prefs.edit().putStringSet(
+                                "archived_conversations",
+                                archived
+                            ).apply()
+                            foreground.translationX = 0f
+                            loadMessages()
+                        } else {
+                            foreground.animate().translationX(0f).setDuration(180).start()
+                            foreground.background = null
+                            (archivePanel.background as? GradientDrawable)
+                                ?.setColor(Color.rgb(0, 129, 255))
+                        }
+                        return@setOnTouchListener true
+                    }
 
                     if (selectionMode && !longPressed && !moved) {
                         toggleSelection(address)
@@ -2075,6 +2175,12 @@ companion object {
 
                 MotionEvent.ACTION_CANCEL -> {
                     handler.removeCallbacks(longPressRunnable)
+                    if (archiveSwipe) {
+                        foreground.animate().translationX(0f).setDuration(180).start()
+                        foreground.background = null
+                        (archivePanel.background as? GradientDrawable)
+                            ?.setColor(Color.rgb(0, 129, 255))
+                    }
                     true
                 }
 
