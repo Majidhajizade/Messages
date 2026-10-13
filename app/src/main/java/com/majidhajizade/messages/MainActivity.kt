@@ -1821,6 +1821,8 @@ companion object {
             )
             gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            isSingleLine = true
+            includeFontPadding = false
             setPadding(0, 0, 0, 0)
         }
 
@@ -1829,12 +1831,9 @@ companion object {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
-                setPadding(dp(7), 0, dp(7), 0)
+                setPadding(dp(8), 0, dp(8), 0)
                 background = GradientDrawable().apply {
-                    setColor(
-                        if (isDarkMode) Color.rgb(54, 54, 60)
-                        else Color.rgb(226, 226, 231)
-                    )
+                    setColor(Color.rgb(75, 75, 82))
                     cornerRadius = dp(12).toFloat()
                     setStroke(
                         dp(1),
@@ -1867,8 +1866,7 @@ companion object {
                 )
             )
 
-            dateText.minWidth = dp(38)
-            dateText.includeFontPadding = false
+            dateText.minWidth = dp(44)
 
             metaContainer.addView(
                 dateCapsule,
@@ -1969,7 +1967,7 @@ companion object {
         foreground.addView(
             metaContainer,
             LinearLayout.LayoutParams(
-                if (pinned) dp(76) else dp(54),
+                if (pinned) dp(88) else dp(54),
                 dp(52)
             ).apply {
                 leftMargin = dp(6)
