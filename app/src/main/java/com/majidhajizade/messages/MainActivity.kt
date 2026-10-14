@@ -359,6 +359,15 @@ companion object {
             isFillViewport = true
             setBackgroundColor(screenBackground)
 
+            // Thin scrollbar aligned to the phone's right edge.
+            isVerticalScrollBarEnabled = true
+            isScrollbarFadingEnabled = true
+            scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
+            verticalScrollbarPosition = View.SCROLLBAR_POSITION_RIGHT
+            setScrollBarSize(dp(2))
+            setPadding(0, paddingTop, 0, paddingBottom)
+            clipToPadding = false
+
             val scrollContent = LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 setBackgroundColor(screenBackground)
@@ -1651,14 +1660,14 @@ companion object {
         }
 
         val archiveBlueHalf = View(this).apply {
-            setBackgroundColor(Color.rgb(0, 129, 255))
+            setBackgroundColor(Color.rgb(192, 192, 192))
         }
 
         val archiveRightHalf = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(0, 0, dp(16), 0)
-            setBackgroundColor(Color.rgb(192, 192, 192))
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+            setPadding(0, 0, dp(8), 0)
+            setBackgroundColor(Color.rgb(0, 129, 255))
         }
 
         val archiveIcon = android.widget.ImageView(this).apply {
@@ -1671,7 +1680,7 @@ companion object {
             text = "Archive"
             textSize = 10f
             setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
+            gravity = Gravity.END
             includeFontPadding = false
         }
 
@@ -2153,19 +2162,18 @@ companion object {
                             foreground.translationX
                         archiveReady = chatRightEdge <= screenWidth / 2f
 
+                        val leftHalf = (archivePanel as? android.widget.LinearLayout)
+                            ?.getChildAt(0)
+                        val rightHalf = (archivePanel as? android.widget.LinearLayout)
+                            ?.getChildAt(1)
+
+                        // Blue before the midpoint; gray once archiving is ready.
                         val panelColor = if (archiveReady) {
                             Color.rgb(192, 192, 192)
                         } else {
                             Color.rgb(0, 129, 255)
                         }
-                        archivePanel.setBackgroundColor(Color.TRANSPARENT)
-                        val blueHalf = (archivePanel as? android.widget.LinearLayout)
-                            ?.getChildAt(0)
-                        val rightHalf = (archivePanel as? android.widget.LinearLayout)
-                            ?.getChildAt(1)
-                        blueHalf?.setBackgroundColor(
-                            if (archiveReady) panelColor else Color.rgb(0, 129, 255)
-                        )
+                        leftHalf?.setBackgroundColor(panelColor)
                         rightHalf?.setBackgroundColor(panelColor)
                     }
 
