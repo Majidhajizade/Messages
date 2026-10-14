@@ -254,7 +254,7 @@ companion object {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(screenBackground)
-            setPadding(dp(20), 0, dp(20), dp(12))
+            setPadding(0, 0, 0, dp(12))
             clipChildren = false
             clipToPadding = false
         }
@@ -274,6 +274,7 @@ companion object {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setBackgroundColor(screenBackground)
+            setPadding(dp(20), 0, dp(20), 0)
         }
         homeHeader = header
 
@@ -324,7 +325,7 @@ companion object {
             setBackgroundColor(screenBackground)
             clipChildren = false
             clipToPadding = false
-            elevation = dp(8).toFloat()
+            elevation = 0f
         }
 
         headerLayer.addView(
@@ -1680,7 +1681,7 @@ companion object {
         val archiveIcon = android.widget.ImageView(this).apply {
             setImageResource(R.drawable.archive_down)
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-            translationX = -dp(3).toFloat()
+            translationX = -dp(7).toFloat()
             contentDescription = "Archive"
         }
 
