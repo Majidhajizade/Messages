@@ -447,26 +447,57 @@ class ConversationActivity : Activity() {
             elevation = dp(3).toFloat()
         }
 
-        profile = TextView(this).apply {
-            text = contactName.firstOrNull()?.uppercase() ?: "?"
-            textSize = 17f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-            background = GradientDrawable().apply {
-                setColors(avatarGradientColors(contactName))
-                orientation = GradientDrawable.Orientation.TL_BR
-                shape = GradientDrawable.OVAL
+        val isUnsavedNumber = !phone.matches(Regex("MJ-[A-Z0-9]{6}")) &&
+            contactName == phone
+
+        profile = if (isUnsavedNumber) {
+            TextView(this).apply {
+                text = ""
+                background = GradientDrawable().apply {
+                    setColor(Color.rgb(235, 237, 240))
+                    shape = GradientDrawable.OVAL
+                }
+            }
+        } else {
+            TextView(this).apply {
+                text = contactName.firstOrNull()?.uppercase() ?: "?"
+                textSize = 17f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                background = GradientDrawable().apply {
+                    setColors(avatarGradientColors(contactName))
+                    orientation = GradientDrawable.Orientation.TL_BR
+                    shape = GradientDrawable.OVAL
+                }
             }
         }
 
-        profileCapsule.addView(
-            profile,
-            android.widget.FrameLayout.LayoutParams(dp(34), dp(34)).apply {
-                gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                leftMargin = dp(6)
+        if (isUnsavedNumber) {
+            val unsavedIcon = android.widget.ImageView(this).apply {
+                setImageResource(R.drawable.ic_profile_unsaved)
+                scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+                contentDescription = "Unknown contact"
             }
-        )
+            profileCapsule.addView(
+                unsavedIcon,
+                android.widget.FrameLayout.LayoutParams(dp(34), dp(34)).apply {
+                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                    leftMargin = dp(6)
+                }
+            )
+        }
+
+        if (!isUnsavedNumber) {
+            profileCapsule.addView(
+                profile,
+                android.widget.FrameLayout.LayoutParams(dp(34), dp(34)).apply {
+                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                    leftMargin = dp(6)
+                }
+            )
+        }
 
         profileCapsule.addView(
             TextView(this).apply {
@@ -909,16 +940,29 @@ class ConversationActivity : Activity() {
             setPadding(0, dp(34), 0, 0)
         }
 
-        val avatar = TextView(this).apply {
-            text = contactName.firstOrNull()?.uppercase() ?: "?"
-            textSize = 50f
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColors(avatarGradientColors(contactName))
-                orientation = GradientDrawable.Orientation.TL_BR
+        val avatar: View = if (!isSavedContact && !isMeshId) {
+            android.widget.ImageView(this).apply {
+                setImageResource(R.drawable.ic_profile_unsaved)
+                scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                setPadding(dp(24), dp(24), dp(24), dp(24))
+                background = GradientDrawable().apply {
+                    setColor(Color.rgb(235, 237, 240))
+                    shape = GradientDrawable.OVAL
+                }
+                contentDescription = "Unknown contact"
+            }
+        } else {
+            TextView(this).apply {
+                text = contactName.firstOrNull()?.uppercase() ?: "?"
+                textSize = 50f
+                setTextColor(Color.WHITE)
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColors(avatarGradientColors(contactName))
+                    orientation = GradientDrawable.Orientation.TL_BR
+                }
             }
         }
 
