@@ -1682,7 +1682,6 @@ companion object {
         val archiveIcon = android.widget.ImageView(this).apply {
             setImageResource(R.drawable.archive_down)
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-            translationX = -dp(7).toFloat()
             contentDescription = "Archive"
         }
 
