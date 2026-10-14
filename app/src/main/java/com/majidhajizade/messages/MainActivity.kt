@@ -577,6 +577,7 @@ companion object {
 
         var pullStartY = 0f
         var pullStartX = 0f
+        var pullStartScrollY = 0
         var pullDistance = 0f
         var pulling = false
         val pullThreshold = dp(76).toFloat()
@@ -615,6 +616,7 @@ companion object {
                 MotionEvent.ACTION_DOWN -> {
                     pullStartY = event.rawY
                     pullStartX = event.rawX
+                    pullStartScrollY = messagesScroll.scrollY
                     pullDistance = 0f
                     pulling = false
                     false
@@ -651,16 +653,17 @@ companion object {
                             false
                         }
                     } else if (
+                        messagesScroll.scrollY == 0 &&
                         (
-                            (messagesScroll.scrollY == 0 && archivedAvatarView == null) ||
-                            (archivedAvatarView != null &&
-                                messagesScroll.scrollY >= dp(76))
-                        ) &&
-                        (pulling || (dy > dp(24) &&
-                        dy > kotlin.math.abs(dx) * 1.5f))
+                            pulling ||
+                            (
+                                dy - pullStartScrollY > dp(24) &&
+                                dy > kotlin.math.abs(dx) * 1.5f
+                            )
+                        )
                     ) {
                         pulling = true
-                        pullDistance = dy.coerceAtLeast(0f)
+                        pullDistance = (dy - pullStartScrollY).coerceAtLeast(0f)
                         updatePullBanner(pullDistance)
                         true
                     } else {
