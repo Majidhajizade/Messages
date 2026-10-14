@@ -523,8 +523,9 @@ companion object {
                 super.onDraw(canvas)
 
                 val viewport = messagesScroll.height
-                val range = messagesScroll.computeVerticalScrollRange()
-                val extent = messagesScroll.computeVerticalScrollExtent()
+                val contentHeight = messagesScroll.getChildAt(0)?.height ?: 0
+                val range = maxOf(viewport, contentHeight)
+                val extent = viewport
                 if (viewport <= 0 || range <= extent) {
                     visibility = View.INVISIBLE
                     return
