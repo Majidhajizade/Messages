@@ -1094,7 +1094,8 @@ companion object {
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(avatarColor(name))
+                setColors(avatarGradientColors(name))
+                orientation = GradientDrawable.Orientation.TL_BR
                 shape = GradientDrawable.OVAL
             }
         }
@@ -1808,7 +1809,8 @@ companion object {
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(avatarColor(avatarName))
+                setColors(avatarGradientColors(avatarName))
+                orientation = GradientDrawable.Orientation.TL_BR
                 shape = GradientDrawable.OVAL
             }
         }
@@ -3269,6 +3271,27 @@ companion object {
         startActivity(
             Intent(this, NewMessageActivity::class.java)
         )
+    }
+
+    private fun avatarGradientColors(name: String): IntArray {
+        val base = avatarColor(name)
+
+        fun mix(value: Int, target: Int, amount: Float): Int =
+            (value + (target - value) * amount).toInt()
+
+        val light = Color.rgb(
+            mix(Color.red(base), 255, 0.28f),
+            mix(Color.green(base), 255, 0.28f),
+            mix(Color.blue(base), 255, 0.28f)
+        )
+
+        val dark = Color.rgb(
+            mix(Color.red(base), 0, 0.22f),
+            mix(Color.green(base), 0, 0.22f),
+            mix(Color.blue(base), 0, 0.22f)
+        )
+
+        return intArrayOf(light, base, dark)
     }
 
     private fun avatarColor(name: String): Int {
