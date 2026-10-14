@@ -262,7 +262,7 @@ companion object {
         selectionHeader = createSelectionHeader().apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(72)
+                dp(84)
             )
         }
         selectionHeader.visibility = View.GONE
@@ -279,7 +279,7 @@ companion object {
 
         val title = TextView(this).apply {
             text = "Messages"
-            textSize = 34f
+            textSize = 28f
             setTextColor(primaryText)
             typeface = Typeface.DEFAULT_BOLD
             translationY = 0f
@@ -298,7 +298,7 @@ companion object {
 
         val menuButton = TextView(this).apply {
             text = "⋮"
-            textSize = 30f
+            textSize = 26f
             setTextColor(primaryText)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
@@ -330,7 +330,7 @@ companion object {
             header,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(72)
+                dp(84)
             )
         )
 
@@ -338,7 +338,7 @@ companion object {
             selectionHeader,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(72)
+                dp(84)
             )
         )
 
@@ -346,7 +346,7 @@ companion object {
             headerLayer,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(72)
+                dp(84)
             )
         )
 
@@ -356,7 +356,7 @@ companion object {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(screenBackground)
             clipToOutline = false
-            setPadding(0, dp(4), 0, 0)
+            setPadding(0, 0, 0, 0)
         }
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
@@ -371,7 +371,7 @@ companion object {
             clipToPadding = false
 
             val scrollContent = LinearLayout(this@MainActivity).apply {
-                setPadding(0, dp(72), 0, 0)
+                setPadding(0, 0, 0, 0)
                 clipToPadding = false
                 orientation = LinearLayout.VERTICAL
                 setBackgroundColor(screenBackground)
