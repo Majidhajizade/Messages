@@ -454,7 +454,7 @@ class ConversationActivity : Activity() {
             TextView(this).apply {
                 text = ""
                 background = GradientDrawable().apply {
-                    setColor(Color.rgb(235, 237, 240))
+                    setColor(Color.rgb(220, 224, 230))
                     shape = GradientDrawable.OVAL
                 }
             }
@@ -943,8 +943,8 @@ class ConversationActivity : Activity() {
         val avatar: View = if (!isSavedContact && !isMeshId) {
             android.widget.ImageView(this).apply {
                 setImageResource(R.drawable.ic_profile_unsaved)
-                scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-                setPadding(dp(24), dp(24), dp(24), dp(24))
+                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                setPadding(dp(8), dp(8), dp(8), dp(8))
                 background = GradientDrawable().apply {
                     setColor(Color.rgb(235, 237, 240))
                     shape = GradientDrawable.OVAL
