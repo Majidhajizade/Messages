@@ -79,6 +79,7 @@ class MainActivity : Activity() {
     private lateinit var messagesContainer: LinearLayout
     private lateinit var messagesScroll: android.widget.ScrollView
     private var showingArchivedChats = false
+    private var archivedAvatarView: View? = null
 
 
     private var homeHeader: View? = null
@@ -588,7 +589,7 @@ companion object {
             val params = pullBanner.layoutParams
             params.height = dp(68) + (d * 0.5f).toInt()
             pullBanner.layoutParams = params
-            pullBanner.translationY = d * 0.45f
+            pullBanner.translationY = 0f
             pullBanner.alpha = (d / dp(28).toFloat()).coerceIn(0f, 1f)
             pullBanner.background = GradientDrawable().apply {
                 cornerRadius = 0f
@@ -611,38 +612,92 @@ companion object {
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = event.rawY - pullStartY
-                    if (!showingArchivedChats && messagesScroll.scrollY == 0 &&
-                        (pulling || (dy > dp(24) && dy > kotlin.math.abs(event.rawX - pullStartX) * 1.5f))) {
+                    val dx = event.rawX - pullStartX
+                    if (showingArchivedChats) {
+                        if (messagesScroll.scrollY <= dp(2) &&
+                            dy < -dp(24) && -dy > kotlin.math.abs(dx) * 1.5f) {
+                            showingArchivedChats = false
+                            setContentView(createHomeScreen())
+                            loadMessages()
+                            true
+                        } else false
+                    } else if (messagesScroll.scrollY == 0 &&
+                        (pulling || (dy > dp(24) &&
+                        dy > kotlin.math.abs(dx) * 1.5f))) {
                         pulling = true
                         pullDistance = dy.coerceAtLeast(0f)
                         updatePullBanner(pullDistance)
                         true
-                    } else {
-                        false
-                    }
+                    } else false
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (!pulling) {
-                        false
-                    } else {
+                    if (!pulling) false else {
                         val ready = event.actionMasked == MotionEvent.ACTION_UP &&
                             pullDistance >= pullThreshold
-                        pullBanner.animate().alpha(0f).translationY(0f)
-                            .setDuration(180)
-                            .withEndAction {
-                                pullBanner.visibility = View.GONE
-                                pullBanner.alpha = 0f
-                                pullBanner.rotation = 0f
-                                pullBanner.layoutParams.height = dp(68)
-                                pullBanner.requestLayout()
-                            }.start()
+                        pulling = false
+                        pullDistance = 0f
+                        pullBanner.animate().cancel()
                         if (ready) {
                             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                                 .putBoolean("archived_chats_row_enabled", true).apply()
                             loadMessages()
+                            pullBanner.post {
+                                val avatar = archivedAvatarView
+                                if (avatar == null || avatar.width == 0 ||
+                                    pullBanner.width == 0) {
+                                    pullBanner.animate().alpha(0f).setDuration(180L)
+                                        .withEndAction {
+                                            pullBanner.visibility = View.GONE
+                                            pullBanner.alpha = 0f
+                                            pullBanner.translationY = 0f
+                                            pullBanner.scaleX = 1f
+                                            pullBanner.scaleY = 1f
+                                            pullBanner.layoutParams.height = dp(68)
+                                            pullBanner.requestLayout()
+                                        }.start()
+                                } else {
+                                    val bp = IntArray(2)
+                                    val ap = IntArray(2)
+                                    pullBanner.getLocationOnScreen(bp)
+                                    avatar.getLocationOnScreen(ap)
+                                    val dx = ap[0] + avatar.width / 2f -
+                                        (bp[0] + pullBanner.width / 2f)
+                                    val dy = ap[1] + avatar.height / 2f -
+                                        (bp[1] + pullBanner.height / 2f)
+                                    pullBanner.pivotX = pullBanner.width / 2f
+                                    pullBanner.pivotY = pullBanner.height / 2f
+                                    pullBanner.animate()
+                                        .translationX(dx).translationY(dy)
+                                        .scaleX(0.12f).scaleY(0.12f).alpha(0f)
+                                        .setDuration(420L)
+                                        .setInterpolator(
+                                            android.view.animation.AccelerateDecelerateInterpolator()
+                                        )
+                                        .withEndAction {
+                                            pullBanner.visibility = View.GONE
+                                            pullBanner.alpha = 0f
+                                            pullBanner.translationX = 0f
+                                            pullBanner.translationY = 0f
+                                            pullBanner.scaleX = 1f
+                                            pullBanner.scaleY = 1f
+                                            pullBanner.layoutParams.height = dp(68)
+                                            pullBanner.requestLayout()
+                                        }.start()
+                                }
+                            }
+                        } else {
+                            pullBanner.animate().alpha(0f).translationY(0f)
+                                .setDuration(180L).withEndAction {
+                                    pullBanner.visibility = View.GONE
+                                    pullBanner.alpha = 0f
+                                    pullBanner.translationX = 0f
+                                    pullBanner.translationY = 0f
+                                    pullBanner.scaleX = 1f
+                                    pullBanner.scaleY = 1f
+                                    pullBanner.layoutParams.height = dp(68)
+                                    pullBanner.requestLayout()
+                                }.start()
                         }
-                        pulling = false
-                        pullDistance = 0f
                         true
                     }
                 }
@@ -655,6 +710,7 @@ companion object {
 
     private fun loadMessages() {
         messagesContainer.removeAllViews()
+        archivedAvatarView = null
         rowViews.clear()
         selectionOverlays.clear()
         selectionDragHandles.clear()
@@ -1800,21 +1856,11 @@ companion object {
         }
         iconFrame.addView(icon, FrameLayout.LayoutParams(dp(26), dp(26), Gravity.CENTER))
 
-        val letter = TextView(this).apply {
-            text = "A"
-            textSize = 10f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.rgb(0, 129, 255))
-            }
+        archivedAvatarView = iconFrame
+        iconFrame.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.rgb(0, 129, 255))
         }
-        iconFrame.addView(letter, FrameLayout.LayoutParams(
-            dp(18), dp(18), Gravity.RIGHT or Gravity.BOTTOM
-        ))
-
         row.addView(iconFrame, LinearLayout.LayoutParams(dp(52), dp(52)).apply {
             rightMargin = dp(12)
         })
