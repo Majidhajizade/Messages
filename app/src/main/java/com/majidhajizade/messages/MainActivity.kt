@@ -304,6 +304,7 @@ companion object {
             typeface = Typeface.DEFAULT_BOLD
             translationY = dp(13).toFloat()
             contentDescription = "More"
+            translationX = dp(5).toFloat()
             setPadding(dp(8), 0, dp(2), 0)
 
             setOnClickListener {
@@ -370,6 +371,8 @@ companion object {
             clipToPadding = false
 
             val scrollContent = LinearLayout(this@MainActivity).apply {
+                setPadding(0, dp(72), 0, 0)
+                clipToPadding = false
                 orientation = LinearLayout.VERTICAL
                 setBackgroundColor(screenBackground)
             }
@@ -508,10 +511,12 @@ companion object {
             0,
             1f
         ).apply {
+            topMargin = -dp(72)
             rightMargin = -dp(20)
         }
 
         root.addView(chatLayer, chatLayerParams)
+        headerLayer.bringToFront()
 
         return root
     }
@@ -1183,7 +1188,7 @@ companion object {
 
         val themeItem = createMenuItem(
             title = if (isDarkMode) "Day Mode" else "Night Mode",
-            subtitle = if (isDarkMode) "Switch to light appearance" else "Switch to dark appearance",
+            subtitle = "",
             iconRes = if (isDarkMode) R.drawable.ic_day_mode else R.drawable.ic_night_mode
         )
         themeItem.setOnClickListener {
@@ -1192,12 +1197,12 @@ companion object {
         }
         card.addView(
             themeItem,
-            LinearLayout.LayoutParams(dp(250), dp(64))
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
         )
 
         val mesh = createMenuItem(
             title = "Mesh",
-            subtitle = "Nearby offline devices"
+            subtitle = ""
         )
 
         mesh.setOnClickListener {
@@ -1206,7 +1211,7 @@ companion object {
 
         val settings = createMenuItem(
             title = "Settings",
-            subtitle = "Mesh ID and preferences"
+            subtitle = ""
         )
 
         settings.setOnClickListener {
@@ -1216,12 +1221,12 @@ companion object {
 
         card.addView(
             mesh,
-            LinearLayout.LayoutParams(dp(250), dp(64))
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
         )
 
         card.addView(
             settings,
-            LinearLayout.LayoutParams(dp(250), dp(64))
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
         )
 
         val savedMeshDevices = loadSavedMeshDevices()
@@ -1233,7 +1238,7 @@ companion object {
 
         meshPopup = PopupWindow(
             card,
-            dp(270),
+            ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT,
             true
         ).apply {
@@ -1675,6 +1680,7 @@ companion object {
         val archiveIcon = android.widget.ImageView(this).apply {
             setImageResource(R.drawable.archive_down)
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            translationX = -dp(3).toFloat()
             contentDescription = "Archive"
         }
 
@@ -1700,18 +1706,18 @@ companion object {
 
         archivePanel.addView(
             archiveBlueHalf,
-            LinearLayout.LayoutParams(0, dp(64), 1f)
+            LinearLayout.LayoutParams(0, dp(68), 1f)
         )
         archivePanel.addView(
             archiveRightHalf,
-            LinearLayout.LayoutParams(0, dp(64), 1f)
+            LinearLayout.LayoutParams(0, dp(68), 1f)
         )
 
         actionLayer.addView(
             archivePanel,
             FrameLayout.LayoutParams(
-                (resources.displayMetrics.widthPixels * 0.75f).toInt(),
-                dp(64),
+                (resources.displayMetrics.widthPixels * 0.78f).toInt(),
+                dp(68),
                 Gravity.RIGHT or Gravity.CENTER_VERTICAL
             ).apply {
                 rightMargin = -dp(20)
@@ -1895,6 +1901,7 @@ companion object {
 
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
+            translationX = -dp(3).toFloat()
             textSize = 13f
             setTextColor(
                 if (isDarkMode) Color.rgb(205, 205, 212)
@@ -2147,6 +2154,7 @@ companion object {
 
                     if (!selectionMode && dx < -dp(10) && abs(dx) > abs(dy)) {
                         archiveSwipe = true
+                        foreground.parent?.requestDisallowInterceptTouchEvent(true)
                         archivePanel.visibility = View.VISIBLE
                         foreground.translationX = dx.coerceAtLeast(-archiveLimit)
                         foreground.background = GradientDrawable().apply {
@@ -2203,7 +2211,11 @@ companion object {
                             archivePanel.visibility = View.GONE
                             loadMessages()
                         } else {
-                            foreground.animate().translationX(0f).setDuration(180).start()
+                            foreground.animate()
+                                .translationX(0f)
+                                .setDuration(280L)
+                                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                                .start()
                             foreground.background = null
                             archivePanel.visibility = View.GONE
                         }
@@ -2225,7 +2237,11 @@ companion object {
                 MotionEvent.ACTION_CANCEL -> {
                     handler.removeCallbacks(longPressRunnable)
                     if (archiveSwipe) {
-                        foreground.animate().translationX(0f).setDuration(180).start()
+                        foreground.animate()
+                                .translationX(0f)
+                                .setDuration(280L)
+                                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                                .start()
                         foreground.background = null
                         archivePanel.visibility = View.GONE
                     }
