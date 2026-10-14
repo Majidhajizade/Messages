@@ -579,16 +579,17 @@ companion object {
         var pullStartX = 0f
         var pullDistance = 0f
         var pulling = false
-        val pullThreshold = dp(68).toFloat()
+        val pullThreshold = dp(76).toFloat()
         val maxPull = dp(136).toFloat()
 
         fun updatePullBanner(distance: Float) {
             val d = distance.coerceIn(0f, maxPull)
-            val progress = (d / pullThreshold).coerceIn(0f, 1f)
-            val gray = 190f
-            val red = (gray + (0f - gray) * progress).toInt()
-            val green = (gray + (129f - gray) * progress).toInt()
-            val blue = (gray + (255f - gray) * progress).toInt()
+            val ready = d >= pullThreshold
+            val bannerColor = if (ready) {
+                Color.rgb(0, 129, 255)
+            } else {
+                Color.rgb(190, 190, 195)
+            }
 
             val params = pullBanner.layoutParams
             params.height = dp(68) + (d * 0.5f).toInt()
@@ -597,14 +598,14 @@ companion object {
             pullBanner.alpha = (d / dp(12).toFloat()).coerceIn(0f, 1f)
             pullBanner.background = GradientDrawable().apply {
                 cornerRadius = 0f
-                setColor(Color.rgb(red, green, blue))
+                setColor(bannerColor)
             }
 
             // حرکت کششی با مقاومت؛ فهرست کادر را از جلو می‌پوشاند.
             messagesScroll.translationY = d * 0.72f
-            pullLabel.text = if (progress >= 1f)
+            pullLabel.text = if (ready)
                 "Release for archive" else "Pull down for archive"
-            arrow.animate().rotation(if (progress >= 1f) 180f else 0f)
+            arrow.animate().rotation(if (ready) 180f else 0f)
                 .setDuration(90L).start()
             pullBanner.visibility = View.VISIBLE
         }
