@@ -1796,29 +1796,48 @@ companion object {
         }
 
         val contactName = getContactName(address)
-        val avatarName = contactName?.trim().orEmpty().ifEmpty { address.trim() }
-        val avatarLetter = avatarName.firstOrNull()
-            ?.uppercaseChar()
-            ?.toString()
-            ?: "U"
+        val isUnsavedNumber = contactName.isNullOrBlank() &&
+            address.any { it.isDigit() }
 
-        val contact = TextView(this).apply {
-            text = avatarLetter
-            textSize = 21f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-            background = GradientDrawable().apply {
-                setColors(avatarGradientColors(avatarName))
-                orientation = GradientDrawable.Orientation.TL_BR
-                shape = GradientDrawable.OVAL
+        if (isUnsavedNumber) {
+            val contact = android.widget.ImageView(this).apply {
+                setImageResource(R.drawable.ic_profile_unsaved)
+                scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+                setPadding(dp(13), dp(13), dp(13), dp(13))
+                background = GradientDrawable().apply {
+                    setColor(Color.rgb(235, 237, 240))
+                    shape = GradientDrawable.OVAL
+                }
+                contentDescription = "Unknown contact"
             }
-        }
+            contactFrame.addView(
+                contact,
+                FrameLayout.LayoutParams(dp(52), dp(52))
+            )
+        } else {
+            val avatarName = contactName?.trim().orEmpty().ifEmpty { address.trim() }
+            val avatarLetter = avatarName.firstOrNull()
+                ?.uppercaseChar()
+                ?.toString()
+                ?: "U"
 
-        contactFrame.addView(
-            contact,
-            FrameLayout.LayoutParams(dp(52), dp(52))
-        )
+            val contact = TextView(this).apply {
+                text = avatarLetter
+                textSize = 21f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                background = GradientDrawable().apply {
+                    setColors(avatarGradientColors(avatarName))
+                    orientation = GradientDrawable.Orientation.TL_BR
+                    shape = GradientDrawable.OVAL
+                }
+            }
+            contactFrame.addView(
+                contact,
+                FrameLayout.LayoutParams(dp(52), dp(52))
+            )
+        }
 
         val selectionOverlay = android.widget.ImageView(this).apply {
             setImageResource(R.drawable.check)
@@ -1922,7 +1941,7 @@ companion object {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
-                setPadding(dp(8), 0, dp(8), 0)
+                setPadding(dp(5), 0, dp(5), 0)
                 background = GradientDrawable().apply {
                     setColor(Color.rgb(240, 240, 240))
                     cornerRadius = dp(12).toFloat()
@@ -1945,7 +1964,7 @@ companion object {
                     contentDescription = "Pinned"
                 },
                 LinearLayout.LayoutParams(dp(12), dp(12)).apply {
-                    rightMargin = dp(4)
+                    rightMargin = dp(6)
                 }
             )
 
@@ -1953,7 +1972,7 @@ companion object {
                 dateText,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    dp(22)
+                    dp(20)
                 )
             )
 
@@ -1963,7 +1982,7 @@ companion object {
                 dateCapsule,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    dp(26)
+                    dp(24)
                 )
             )
 
