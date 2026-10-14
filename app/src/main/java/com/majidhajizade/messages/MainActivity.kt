@@ -397,8 +397,8 @@ companion object {
 
         }
         val chatLayer = FrameLayout(this).apply {
-            clipChildren = false
-            clipToPadding = false
+            clipChildren = true
+            clipToPadding = true
         }
 
         chatLayer.addView(
