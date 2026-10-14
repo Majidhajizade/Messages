@@ -359,7 +359,7 @@ companion object {
             isFillViewport = true
             setBackgroundColor(screenBackground)
 
-            isVerticalScrollBarEnabled = true
+            isVerticalScrollBarEnabled = false
             isScrollbarFadingEnabled = false
             scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
             verticalScrollbarPosition = View.SCROLLBAR_POSITION_RIGHT
@@ -501,14 +501,15 @@ companion object {
             lastScrollY = scrollY
         }
 
-        root.addView(
-            chatLayer,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
+        val chatLayerParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        ).apply {
+            rightMargin = -dp(20)
+        }
+
+        root.addView(chatLayer, chatLayerParams)
 
         return root
     }
