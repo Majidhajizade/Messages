@@ -459,7 +459,7 @@ companion object {
                 dp(54)
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
-                rightMargin = dp(30)
+                rightMargin = dp(42)
                 bottomMargin = dp(84)
             }
         )
@@ -1788,7 +1788,7 @@ companion object {
         val contactFrame = FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
-            translationX = dp(2).toFloat()
+            translationX = dp(4).toFloat()
             layoutParams = LinearLayout.LayoutParams(dp(52), dp(52)).apply {
                 rightMargin = dp(12)
             }
@@ -1903,8 +1903,8 @@ companion object {
 
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
-            translationX = -dp(10).toFloat()
-            textSize = 8f
+            translationX = -dp(12).toFloat()
+            textSize = 11f
             setTextColor(
                 if (isDarkMode) Color.rgb(205, 205, 212)
                 else Color.rgb(125, 125, 132)
