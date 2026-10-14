@@ -1090,11 +1090,11 @@ companion object {
                 ?.uppercaseChar()
                 ?.toString() ?: "M"
             textSize = 16f
-            setTextColor(Color.rgb(30, 55, 95))
+            setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.rgb(225, 235, 250))
+                setColor(avatarColor(name))
                 shape = GradientDrawable.OVAL
             }
         }
@@ -1795,9 +1795,8 @@ companion object {
         }
 
         val contactName = getContactName(address)
-        val avatarLetter = contactName
-            ?.trim()
-            ?.firstOrNull()
+        val avatarName = contactName?.trim().orEmpty().ifEmpty { address.trim() }
+        val avatarLetter = avatarName.firstOrNull()
             ?.uppercaseChar()
             ?.toString()
             ?: "U"
@@ -1805,11 +1804,11 @@ companion object {
         val contact = TextView(this).apply {
             text = avatarLetter
             textSize = 21f
-            setTextColor(Color.BLACK)
+            setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.rgb(232, 232, 234))
+                setColor(avatarColor(avatarName))
                 shape = GradientDrawable.OVAL
             }
         }
@@ -3270,6 +3269,33 @@ companion object {
         startActivity(
             Intent(this, NewMessageActivity::class.java)
         )
+    }
+
+    private fun avatarColor(name: String): Int {
+        val colors = intArrayOf(
+            Color.rgb(0, 166, 255),   // #00A6FF
+            Color.rgb(38, 185, 154),
+            Color.rgb(139, 120, 230),
+            Color.rgb(245, 159, 66),
+            Color.rgb(232, 93, 117),
+            Color.rgb(50, 150, 216),
+            Color.rgb(25, 169, 116),
+            Color.rgb(193, 125, 223)
+        )
+
+        val first = name.trim().firstOrNull()?.uppercaseChar() ?: return colors[0]
+        val index = when (first) {
+            in 'A'..'C', in 'ا'..'ث' -> 0
+            in 'D'..'F', in 'ج'..'خ' -> 1
+            in 'G'..'I', in 'د'..'ز' -> 2
+            in 'J'..'L', in 'س'..'ض' -> 3
+            in 'M'..'O', in 'ط'..'ف' -> 4
+            in 'P'..'R', in 'ق'..'م' -> 5
+            in 'S'..'U', in 'ن'..'ی' -> 6
+            in 'V'..'Z' -> 7
+            else -> 0
+        }
+        return colors[index]
     }
 
     private fun solidDrawable(

@@ -450,11 +450,11 @@ class ConversationActivity : Activity() {
         profile = TextView(this).apply {
             text = contactName.firstOrNull()?.uppercase() ?: "?"
             textSize = 17f
-            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
+            setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(if (isDarkThemeEnabled()) Color.rgb(55, 55, 62) else Color.rgb(232, 232, 234))
+                setColor(avatarColor(contactName))
                 shape = GradientDrawable.OVAL
             }
         }
@@ -911,12 +911,12 @@ class ConversationActivity : Activity() {
         val avatar = TextView(this).apply {
             text = contactName.firstOrNull()?.uppercase() ?: "?"
             textSize = 50f
-            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
+            setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.rgb(232, 232, 234))
+                setColor(avatarColor(contactName))
             }
         }
 
@@ -1956,6 +1956,32 @@ class ConversationActivity : Activity() {
             number.startsWith("09") -> "+98" + number.substring(1)
             else -> number
         }
+    }
+
+    private fun avatarColor(name: String): Int {
+        val colors = intArrayOf(
+            Color.rgb(0, 166, 255),
+            Color.rgb(38, 185, 154),
+            Color.rgb(139, 120, 230),
+            Color.rgb(245, 159, 66),
+            Color.rgb(232, 93, 117),
+            Color.rgb(50, 150, 216),
+            Color.rgb(25, 169, 116),
+            Color.rgb(193, 125, 223)
+        )
+        val first = name.trim().firstOrNull()?.uppercaseChar() ?: return colors[0]
+        val index = when (first) {
+            in 'A'..'C', in 'ا'..'ث' -> 0
+            in 'D'..'F', in 'ج'..'خ' -> 1
+            in 'G'..'I', in 'د'..'ز' -> 2
+            in 'J'..'L', in 'س'..'ض' -> 3
+            in 'M'..'O', in 'ط'..'ف' -> 4
+            in 'P'..'R', in 'ق'..'م' -> 5
+            in 'S'..'U', in 'ن'..'ی' -> 6
+            in 'V'..'Z' -> 7
+            else -> 0
+        }
+        return colors[index]
     }
 
     private fun dp(value: Int): Int {
