@@ -282,7 +282,7 @@ companion object {
             textSize = 28f
             setTextColor(primaryText)
             typeface = Typeface.DEFAULT_BOLD
-            translationY = 0f
+            translationY = dp(5).toFloat()
         }
 
         homeTitle = title
@@ -302,7 +302,7 @@ companion object {
             setTextColor(primaryText)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
-            translationY = 0f
+            translationY = dp(5).toFloat()
             contentDescription = "More"
             translationX = dp(5).toFloat()
             setPadding(dp(8), 0, dp(2), 0)
@@ -324,6 +324,7 @@ companion object {
             setBackgroundColor(screenBackground)
             clipChildren = false
             clipToPadding = false
+            elevation = dp(8).toFloat()
         }
 
         headerLayer.addView(
