@@ -1780,7 +1780,7 @@ companion object {
             clipChildren = false
             clipToPadding = false
             background = null
-            setPadding(dp(2), dp(8), dp(2), dp(8))
+            setPadding(0, dp(8), 0, dp(8))
             clipToOutline = false
             elevation = 0f
         }
@@ -2092,8 +2092,8 @@ companion object {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(76)
             ).apply {
-                leftMargin = 0
-                rightMargin = 0
+                leftMargin = dp(2)
+                rightMargin = dp(2)
                 topMargin = 0
                 bottomMargin = 0
             }
