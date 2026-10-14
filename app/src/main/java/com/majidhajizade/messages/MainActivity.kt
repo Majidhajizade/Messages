@@ -1780,7 +1780,7 @@ companion object {
             clipChildren = false
             clipToPadding = false
             background = null
-            setPadding(0, dp(8), 0, dp(8))
+            setPadding(dp(2), dp(8), dp(2), dp(8))
             clipToOutline = false
             elevation = 0f
         }
@@ -1902,7 +1902,7 @@ companion object {
 
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
-            translationX = -dp(5).toFloat()
+            translationX = -dp(2).toFloat()
             textSize = 13f
             setTextColor(
                 if (isDarkMode) Color.rgb(205, 205, 212)
