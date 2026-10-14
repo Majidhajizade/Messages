@@ -80,6 +80,7 @@ class MainActivity : Activity() {
     private lateinit var messagesScroll: android.widget.ScrollView
     private var showingArchivedChats = false
     private var archivedAvatarView: View? = null
+    private var archivedChatsRowView: View? = null
 
 
     private var homeHeader: View? = null
@@ -476,6 +477,27 @@ companion object {
                 return@setOnScrollChangeListener
             }
 
+            // Once the archive row moves under the header by half its avatar,
+            // remove it for this list session and allow pull-down to add it again.
+            val archiveRow = archivedChatsRowView
+            val archiveAvatar = archivedAvatarView
+            if (!showingArchivedChats &&
+                archiveRow != null &&
+                archiveAvatar != null &&
+                scrollY >= (archiveAvatar.height.takeIf { it > 0 } ?: dp(52)) / 2) {
+
+                val rowHeight = archiveRow.height.takeIf { it > 0 } ?: dp(76)
+                messagesContainer.removeView(archiveRow)
+                archivedChatsRowView = null
+                archivedAvatarView = null
+
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("archived_chats_row_enabled", false)
+                    .apply()
+
+                messagesScroll.scrollTo(0, (scrollY - rowHeight).coerceAtLeast(0))
+            }
+
             if (scrollY < lastScrollY - dp(2)) {
                 // Scrolling up: smoothly shrink and hide.
                 floatingButton.animate().cancel()
@@ -654,6 +676,9 @@ companion object {
                         }
                     } else if (
                         messagesScroll.scrollY == 0 &&
+                        archivedAvatarView == null &&
+                        !getSharedPreferences(PREFS, MODE_PRIVATE)
+                            .getBoolean("archived_chats_row_enabled", false) &&
                         (
                             pulling ||
                             (
@@ -781,6 +806,7 @@ companion object {
     private fun loadMessages() {
         messagesContainer.removeAllViews()
         archivedAvatarView = null
+        archivedChatsRowView = null
         rowViews.clear()
         selectionOverlays.clear()
         selectionDragHandles.clear()
@@ -1927,6 +1953,7 @@ companion object {
         iconFrame.addView(icon, FrameLayout.LayoutParams(dp(26), dp(26), Gravity.CENTER))
 
         archivedAvatarView = iconFrame
+        archivedChatsRowView = row
         iconFrame.background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(Color.rgb(0, 129, 255))
