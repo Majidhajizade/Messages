@@ -401,7 +401,6 @@ companion object {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             ).apply {
-                // Extend only the scroll view to the phone's physical right edge.
                 rightMargin = -dp(20)
             }
         )
@@ -1715,7 +1714,6 @@ companion object {
                 dp(64),
                 Gravity.RIGHT or Gravity.CENTER_VERTICAL
             ).apply {
-                // Align the archive panel with the phone's physical right edge.
                 rightMargin = -dp(20)
             }
         )
