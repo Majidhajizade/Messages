@@ -1675,7 +1675,7 @@ companion object {
         val archiveRightHalf = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(0, 0, dp(64), 0)
+            setPadding(0, 0, dp(56), 0)
             setBackgroundColor(Color.rgb(0, 129, 255))
         }
 
@@ -1687,7 +1687,7 @@ companion object {
 
         val archiveLabel = TextView(this).apply {
             text = "Archive"
-            textSize = 10f
+            textSize = 14f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             includeFontPadding = false
@@ -1695,7 +1695,7 @@ companion object {
 
         archiveRightHalf.addView(
             archiveIcon,
-            LinearLayout.LayoutParams(dp(22), dp(22))
+            LinearLayout.LayoutParams(dp(26), dp(26))
         )
         archiveRightHalf.addView(
             archiveLabel,
