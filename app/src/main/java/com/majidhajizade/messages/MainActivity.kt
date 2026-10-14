@@ -361,7 +361,7 @@ companion object {
 
             // Thin scrollbar aligned to the phone's right edge.
             isVerticalScrollBarEnabled = true
-            isScrollbarFadingEnabled = true
+            isScrollbarFadingEnabled = false
             scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
             verticalScrollbarPosition = View.SCROLLBAR_POSITION_RIGHT
             setScrollBarSize(dp(2))
@@ -400,9 +400,7 @@ companion object {
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
-            ).apply {
-                rightMargin = -dp(20)
-            }
+            )
         )
 
         chatLayer.addView(
