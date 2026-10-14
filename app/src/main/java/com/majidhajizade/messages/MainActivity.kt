@@ -1675,7 +1675,7 @@ companion object {
         val archiveRightHalf = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL or Gravity.END
-            setPadding(0, 0, dp(8), 0)
+            setPadding(0, 0, dp(24), 0)
             setBackgroundColor(Color.rgb(0, 129, 255))
         }
 
