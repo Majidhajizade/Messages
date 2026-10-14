@@ -255,6 +255,8 @@ companion object {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(screenBackground)
             setPadding(dp(20), dp(18), dp(20), dp(12))
+            clipChildren = false
+            clipToPadding = false
         }
 
         selectionHeader = createSelectionHeader().apply {
