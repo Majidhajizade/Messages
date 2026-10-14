@@ -650,9 +650,15 @@ companion object {
                         } else {
                             false
                         }
-                    } else if (messagesScroll.scrollY == 0 &&
+                    } else if (
+                        (
+                            (messagesScroll.scrollY == 0 && archivedAvatarView == null) ||
+                            (archivedAvatarView != null &&
+                                messagesScroll.scrollY >= dp(76))
+                        ) &&
                         (pulling || (dy > dp(24) &&
-                        dy > kotlin.math.abs(dx) * 1.5f))) {
+                        dy > kotlin.math.abs(dx) * 1.5f))
+                    ) {
                         pulling = true
                         pullDistance = dy.coerceAtLeast(0f)
                         updatePullBanner(pullDistance)
@@ -676,6 +682,7 @@ companion object {
                             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                                 .putBoolean("archived_chats_row_enabled", true)
                                 .apply()
+                            messagesScroll.scrollTo(0, 0)
                             loadMessages()
 
                             pullBanner.post {
@@ -728,26 +735,34 @@ companion object {
                                 }
                             }
                         } else {
-                            pullBanner.animate().alpha(0f)
-                                .setDuration(200L)
-                                .setInterpolator(
-                                    android.view.animation.AccelerateDecelerateInterpolator()
-                                )
+                            val interpolator =
+                                android.view.animation.AccelerateDecelerateInterpolator()
+
+                            pullBanner.animate().cancel()
+                            messagesScroll.animate().cancel()
+
+                            // بنر و فهرست هم‌زمان و نرم به جای خود برمی‌گردند.
+                            messagesScroll.animate()
+                                .translationY(0f)
+                                .setDuration(240L)
+                                .setInterpolator(interpolator)
+                                .start()
+
+                            pullBanner.animate()
+                                .alpha(0f)
+                                .translationX(0f)
+                                .translationY(0f)
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(240L)
+                                .setInterpolator(interpolator)
                                 .withEndAction {
                                     pullBanner.visibility = View.GONE
                                     pullBanner.alpha = 0f
-                                    pullBanner.translationX = 0f
-                                    pullBanner.translationY = 0f
-                                    pullBanner.scaleX = 1f
-                                    pullBanner.scaleY = 1f
                                     pullBanner.layoutParams.height = dp(68)
                                     pullBanner.requestLayout()
-                                    messagesScroll.animate().translationY(0f)
-                                        .setDuration(240L)
-                                        .setInterpolator(
-                                            android.view.animation.AccelerateDecelerateInterpolator()
-                                        ).start()
-                                }.start()
+                                }
+                                .start()
                         }
                         true
                     }
