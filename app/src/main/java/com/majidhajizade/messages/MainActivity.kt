@@ -2810,14 +2810,19 @@ companion object {
             style = android.graphics.Paint.Style.STROKE
             strokeCap = android.graphics.Paint.Cap.ROUND
             strokeJoin = android.graphics.Paint.Join.ROUND
-            strokeWidth = dpLocal(3f)
+            strokeWidth = dpLocal(3.5f)
         }
 
         init {
             setImageResource(R.drawable.floti)
             setColorFilter(Color.WHITE)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dpLocal(9f).toInt(), dpLocal(9f).toInt(), dpLocal(9f).toInt(), dpLocal(9f).toInt())
+            setPadding(
+                dpLocal(9f).toInt(),
+                dpLocal(9f).toInt(),
+                dpLocal(9f).toInt(),
+                dpLocal(9f).toInt()
+            )
             contentDescription = "New message"
         }
 
@@ -2826,7 +2831,7 @@ companion object {
 
             val cx = width / 2f
             val cy = height / 2f
-            val arm = dpLocal(7f)
+            val arm = dpLocal(9f)
 
             canvas.drawLine(cx - arm, cy, cx + arm, cy, plusPaint)
             canvas.drawLine(cx, cy - arm, cx, cy + arm, plusPaint)
