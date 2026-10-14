@@ -570,10 +570,9 @@ companion object {
             topMargin = 0
         })
         root.addView(chatLayer, chatLayerParams)
-        chatLayer.addView(pullOverlay, FrameLayout.LayoutParams(
+        chatLayer.addView(0, pullOverlay, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
         ))
-        pullOverlay.bringToFront()
         pullBanner.isClickable = false
 
         var pullStartY = 0f
@@ -585,19 +584,28 @@ companion object {
 
         fun updatePullBanner(distance: Float) {
             val d = distance.coerceIn(0f, maxPull)
-            val ready = d >= pullThreshold
+            val progress = (d / pullThreshold).coerceIn(0f, 1f)
+            val gray = 190f
+            val red = (gray + (0f - gray) * progress).toInt()
+            val green = (gray + (129f - gray) * progress).toInt()
+            val blue = (gray + (255f - gray) * progress).toInt()
+
             val params = pullBanner.layoutParams
             params.height = dp(68) + (d * 0.5f).toInt()
             pullBanner.layoutParams = params
             pullBanner.translationY = 0f
-            pullBanner.alpha = (d / dp(28).toFloat()).coerceIn(0f, 1f)
+            pullBanner.alpha = (d / dp(12).toFloat()).coerceIn(0f, 1f)
             pullBanner.background = GradientDrawable().apply {
                 cornerRadius = 0f
-                setColor(if (ready) Color.rgb(0, 129, 255)
-                    else Color.rgb(190, 190, 195))
+                setColor(Color.rgb(red, green, blue))
             }
-            pullLabel.text = if (ready) "Release for archive" else "Pull down for archive"
-            arrow.animate().rotation(if (ready) 180f else 0f).setDuration(100).start()
+
+            // حرکت کششی با مقاومت؛ فهرست کادر را از جلو می‌پوشاند.
+            messagesScroll.translationY = d * 0.72f
+            pullLabel.text = if (progress >= 1f)
+                "Release for archive" else "Pull down for archive"
+            arrow.animate().rotation(if (progress >= 1f) 180f else 0f)
+                .setDuration(90L).start()
             pullBanner.visibility = View.VISIBLE
         }
 
@@ -610,17 +618,37 @@ companion object {
                     pulling = false
                     false
                 }
+
                 MotionEvent.ACTION_MOVE -> {
                     val dy = event.rawY - pullStartY
                     val dx = event.rawX - pullStartX
+
                     if (showingArchivedChats) {
                         if (messagesScroll.scrollY <= dp(2) &&
-                            dy < -dp(24) && -dy > kotlin.math.abs(dx) * 1.5f) {
-                            showingArchivedChats = false
-                            setContentView(createHomeScreen())
-                            loadMessages()
+                            dy < -dp(24) &&
+                            -dy > kotlin.math.abs(dx) * 1.5f) {
+                            messagesScroll.animate().cancel()
+                            messagesScroll.animate()
+                                .translationY(-dp(48).toFloat())
+                                .alpha(0f)
+                                .setDuration(220L)
+                                .setInterpolator(
+                                    android.view.animation.AccelerateDecelerateInterpolator()
+                                )
+                                .withEndAction {
+                                    showingArchivedChats = false
+                                    setContentView(createHomeScreen())
+                                    loadMessages()
+                                    messagesScroll.post {
+                                        messagesScroll.scrollTo(0, 0)
+                                        messagesScroll.translationY = 0f
+                                        messagesScroll.alpha = 1f
+                                    }
+                                }.start()
                             true
-                        } else false
+                        } else {
+                            false
+                        }
                     } else if (messagesScroll.scrollY == 0 &&
                         (pulling || (dy > dp(24) &&
                         dy > kotlin.math.abs(dx) * 1.5f))) {
@@ -628,47 +656,59 @@ companion object {
                         pullDistance = dy.coerceAtLeast(0f)
                         updatePullBanner(pullDistance)
                         true
-                    } else false
+                    } else {
+                        false
+                    }
                 }
+
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (!pulling) false else {
+                    if (!pulling) {
+                        false
+                    } else {
                         val ready = event.actionMasked == MotionEvent.ACTION_UP &&
                             pullDistance >= pullThreshold
                         pulling = false
                         pullDistance = 0f
                         pullBanner.animate().cancel()
+
                         if (ready) {
                             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                                .putBoolean("archived_chats_row_enabled", true).apply()
+                                .putBoolean("archived_chats_row_enabled", true)
+                                .apply()
                             loadMessages()
+
                             pullBanner.post {
                                 val avatar = archivedAvatarView
                                 if (avatar == null || avatar.width == 0 ||
                                     pullBanner.width == 0) {
-                                    pullBanner.animate().alpha(0f).setDuration(180L)
+                                    pullBanner.animate().alpha(0f)
+                                        .setDuration(180L)
                                         .withEndAction {
                                             pullBanner.visibility = View.GONE
                                             pullBanner.alpha = 0f
-                                            pullBanner.translationY = 0f
-                                            pullBanner.scaleX = 1f
-                                            pullBanner.scaleY = 1f
                                             pullBanner.layoutParams.height = dp(68)
                                             pullBanner.requestLayout()
+                                            messagesScroll.translationY = 0f
                                         }.start()
                                 } else {
-                                    val bp = IntArray(2)
-                                    val ap = IntArray(2)
-                                    pullBanner.getLocationOnScreen(bp)
-                                    avatar.getLocationOnScreen(ap)
-                                    val dx = ap[0] + avatar.width / 2f -
-                                        (bp[0] + pullBanner.width / 2f)
-                                    val dy = ap[1] + avatar.height / 2f -
-                                        (bp[1] + pullBanner.height / 2f)
+                                    val bannerPos = IntArray(2)
+                                    val avatarPos = IntArray(2)
+                                    pullBanner.getLocationOnScreen(bannerPos)
+                                    avatar.getLocationOnScreen(avatarPos)
+
+                                    val dx = avatarPos[0] + avatar.width / 2f -
+                                        (bannerPos[0] + pullBanner.width / 2f)
+                                    val dy = avatarPos[1] + avatar.height / 2f -
+                                        (bannerPos[1] + pullBanner.height / 2f)
+
                                     pullBanner.pivotX = pullBanner.width / 2f
                                     pullBanner.pivotY = pullBanner.height / 2f
                                     pullBanner.animate()
-                                        .translationX(dx).translationY(dy)
-                                        .scaleX(0.12f).scaleY(0.12f).alpha(0f)
+                                        .translationX(dx)
+                                        .translationY(dy)
+                                        .scaleX(0.12f)
+                                        .scaleY(0.12f)
+                                        .alpha(0f)
                                         .setDuration(420L)
                                         .setInterpolator(
                                             android.view.animation.AccelerateDecelerateInterpolator()
@@ -682,12 +722,17 @@ companion object {
                                             pullBanner.scaleY = 1f
                                             pullBanner.layoutParams.height = dp(68)
                                             pullBanner.requestLayout()
+                                            messagesScroll.translationY = 0f
                                         }.start()
                                 }
                             }
                         } else {
-                            pullBanner.animate().alpha(0f).translationY(0f)
-                                .setDuration(180L).withEndAction {
+                            pullBanner.animate().alpha(0f)
+                                .setDuration(200L)
+                                .setInterpolator(
+                                    android.view.animation.AccelerateDecelerateInterpolator()
+                                )
+                                .withEndAction {
                                     pullBanner.visibility = View.GONE
                                     pullBanner.alpha = 0f
                                     pullBanner.translationX = 0f
@@ -696,11 +741,17 @@ companion object {
                                     pullBanner.scaleY = 1f
                                     pullBanner.layoutParams.height = dp(68)
                                     pullBanner.requestLayout()
+                                    messagesScroll.animate().translationY(0f)
+                                        .setDuration(240L)
+                                        .setInterpolator(
+                                            android.view.animation.AccelerateDecelerateInterpolator()
+                                        ).start()
                                 }.start()
                         }
                         true
                     }
                 }
+
                 else -> pulling
             }
         }
