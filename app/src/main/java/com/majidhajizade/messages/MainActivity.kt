@@ -359,12 +359,8 @@ companion object {
             isFillViewport = true
             setBackgroundColor(screenBackground)
 
-            // Thin scrollbar aligned to the phone's right edge.
-            isVerticalScrollBarEnabled = true
-            isScrollbarFadingEnabled = false
-            scrollBarStyle = View.SCROLLBARS_INSIDE_OVERLAY
-            verticalScrollbarPosition = View.SCROLLBAR_POSITION_RIGHT
-            setScrollBarSize(dp(2))
+            // A separate scrollbar is drawn at the physical screen edge.
+            isVerticalScrollBarEnabled = false
             setPadding(0, paddingTop, 0, paddingBottom)
             clipToPadding = false
 
@@ -510,6 +506,80 @@ companion object {
                 1f
             )
         )
+
+        val edgeScrollbar = object : View(this) {
+            private val trackPaint = android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG
+            ).apply {
+                color = Color.argb(45, 120, 120, 120)
+            }
+            private val thumbPaint = android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG
+            ).apply {
+                color = Color.argb(175, 110, 110, 110)
+            }
+
+            override fun onDraw(canvas: android.graphics.Canvas) {
+                super.onDraw(canvas)
+
+                val viewport = messagesScroll.height
+                val range = messagesScroll.computeVerticalScrollRange()
+                val extent = messagesScroll.computeVerticalScrollExtent()
+                if (viewport <= 0 || range <= extent) {
+                    visibility = View.INVISIBLE
+                    return
+                }
+                visibility = View.VISIBLE
+
+                val trackWidth = width.toFloat()
+                val trackHeight = height.toFloat()
+                val thumbHeight = (trackHeight * extent / range)
+                    .coerceAtLeast(dp(28).toFloat())
+                    .coerceAtMost(trackHeight)
+                val maxScroll = (range - extent).coerceAtLeast(1)
+                val thumbTop = (trackHeight - thumbHeight) *
+                    messagesScroll.scrollY.toFloat() / maxScroll
+
+                val radius = trackWidth / 2f
+                canvas.drawRoundRect(
+                    0f, 0f, trackWidth, trackHeight,
+                    radius, radius, trackPaint
+                )
+                canvas.drawRoundRect(
+                    0f, thumbTop, trackWidth, thumbTop + thumbHeight,
+                    radius, radius, thumbPaint
+                )
+            }
+        }.apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+
+        root.overlay.add(edgeScrollbar)
+
+        fun positionEdgeScrollbar() {
+            val barWidth = dp(3)
+            val top = dp(90).coerceAtMost(root.height)
+            val bottom = (root.height - dp(12)).coerceAtLeast(top)
+            edgeScrollbar.layout(
+                (root.width - barWidth).coerceAtLeast(0),
+                top,
+                root.width,
+                bottom
+            )
+            edgeScrollbar.invalidate()
+        }
+
+        root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            positionEdgeScrollbar()
+        }
+        messagesScroll.viewTreeObserver.addOnGlobalLayoutListener {
+            positionEdgeScrollbar()
+        }
+        messagesScroll.setOnScrollChangeListener { _, _, _, _, _ ->
+            edgeScrollbar.invalidate()
+        }
+        root.post { positionEdgeScrollbar() }
 
         return root
     }
