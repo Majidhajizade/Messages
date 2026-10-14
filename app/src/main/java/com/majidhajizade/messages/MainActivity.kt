@@ -531,7 +531,7 @@ companion object {
             alpha = 0f
             elevation = dp(8).toFloat()
             background = GradientDrawable().apply {
-                cornerRadius = dp(34).toFloat()
+                cornerRadius = 0f
                 setColor(Color.rgb(190, 190, 195))
             }
         }
@@ -564,9 +564,9 @@ companion object {
         pullOverlay.addView(pullBanner, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, dp(68), Gravity.TOP
         ).apply {
-            leftMargin = dp(16)
-            rightMargin = dp(16)
-            topMargin = dp(4)
+            leftMargin = -dp(20)
+            rightMargin = 0
+            topMargin = 0
         })
         root.addView(chatLayer, chatLayerParams)
         chatLayer.addView(pullOverlay, FrameLayout.LayoutParams(
@@ -576,6 +576,7 @@ companion object {
         pullBanner.isClickable = false
 
         var pullStartY = 0f
+        var pullStartX = 0f
         var pullDistance = 0f
         var pulling = false
         val pullThreshold = dp(68).toFloat()
@@ -590,7 +591,7 @@ companion object {
             pullBanner.translationY = d * 0.45f
             pullBanner.alpha = (d / dp(28).toFloat()).coerceIn(0f, 1f)
             pullBanner.background = GradientDrawable().apply {
-                cornerRadius = dp(34).toFloat()
+                cornerRadius = 0f
                 setColor(if (ready) Color.rgb(0, 129, 255)
                     else Color.rgb(190, 190, 195))
             }
@@ -603,6 +604,7 @@ companion object {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     pullStartY = event.rawY
+                    pullStartX = event.rawX
                     pullDistance = 0f
                     pulling = false
                     false
@@ -610,7 +612,7 @@ companion object {
                 MotionEvent.ACTION_MOVE -> {
                     val dy = event.rawY - pullStartY
                     if (!showingArchivedChats && messagesScroll.scrollY == 0 &&
-                        (pulling || dy > dp(8))) {
+                        (pulling || (dy > dp(24) && dy > kotlin.math.abs(event.rawX - pullStartX) * 1.5f))) {
                         pulling = true
                         pullDistance = dy.coerceAtLeast(0f)
                         updatePullBanner(pullDistance)
@@ -2266,7 +2268,7 @@ companion object {
             metaContainer.addView(
                 dragHandle,
                 LinearLayout.LayoutParams(dp(26), dp(18)).apply {
-                    topMargin = dp(4)
+                    topMargin = 0
                 }
             )
         } else {
