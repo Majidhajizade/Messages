@@ -78,6 +78,7 @@ class MainActivity : Activity() {
 
     private lateinit var messagesContainer: LinearLayout
     private lateinit var messagesScroll: android.widget.ScrollView
+    private var showingArchivedChats = false
 
 
     private var homeHeader: View? = null
@@ -279,7 +280,7 @@ companion object {
         homeHeader = header
 
         val title = TextView(this).apply {
-            text = "Messages"
+            text = if (showingArchivedChats) "Archived chats" else "Messages"
             textSize = 28f
             setTextColor(primaryText)
             typeface = Typeface.DEFAULT_BOLD
@@ -517,7 +518,135 @@ companion object {
             rightMargin = -dp(20)
         }
 
+        val pullOverlay = FrameLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
+            isClickable = false
+        }
+        val pullBanner = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(8), dp(22), dp(8))
+            visibility = View.GONE
+            alpha = 0f
+            elevation = dp(8).toFloat()
+            background = GradientDrawable().apply {
+                cornerRadius = dp(34).toFloat()
+                setColor(Color.rgb(190, 190, 195))
+            }
+        }
+        val arrowCircle = FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.WHITE)
+            }
+        }
+        val arrow = TextView(this).apply {
+            text = "↓"
+            textSize = 27f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(70, 70, 75))
+        }
+        arrowCircle.addView(arrow, FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER))
+        pullBanner.addView(arrowCircle, LinearLayout.LayoutParams(dp(40), dp(40)).apply {
+            rightMargin = dp(14)
+        })
+        val pullLabel = TextView(this).apply {
+            text = "Pull down for archive"
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER_VERTICAL
+            includeFontPadding = false
+        }
+        pullBanner.addView(pullLabel, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+        pullOverlay.addView(pullBanner, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, dp(68), Gravity.TOP
+        ).apply {
+            leftMargin = dp(16)
+            rightMargin = dp(16)
+            topMargin = dp(4)
+        })
         root.addView(chatLayer, chatLayerParams)
+        chatLayer.addView(pullOverlay, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        pullOverlay.bringToFront()
+        pullBanner.isClickable = false
+
+        var pullStartY = 0f
+        var pullDistance = 0f
+        var pulling = false
+        val pullThreshold = dp(68).toFloat()
+        val maxPull = dp(136).toFloat()
+
+        fun updatePullBanner(distance: Float) {
+            val d = distance.coerceIn(0f, maxPull)
+            val ready = d >= pullThreshold
+            val params = pullBanner.layoutParams
+            params.height = dp(68) + (d * 0.5f).toInt()
+            pullBanner.layoutParams = params
+            pullBanner.translationY = d * 0.45f
+            pullBanner.alpha = (d / dp(28).toFloat()).coerceIn(0f, 1f)
+            pullBanner.background = GradientDrawable().apply {
+                cornerRadius = dp(34).toFloat()
+                setColor(if (ready) Color.rgb(0, 129, 255)
+                    else Color.rgb(190, 190, 195))
+            }
+            pullLabel.text = if (ready) "Release for archive" else "Pull down for archive"
+            arrow.animate().rotation(if (ready) 180f else 0f).setDuration(100).start()
+            pullBanner.visibility = View.VISIBLE
+        }
+
+        messagesScroll.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    pullStartY = event.rawY
+                    pullDistance = 0f
+                    pulling = false
+                    false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dy = event.rawY - pullStartY
+                    if (!showingArchivedChats && messagesScroll.scrollY == 0 &&
+                        (pulling || dy > dp(8))) {
+                        pulling = true
+                        pullDistance = dy.coerceAtLeast(0f)
+                        updatePullBanner(pullDistance)
+                        true
+                    } else {
+                        false
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!pulling) {
+                        false
+                    } else {
+                        val ready = event.actionMasked == MotionEvent.ACTION_UP &&
+                            pullDistance >= pullThreshold
+                        pullBanner.animate().alpha(0f).translationY(0f)
+                            .setDuration(180)
+                            .withEndAction {
+                                pullBanner.visibility = View.GONE
+                                pullBanner.alpha = 0f
+                                pullBanner.rotation = 0f
+                                pullBanner.layoutParams.height = dp(68)
+                                pullBanner.requestLayout()
+                            }.start()
+                        if (ready) {
+                            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                                .putBoolean("archived_chats_row_enabled", true).apply()
+                            loadMessages()
+                        }
+                        pulling = false
+                        pullDistance = 0f
+                        true
+                    }
+                }
+                else -> pulling
+            }
+        }
 
         return root
     }
@@ -598,7 +727,15 @@ companion object {
             )
         }
 
-        archivedAddresses.forEach { conversations.remove(it) }
+        if (showingArchivedChats) {
+            conversations.keys.retainAll(archivedAddresses)
+        } else {
+            archivedAddresses.forEach { conversations.remove(it) }
+            if (getSharedPreferences(PREFS, MODE_PRIVATE)
+                    .getBoolean("archived_chats_row_enabled", false)) {
+                addArchivedChatsRow()
+            }
+        }
 
         if (conversations.isEmpty()) {
             showEmptyState()
@@ -1557,6 +1694,12 @@ companion object {
 
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
+        if (showingArchivedChats) {
+            showingArchivedChats = false
+            setContentView(createHomeScreen())
+            loadMessages()
+            return
+        }
         if (selectionMode) {
             exitSelectionMode()
             return
@@ -1630,6 +1773,66 @@ companion object {
         }
     }
 
+    private fun addArchivedChatsRow() {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            setBackgroundColor(screenBackground)
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Archived chats"
+        }
+
+        val iconFrame = FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(if (isDarkMode) Color.rgb(35, 65, 100)
+                    else Color.rgb(225, 240, 255))
+            }
+        }
+        val icon = ImageView(this).apply {
+            setImageResource(R.drawable.archive_down)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            contentDescription = "Archive"
+        }
+        iconFrame.addView(icon, FrameLayout.LayoutParams(dp(26), dp(26), Gravity.CENTER))
+
+        val letter = TextView(this).apply {
+            text = "A"
+            textSize = 10f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.rgb(0, 129, 255))
+            }
+        }
+        iconFrame.addView(letter, FrameLayout.LayoutParams(
+            dp(18), dp(18), Gravity.RIGHT or Gravity.BOTTOM
+        ))
+
+        row.addView(iconFrame, LinearLayout.LayoutParams(dp(52), dp(52)).apply {
+            rightMargin = dp(12)
+        })
+        row.addView(TextView(this).apply {
+            text = "Archived chats"
+            textSize = 17f
+            setTextColor(primaryText)
+            gravity = Gravity.CENTER_VERTICAL
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+
+        row.setOnClickListener {
+            showingArchivedChats = true
+            setContentView(createHomeScreen())
+            loadMessages()
+        }
+        messagesContainer.addView(row, 0, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(76)
+        ))
+    }
+
     private fun showEmptyState() {
         val empty = TextView(this).apply {
             text = "No Messages"
@@ -1675,7 +1878,7 @@ companion object {
         val archiveRightHalf = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(0, 0, dp(56), 0)
+            setPadding(0, 0, dp(48), 0)
             setBackgroundColor(Color.rgb(0, 129, 255))
         }
 
