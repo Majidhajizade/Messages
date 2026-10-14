@@ -254,7 +254,7 @@ companion object {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(screenBackground)
-            setPadding(dp(20), dp(18), dp(20), dp(12))
+            setPadding(dp(20), 0, dp(20), dp(12))
             clipChildren = false
             clipToPadding = false
         }
@@ -282,7 +282,7 @@ companion object {
             textSize = 34f
             setTextColor(primaryText)
             typeface = Typeface.DEFAULT_BOLD
-            translationY = dp(13).toFloat()
+            translationY = 0f
         }
 
         homeTitle = title
@@ -302,7 +302,7 @@ companion object {
             setTextColor(primaryText)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
-            translationY = dp(13).toFloat()
+            translationY = 0f
             contentDescription = "More"
             translationX = dp(5).toFloat()
             setPadding(dp(8), 0, dp(2), 0)
@@ -516,7 +516,6 @@ companion object {
         }
 
         root.addView(chatLayer, chatLayerParams)
-        headerLayer.bringToFront()
 
         return root
     }
