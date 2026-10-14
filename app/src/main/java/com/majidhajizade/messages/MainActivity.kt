@@ -425,8 +425,8 @@ companion object {
         val floatingButton = FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(premiumBlue)
-                setStroke(dp(1), premiumBlue)
+                setColors(avatarGradientColors("A"))
+                orientation = GradientDrawable.Orientation.TL_BR
             }
             elevation = dp(18).toFloat()
             isClickable = true
@@ -435,8 +435,8 @@ companion object {
             addView(
                 MessengerComposeIcon(this@MainActivity),
                 FrameLayout.LayoutParams(
-                    dp(54),
-                    dp(54),
+                    dp(48),
+                    dp(48),
                     Gravity.CENTER
                 )
             )
@@ -2803,12 +2803,33 @@ companion object {
         context: android.content.Context
     ) : ImageView(context) {
 
+        private val plusPaint = android.graphics.Paint(
+            android.graphics.Paint.ANTI_ALIAS_FLAG
+        ).apply {
+            color = Color.rgb(0, 166, 255)
+            style = android.graphics.Paint.Style.STROKE
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            strokeJoin = android.graphics.Paint.Join.ROUND
+            strokeWidth = dpLocal(3f)
+        }
+
         init {
             setImageResource(R.drawable.floti)
             setColorFilter(Color.WHITE)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt(), dpLocal(7f).toInt())
+            setPadding(dpLocal(9f).toInt(), dpLocal(9f).toInt(), dpLocal(9f).toInt(), dpLocal(9f).toInt())
             contentDescription = "New message"
+        }
+
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            super.onDraw(canvas)
+
+            val cx = width / 2f
+            val cy = height / 2f
+            val arm = dpLocal(7f)
+
+            canvas.drawLine(cx - arm, cy, cx + arm, cy, plusPaint)
+            canvas.drawLine(cx, cy - arm, cx, cy + arm, plusPaint)
         }
 
         private fun dpLocal(value: Float): Float {
