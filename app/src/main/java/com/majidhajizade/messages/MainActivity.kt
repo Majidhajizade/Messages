@@ -511,7 +511,7 @@ companion object {
             0,
             1f
         ).apply {
-            topMargin = -dp(72)
+            topMargin = 0
             rightMargin = -dp(20)
         }
 
