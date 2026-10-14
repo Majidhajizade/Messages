@@ -570,7 +570,7 @@ companion object {
             topMargin = 0
         })
         root.addView(chatLayer, chatLayerParams)
-        chatLayer.addView(0, pullOverlay, FrameLayout.LayoutParams(
+        chatLayer.addView(pullOverlay, 0, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
         ))
         pullBanner.isClickable = false
