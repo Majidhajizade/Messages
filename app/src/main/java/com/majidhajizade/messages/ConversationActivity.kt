@@ -1285,8 +1285,9 @@ class ConversationActivity : Activity() {
             ?: return
         val failedIcon = bubble.findViewWithTag<View>("failed_icon")
             ?: return
-        val message = bubble.findViewWithTag<TextView>("message_body")
-            ?.text?.toString().orEmpty()
+        val message = messageBodyText(
+            bubble.findViewWithTag<View>("message_body")
+        ).orEmpty()
 
         if (message.isBlank()) return
 
@@ -1478,11 +1479,13 @@ class ConversationActivity : Activity() {
         // Filter message rows by their message body.
         for (i in 0 until count) {
             val child = messagesContainer.getChildAt(i)
-            val body = child.findViewWithTag<TextView>("message_body")
+            val bodyText = messageBodyText(
+                child.findViewWithTag<View>("message_body")
+            )
 
-            if (body != null) {
+            if (bodyText != null) {
                 child.visibility = if (
-                    body.text.toString().contains(query, ignoreCase = true)
+                    bodyText.contains(query, ignoreCase = true)
                 ) View.VISIBLE else View.GONE
             }
         }
@@ -1499,8 +1502,10 @@ class ConversationActivity : Activity() {
                 val next = messagesContainer.getChildAt(j)
                 if (next.tag == "date_header_row") break
 
-                val body = next.findViewWithTag<TextView>("message_body")
-                if (body != null && next.visibility == View.VISIBLE) {
+                val bodyText = messageBodyText(
+                    next.findViewWithTag<View>("message_body")
+                )
+                if (bodyText != null && next.visibility == View.VISIBLE) {
                     hasMatch = true
                     break
                 }
@@ -1656,8 +1661,12 @@ class ConversationActivity : Activity() {
                 tag = "message_body"
                 contentDescription = body
                 setAnimation(emojiAssetPath)
-                repeatCount = LottieDrawable.INFINITE
-                playAnimation()
+                repeatCount = 0
+                setProgress(0.5f)
+                setOnClickListener {
+                    progress = 0f
+                    playAnimation()
+                }
             }
 
             bubble.addView(
@@ -1735,6 +1744,14 @@ class ConversationActivity : Activity() {
 
         lastMessageDate = date
         lastTimeView = time
+    }
+
+    private fun messageBodyText(view: View?): String? {
+        return when (view) {
+            is TextView -> view.text.toString()
+            is LottieAnimationView -> view.contentDescription?.toString()
+            else -> null
+        }
     }
 
     private fun emojiAnimationAsset(body: String): String? {
