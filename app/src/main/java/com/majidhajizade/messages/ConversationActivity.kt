@@ -25,6 +25,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.airbnb.lottie.LottieDrawable
+import com.airbnb.lottie.LottieAnimationView
 import android.graphics.drawable.GradientDrawable
 import android.text.Editable
 import android.text.TextWatcher
@@ -1645,36 +1647,45 @@ class ConversationActivity : Activity() {
             }
         }
 
-        val animatedEmoji = isAnimatedEmoji(body)
+        val emojiAssetPath = emojiAnimationAsset(body)
 
-        val messageText = TextView(this).apply {
-            tag = "message_body"
-            text = body
-            textSize = if (animatedEmoji) 42f else 16f
-            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
-            maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
-            autoLinkMask = Linkify.WEB_URLS or Linkify.PHONE_NUMBERS
-            movementMethod = LinkMovementMethod.getInstance()
-            setPadding(
-                if (animatedEmoji) dp(8) else dp(14),
-                if (animatedEmoji) dp(4) else dp(7),
-                if (animatedEmoji) dp(8) else dp(14),
-                if (animatedEmoji) dp(4) else dp(7)
-            )
-        }
-
-        if (animatedEmoji) {
+        if (emojiAssetPath != null) {
             bubble.background = null
-            animateEmoji(messageText, body)
-        }
 
-        bubble.addView(
-            messageText,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+            val animationView = LottieAnimationView(this).apply {
+                tag = "message_body"
+                contentDescription = body
+                setAnimation(emojiAssetPath)
+                repeatCount = LottieDrawable.INFINITE
+                playAnimation()
+            }
+
+            bubble.addView(
+                animationView,
+                LinearLayout.LayoutParams(dp(88), dp(88))
             )
-        )
+        } else {
+            val messageText = TextView(this).apply {
+                tag = "message_body"
+                text = body
+                textSize = 16f
+                setTextColor(
+                    if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK
+                )
+                maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
+                autoLinkMask = Linkify.WEB_URLS or Linkify.PHONE_NUMBERS
+                movementMethod = LinkMovementMethod.getInstance()
+                setPadding(dp(14), dp(7), dp(14), dp(7))
+            }
+
+            bubble.addView(
+                messageText,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
 
         val wrapper = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1726,74 +1737,13 @@ class ConversationActivity : Activity() {
         lastTimeView = time
     }
 
-    private fun isAnimatedEmoji(body: String): Boolean {
-        return body == "❤️" ||
-            body == "😂" ||
-            body == "🔥" ||
-            body == "🎉"
-    }
-
-    private fun animateEmoji(view: TextView, emoji: String) {
-        view.pivotX = view.width / 2f
-        view.pivotY = view.height / 2f
-
-        view.post {
-            view.pivotX = view.width / 2f
-            view.pivotY = view.height / 2f
-
-            when (emoji) {
-                "❤️" -> {
-                    ValueAnimator.ofFloat(1f, 1.18f, 1f).apply {
-                        duration = 650
-                        repeatCount = ValueAnimator.INFINITE
-                        interpolator = DecelerateInterpolator()
-                        addUpdateListener {
-                            val scale = it.animatedValue as Float
-                            view.scaleX = scale
-                            view.scaleY = scale
-                        }
-                        start()
-                    }
-                }
-
-                "😂" -> {
-                    ValueAnimator.ofFloat(-4f, 4f, -4f, 0f).apply {
-                        duration = 500
-                        repeatCount = ValueAnimator.INFINITE
-                        interpolator = DecelerateInterpolator()
-                        addUpdateListener {
-                            view.translationX = it.animatedValue as Float
-                        }
-                        start()
-                    }
-                }
-
-                "🔥" -> {
-                    ValueAnimator.ofFloat(0.92f, 1.08f, 0.96f, 1.04f, 1f).apply {
-                        duration = 700
-                        repeatCount = ValueAnimator.INFINITE
-                        interpolator = DecelerateInterpolator()
-                        addUpdateListener {
-                            val scale = it.animatedValue as Float
-                            view.scaleX = scale
-                            view.scaleY = scale
-                        }
-                        start()
-                    }
-                }
-
-                "🎉" -> {
-                    ValueAnimator.ofFloat(-8f, 8f, -5f, 5f, 0f).apply {
-                        duration = 800
-                        repeatCount = ValueAnimator.INFINITE
-                        interpolator = DecelerateInterpolator()
-                        addUpdateListener {
-                            view.rotation = it.animatedValue as Float
-                        }
-                        start()
-                    }
-                }
-            }
+    private fun emojiAnimationAsset(body: String): String? {
+        return when (body) {
+            "❤️" -> "emoji/heart.json"
+            "😂" -> "emoji/laugh.json"
+            "🔥" -> "emoji/fire.json"
+            "🎉" -> "emoji/party.json"
+            else -> null
         }
     }
 
