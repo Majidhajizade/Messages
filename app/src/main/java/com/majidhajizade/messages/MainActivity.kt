@@ -684,6 +684,7 @@ companion object {
                             pulling ||
                             (
                                 messagesScroll.scrollY == 0 &&
+                                pullStartScrollY == 0 &&
                                 dy > dp(24) &&
                                 dy > kotlin.math.abs(dx) * 1.5f
                             )
