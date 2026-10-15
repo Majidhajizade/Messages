@@ -478,66 +478,6 @@ companion object {
                 return@setOnScrollChangeListener
             }
 
-            // Hide the archive row after it has scrolled completely out of view.
-            val archiveRow = archivedChatsRowView
-            if (!showingArchivedChats && archiveRow != null) {
-                val rowHeight = dp(76)
-
-                if (scrollY >= rowHeight) {
-                    archivedChatsRowHiddenByScroll = true
-                    getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                        .putBoolean("archived_chats_row_enabled", false)
-                        .apply()
-
-                    archiveRow.post {
-                        if (archivedChatsRowView === archiveRow &&
-                            !showingArchivedChats &&
-                            messagesScroll.scrollY >= rowHeight
-                        ) {
-                            val currentY = messagesScroll.scrollY
-                            messagesContainer.removeView(archiveRow)
-                            archivedChatsRowView = null
-                            archivedAvatarView = null
-                            messagesScroll.scrollTo(
-                                0,
-                                (currentY - rowHeight).coerceAtLeast(0)
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (scrollY < lastScrollY - dp(2)) {
-                // Scrolling up: smoothly shrink and hide.
-                floatingButton.animate().cancel()
-
-                floatingButton.animate()
-                    .alpha(0f)
-                    .scaleX(0.72f)
-                    .scaleY(0.72f)
-                    .translationY(dp(10).toFloat())
-                    .setDuration(320L)
-                    .setInterpolator(
-                        android.view.animation.AccelerateDecelerateInterpolator()
-                    )
-                    .start()
-
-            } else if (scrollY > lastScrollY + dp(2)) {
-                // Scrolling down: smoothly grow and show.
-                floatingButton.animate().cancel()
-
-                floatingButton.animate()
-                    .alpha(1f)
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .translationY(0f)
-                    .setDuration(360L)
-                    .setInterpolator(
-                        android.view.animation.DecelerateInterpolator()
-                    )
-                    .start()
-            }
-
             lastScrollY = scrollY
         }
 
