@@ -1656,13 +1656,38 @@ class ConversationActivity : Activity() {
         if (emojiAssetPath != null) {
             bubble.background = null
 
-            val miniEmojiView = TextView(this).apply {
+            val miniEmojiView = LottieAnimationView(this).apply {
+
                 tag = "small_animated_emoji"
-                text = body
-                textSize = 28f
-                gravity = Gravity.CENTER
+
+                contentDescription = body
+
+                setRenderMode(com.airbnb.lottie.RenderMode.HARDWARE)
+
+                setAnimation(emojiReactionAsset(body) ?: emojiAssetPath)
+
+                repeatCount = 0
+
+                progress = 0f
+
                 visibility = View.GONE
-                setPadding(dp(2), 0, dp(2), 0)
+
+                addAnimatorListener(object : android.animation.Animator.AnimatorListener {
+
+                    override fun onAnimationStart(animation: android.animation.Animator) {}
+
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+
+                        visibility = View.GONE
+
+                    }
+
+                    override fun onAnimationCancel(animation: android.animation.Animator) {}
+
+                    override fun onAnimationRepeat(animation: android.animation.Animator) {}
+
+                })
+
             }
 
             val animationView = LottieAnimationView(this).apply {
@@ -1677,10 +1702,10 @@ class ConversationActivity : Activity() {
                     progress = 0f
                     playAnimation()
 
-                    if (miniEmojiView.visibility != View.VISIBLE) {
-                        miniEmojiView.visibility = View.VISIBLE
-                        animateEmoji(miniEmojiView, body)
-                    }
+                    miniEmojiView.cancelAnimation()
+                    miniEmojiView.progress = 0f
+                    miniEmojiView.visibility = View.VISIBLE
+                    miniEmojiView.playAnimation()
                 }
             }
 
@@ -1784,64 +1809,13 @@ class ConversationActivity : Activity() {
         }
     }
 
-    private fun animateEmoji(view: TextView, emoji: String) {
-        view.post {
-            view.pivotX = view.width / 2f
-            view.pivotY = view.height / 2f
-
-            when (emoji) {
-                "❤️" -> {
-                    ValueAnimator.ofFloat(1f, 1.18f, 1f).apply {
-                        duration = 650
-                        repeatCount = ValueAnimator.INFINITE
-                        interpolator = DecelerateInterpolator()
-                        addUpdateListener {
-                            val scale = it.animatedValue as Float
-                            view.scaleX = scale
-                            view.scaleY = scale
-                        }
-                        start()
-                    }
-                }
-
-                "😂" -> {
-                    ValueAnimator.ofFloat(-4f, 4f, -4f, 0f).apply {
-                        duration = 500
-                        repeatCount = ValueAnimator.INFINITE
-                        interpolator = DecelerateInterpolator()
-                        addUpdateListener {
-                            view.translationX = it.animatedValue as Float
-                        }
-                        start()
-                    }
-                }
-
-                "🔥" -> {
-                    ValueAnimator.ofFloat(0.92f, 1.08f, 0.96f, 1.04f, 1f).apply {
-                        duration = 700
-                        repeatCount = ValueAnimator.INFINITE
-                        interpolator = DecelerateInterpolator()
-                        addUpdateListener {
-                            val scale = it.animatedValue as Float
-                            view.scaleX = scale
-                            view.scaleY = scale
-                        }
-                        start()
-                    }
-                }
-
-                "🎉" -> {
-                    ValueAnimator.ofFloat(-8f, 8f, -5f, 5f, 0f).apply {
-                        duration = 800
-                        repeatCount = ValueAnimator.INFINITE
-                        interpolator = DecelerateInterpolator()
-                        addUpdateListener {
-                            view.rotation = it.animatedValue as Float
-                        }
-                        start()
-                    }
-                }
-            }
+    private fun emojiReactionAsset(body: String): String? {
+        return when (body) {
+            "❤️", "❤" -> "emoji/reactions/heart.json"
+            "😂" -> "emoji/reactions/laugh.json"
+            "🔥" -> "emoji/reactions/fire.json"
+            "🎉" -> "emoji/reactions/party.json"
+            else -> null
         }
     }
 
