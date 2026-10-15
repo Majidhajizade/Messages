@@ -678,16 +678,13 @@ companion object {
                         }
                     } else if (
                         messagesScroll.scrollY == 0 &&
+                        pullStartScrollY == 0 &&
                         archivedAvatarView == null &&
                         !getSharedPreferences(PREFS, MODE_PRIVATE)
                             .getBoolean("archived_chats_row_enabled", false) &&
-                        (
-                            pulling ||
-                            (
-                                dy > dp(24) &&
-                                dy > kotlin.math.abs(dx) * 1.5f
-                            )
-                        )
+                        dy > 0f &&
+                        dy > kotlin.math.abs(dx) * 1.5f &&
+                        (pulling || dy > dp(24))
                     ) {
                         pulling = true
                         pullDistance = dy.coerceAtLeast(0f)
