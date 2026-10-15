@@ -597,14 +597,7 @@ companion object {
                                     android.view.animation.AccelerateDecelerateInterpolator()
                                 )
                                 .withEndAction {
-                                    showingArchivedChats = false
-                                    setContentView(createHomeScreen())
-                                    loadMessages()
-                                    messagesScroll.post {
-                                        messagesScroll.scrollTo(0, 0)
-                                        messagesScroll.translationY = 0f
-                                        messagesScroll.alpha = 1f
-                                    }
+                                    setArchiveScreen(false)
                                 }.start()
                             true
                         } else {
@@ -759,6 +752,44 @@ companion object {
                 }
 
                 else -> pulling
+            }
+        }
+
+        // Adapt Telegram's hidden archive row behavior to this ScrollView.
+        // Capture this screen's container so an old observer cannot mutate
+        // the container belonging to a subsequently created screen.
+        val archiveContainerForScroll = messagesContainer
+        messagesScroll.viewTreeObserver.addOnScrollChangedListener {
+            val row = archivedChatsRowView
+            if (
+                !showingArchivedChats &&
+                !archivedChatsRowHiddenByScroll &&
+                row != null &&
+                row.parent === archiveContainerForScroll &&
+                row.height > 0 &&
+                messagesScroll.scrollY >= row.bottom
+            ) {
+                val oldScrollY = messagesScroll.scrollY
+                val removedHeight = row.bottom.coerceAtLeast(0)
+
+                archivedChatsRowHiddenByScroll = true
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("archived_chats_row_enabled", false)
+                    .apply()
+
+                archiveContainerForScroll.removeView(row)
+                if (archivedChatsRowView === row) {
+                    archivedChatsRowView = null
+                    archivedAvatarView = null
+                }
+
+                // Compensate for the removed row to avoid a visible jump.
+                messagesScroll.post {
+                    messagesScroll.scrollTo(
+                        0,
+                        (oldScrollY - removedHeight).coerceAtLeast(0)
+                    )
+                }
             }
         }
 
@@ -1814,12 +1845,24 @@ companion object {
         updateMeshStatus()
     }
 
+    private fun setArchiveScreen(show: Boolean) {
+        if (showingArchivedChats == show) return
+
+        showingArchivedChats = show
+        setContentView(createHomeScreen())
+        loadMessages()
+
+        messagesScroll.post {
+            messagesScroll.scrollTo(0, 0)
+            messagesScroll.translationY = 0f
+            messagesScroll.alpha = 1f
+        }
+    }
+
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         if (showingArchivedChats) {
-            showingArchivedChats = false
-            setContentView(createHomeScreen())
-            loadMessages()
+            setArchiveScreen(false)
             return
         }
         if (selectionMode) {
@@ -1938,9 +1981,7 @@ companion object {
         }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
 
         row.setOnClickListener {
-            showingArchivedChats = true
-            setContentView(createHomeScreen())
-            loadMessages()
+            setArchiveScreen(true)
         }
         messagesContainer.addView(row, 0, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, dp(76)
@@ -2544,19 +2585,34 @@ companion object {
                                 "archived_conversations",
                                 emptySet()
                             ).orEmpty().toMutableSet()
+                            val hadArchivedConversations = archived.isNotEmpty()
+
                             if (showingArchivedChats) {
                                 archived.remove(address)
                             } else {
                                 archived.add(address)
                             }
 
+                            val shouldEnableArchiveRow =
+                                archived.isNotEmpty() &&
+                                (
+                                    !hadArchivedConversations ||
+                                    prefs.getBoolean(
+                                        "archived_chats_row_enabled",
+                                        false
+                                    )
+                                )
+
                             prefs.edit()
                                 .putStringSet("archived_conversations", archived)
                                 .putBoolean(
                                     "archived_chats_row_enabled",
-                                    archived.isNotEmpty()
+                                    shouldEnableArchiveRow
                                 )
                                 .apply()
+
+                            archivedChatsRowHiddenByScroll =
+                                archived.isNotEmpty() && !shouldEnableArchiveRow
 
                             foreground.translationX = 0f
                             archivePanel.visibility = View.GONE
