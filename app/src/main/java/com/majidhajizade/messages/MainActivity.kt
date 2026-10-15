@@ -677,23 +677,44 @@ companion object {
                             false
                         }
                     } else if (
-                        messagesScroll.scrollY == 0 &&
-                        pullStartScrollY == 0 &&
                         archivedAvatarView == null &&
                         !getSharedPreferences(PREFS, MODE_PRIVATE)
                             .getBoolean("archived_chats_row_enabled", false) &&
                         (
                             pulling ||
                             (
+                                messagesScroll.scrollY == 0 &&
+                                pullStartScrollY == 0 &&
                                 dy > dp(24) &&
                                 dy > kotlin.math.abs(dx) * 1.5f
                             )
                         )
                     ) {
-                        pulling = true
-                        pullDistance = dy.coerceAtLeast(0f)
-                        updatePullBanner(pullDistance)
-                        true
+                        if (pulling) {
+                            pullDistance = dy.coerceAtLeast(0f)
+                            if (dy <= 0f) {
+                                pulling = false
+                                pullStartY = event.rawY
+                                pullStartX = event.rawX
+                                pullStartScrollY = messagesScroll.scrollY
+                                messagesScroll.animate().cancel()
+                                messagesScroll.translationY = 0f
+                                pullBanner.animate().cancel()
+                                pullBanner.alpha = 0f
+                                pullBanner.visibility = View.GONE
+                                pullBanner.layoutParams.height = dp(68)
+                                pullBanner.requestLayout()
+                                false
+                            } else {
+                                updatePullBanner(pullDistance)
+                                true
+                            }
+                        } else {
+                            pulling = true
+                            pullDistance = dy
+                            updatePullBanner(pullDistance)
+                            true
+                        }
                     } else {
                         false
                     }
