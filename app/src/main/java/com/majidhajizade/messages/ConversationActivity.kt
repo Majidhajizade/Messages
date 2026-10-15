@@ -1660,6 +1660,7 @@ class ConversationActivity : Activity() {
             val animationView = LottieAnimationView(this).apply {
                 tag = "message_body"
                 contentDescription = body
+                setRenderMode(com.airbnb.lottie.RenderMode.SOFTWARE)
                 setAnimation(emojiAssetPath)
                 repeatCount = 0
                 setProgress(0.5f)
