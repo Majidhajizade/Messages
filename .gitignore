@@ -8,3 +8,15 @@ local.properties
 .cxx/
 captures/
 .DS_Store
+
+# Local backups and build artifacts
+*.bak
+*.backup
+*.before_*
+*.failed
+Messages-debug/
+build-log/
+ui_patch.py
+apply_archive_pull.py
+fix_archive_pull.py
+refine_archive_pull.py
