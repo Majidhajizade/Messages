@@ -2557,11 +2557,20 @@ companion object {
                                 "archived_conversations",
                                 emptySet()
                             ).orEmpty().toMutableSet()
-                            archived.add(address)
-                            prefs.edit().putStringSet(
-                                "archived_conversations",
-                                archived
-                            ).apply()
+                            if (showingArchivedChats) {
+                                archived.remove(address)
+                            } else {
+                                archived.add(address)
+                            }
+
+                            prefs.edit()
+                                .putStringSet("archived_conversations", archived)
+                                .putBoolean(
+                                    "archived_chats_row_enabled",
+                                    archived.isNotEmpty()
+                                )
+                                .apply()
+
                             foreground.translationX = 0f
                             archivePanel.visibility = View.GONE
                             loadMessages()
