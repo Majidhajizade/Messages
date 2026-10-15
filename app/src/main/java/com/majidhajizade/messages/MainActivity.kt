@@ -478,26 +478,32 @@ companion object {
                 return@setOnScrollChangeListener
             }
 
-            // Let the archive row scroll out naturally before removing it.
+            // Hide the archive row after it has scrolled completely out of view.
             val archiveRow = archivedChatsRowView
             if (!showingArchivedChats && archiveRow != null) {
-                val rowHeight = archiveRow.height.takeIf { it > 0 } ?: dp(76)
+                val rowHeight = dp(76)
 
                 if (scrollY >= rowHeight) {
-                    messagesContainer.removeView(archiveRow)
-                    archivedChatsRowView = null
-                    archivedAvatarView = null
                     archivedChatsRowHiddenByScroll = true
-
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                         .putBoolean("archived_chats_row_enabled", false)
                         .apply()
 
-                    // Keep the first conversation at the same visual position.
-                    messagesScroll.scrollTo(
-                        0,
-                        (scrollY - rowHeight).coerceAtLeast(0)
-                    )
+                    archiveRow.post {
+                        if (archivedChatsRowView === archiveRow &&
+                            !showingArchivedChats &&
+                            messagesScroll.scrollY >= rowHeight
+                        ) {
+                            val currentY = messagesScroll.scrollY
+                            messagesContainer.removeView(archiveRow)
+                            archivedChatsRowView = null
+                            archivedAvatarView = null
+                            messagesScroll.scrollTo(
+                                0,
+                                (currentY - rowHeight).coerceAtLeast(0)
+                            )
+                        }
+                    }
                 }
             }
 
