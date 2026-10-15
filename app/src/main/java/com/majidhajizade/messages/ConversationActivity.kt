@@ -389,6 +389,8 @@ class ConversationActivity : Activity() {
     private fun createScreen(): View {
         val darkTheme = isDarkThemeEnabled()
         val root = android.widget.FrameLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
             setBackgroundColor(
                 if (darkTheme) Color.rgb(12, 12, 14)
                 else Color.rgb(245, 245, 247)
@@ -577,10 +579,14 @@ class ConversationActivity : Activity() {
         )
 
         scrollView = ScrollView(this).apply {
+            clipChildren = false
+            clipToPadding = false
             isFillViewport = true
         }
 
         messagesContainer = LinearLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(if (isDarkThemeEnabled()) Color.rgb(12, 12, 14) else Color.rgb(245, 245, 247))
             setPadding(dp(16), dp(94), dp(16), dp(12))
@@ -1695,11 +1701,23 @@ class ConversationActivity : Activity() {
                     miniEmojiView.playAnimation()
 
                     miniEmojiView.animate()
-                        .translationX(dp(24).toFloat())
-                        .scaleX(1.25f)
-                        .scaleY(1.25f)
+                        .translationX(
+                            (if (incoming) 1f else -1f) *
+                                (resources.displayMetrics.widthPixels - dp(88) - dp(32))
+                                    .coerceAtLeast(dp(120)).toFloat()
+                        )
+                        .scaleX(
+                            (resources.displayMetrics.widthPixels /
+                                resources.displayMetrics.density / 3f / 44f)
+                                .coerceAtLeast(1.25f)
+                        )
+                        .scaleY(
+                            (resources.displayMetrics.widthPixels /
+                                resources.displayMetrics.density / 3f / 44f)
+                                .coerceAtLeast(1.25f)
+                        )
                         .alpha(0f)
-                        .setDuration(850)
+                        .setDuration(1100)
                         .setInterpolator(DecelerateInterpolator())
                         .withEndAction {
                             miniEmojiView.cancelAnimation()
@@ -1759,6 +1777,8 @@ class ConversationActivity : Activity() {
         }
 
         val wrapper = LinearLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
             orientation = LinearLayout.VERTICAL
             gravity = if (incoming) Gravity.START else Gravity.END
             setPadding(
