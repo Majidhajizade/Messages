@@ -1656,38 +1656,19 @@ class ConversationActivity : Activity() {
         if (emojiAssetPath != null) {
             bubble.background = null
 
+            val emojiContainer = android.widget.FrameLayout(this).apply {
+                clipChildren = false
+                clipToPadding = false
+            }
+
             val miniEmojiView = LottieAnimationView(this).apply {
-
                 tag = "small_animated_emoji"
-
                 contentDescription = body
-
                 setRenderMode(com.airbnb.lottie.RenderMode.HARDWARE)
-
                 setAnimation(emojiReactionAsset(body) ?: emojiAssetPath)
-
                 repeatCount = 0
-
                 progress = 0f
-
                 visibility = View.GONE
-
-                addAnimatorListener(object : android.animation.Animator.AnimatorListener {
-
-                    override fun onAnimationStart(animation: android.animation.Animator) {}
-
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-
-                        visibility = View.GONE
-
-                    }
-
-                    override fun onAnimationCancel(animation: android.animation.Animator) {}
-
-                    override fun onAnimationRepeat(animation: android.animation.Animator) {}
-
-                })
-
             }
 
             val animationView = LottieAnimationView(this).apply {
@@ -1696,27 +1677,63 @@ class ConversationActivity : Activity() {
                 setRenderMode(com.airbnb.lottie.RenderMode.HARDWARE)
                 setAnimation(emojiAssetPath)
                 repeatCount = 0
-                setProgress(0f)
+                progress = 0f
 
                 setOnClickListener {
                     progress = 0f
                     playAnimation()
 
+                    miniEmojiView.animate().cancel()
                     miniEmojiView.cancelAnimation()
+                    miniEmojiView.translationX = 0f
+                    miniEmojiView.translationY = 0f
+                    miniEmojiView.scaleX = 0.45f
+                    miniEmojiView.scaleY = 0.45f
+                    miniEmojiView.alpha = 1f
                     miniEmojiView.progress = 0f
                     miniEmojiView.visibility = View.VISIBLE
                     miniEmojiView.playAnimation()
+
+                    miniEmojiView.animate()
+                        .translationX(dp(24).toFloat())
+                        .scaleX(1.25f)
+                        .scaleY(1.25f)
+                        .alpha(0f)
+                        .setDuration(850)
+                        .setInterpolator(DecelerateInterpolator())
+                        .withEndAction {
+                            miniEmojiView.cancelAnimation()
+                            miniEmojiView.visibility = View.GONE
+                            miniEmojiView.translationX = 0f
+                            miniEmojiView.scaleX = 1f
+                            miniEmojiView.scaleY = 1f
+                            miniEmojiView.alpha = 1f
+                        }
+                        .start()
                 }
             }
 
-            bubble.addView(
+            emojiContainer.addView(
                 animationView,
-                LinearLayout.LayoutParams(dp(88), dp(88))
+                android.widget.FrameLayout.LayoutParams(
+                    dp(88),
+                    dp(88),
+                    Gravity.CENTER
+                )
+            )
+
+            emojiContainer.addView(
+                miniEmojiView,
+                android.widget.FrameLayout.LayoutParams(
+                    dp(44),
+                    dp(44),
+                    Gravity.CENTER
+                )
             )
 
             bubble.addView(
-                miniEmojiView,
-                LinearLayout.LayoutParams(dp(36), dp(44))
+                emojiContainer,
+                LinearLayout.LayoutParams(dp(88), dp(88))
             )
         } else {
             val messageText = TextView(this).apply {
