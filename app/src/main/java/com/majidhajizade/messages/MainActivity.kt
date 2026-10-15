@@ -684,13 +684,13 @@ companion object {
                         (
                             pulling ||
                             (
-                                dy - pullStartScrollY > dp(24) &&
+                                dy > dp(24) &&
                                 dy > kotlin.math.abs(dx) * 1.5f
                             )
                         )
                     ) {
                         pulling = true
-                        pullDistance = (dy - pullStartScrollY).coerceAtLeast(0f)
+                        pullDistance = dy.coerceAtLeast(0f)
                         updatePullBanner(pullDistance)
                         true
                     } else {
