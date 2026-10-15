@@ -81,6 +81,7 @@ class MainActivity : Activity() {
     private var showingArchivedChats = false
     private var archivedAvatarView: View? = null
     private var archivedChatsRowView: View? = null
+    private var archivedChatsRowHiddenByScroll = false
 
 
     private var homeHeader: View? = null
@@ -490,6 +491,7 @@ companion object {
                 messagesContainer.removeView(archiveRow)
                 archivedChatsRowView = null
                 archivedAvatarView = null
+                archivedChatsRowHiddenByScroll = true
 
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putBoolean("archived_chats_row_enabled", false)
@@ -710,6 +712,7 @@ companion object {
                             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                                 .putBoolean("archived_chats_row_enabled", true)
                                 .apply()
+                            archivedChatsRowHiddenByScroll = false
                             messagesScroll.scrollTo(0, 0)
                             loadMessages()
 
