@@ -478,26 +478,27 @@ companion object {
                 return@setOnScrollChangeListener
             }
 
-            // Once the archive row moves under the header by half its avatar,
-            // remove it for this list session and allow pull-down to add it again.
+            // Let the archive row scroll out naturally before removing it.
             val archiveRow = archivedChatsRowView
-            val archiveAvatar = archivedAvatarView
-            if (!showingArchivedChats &&
-                archiveRow != null &&
-                archiveAvatar != null &&
-                scrollY >= (archiveAvatar.height.takeIf { it > 0 } ?: dp(52)) / 2) {
-
+            if (!showingArchivedChats && archiveRow != null) {
                 val rowHeight = archiveRow.height.takeIf { it > 0 } ?: dp(76)
-                messagesContainer.removeView(archiveRow)
-                archivedChatsRowView = null
-                archivedAvatarView = null
-                archivedChatsRowHiddenByScroll = true
 
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                    .putBoolean("archived_chats_row_enabled", false)
-                    .apply()
+                if (scrollY >= rowHeight) {
+                    messagesContainer.removeView(archiveRow)
+                    archivedChatsRowView = null
+                    archivedAvatarView = null
+                    archivedChatsRowHiddenByScroll = true
 
-                messagesScroll.scrollTo(0, (scrollY - rowHeight).coerceAtLeast(0))
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                        .putBoolean("archived_chats_row_enabled", false)
+                        .apply()
+
+                    // Keep the first conversation at the same visual position.
+                    messagesScroll.scrollTo(
+                        0,
+                        (scrollY - rowHeight).coerceAtLeast(0)
+                    )
+                }
             }
 
             if (scrollY < lastScrollY - dp(2)) {
