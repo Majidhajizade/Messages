@@ -678,6 +678,7 @@ companion object {
                         }
                     } else if (
                         messagesScroll.scrollY == 0 &&
+                        pullStartScrollY == 0 &&
                         archivedAvatarView == null &&
                         !getSharedPreferences(PREFS, MODE_PRIVATE)
                             .getBoolean("archived_chats_row_enabled", false) &&
