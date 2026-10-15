@@ -468,41 +468,6 @@ companion object {
             }
         )
 
-        var lastScrollY = 0
-        var scrollInitialized = false
-
-        messagesScroll.setOnScrollChangeListener { _, scrollY, _, _, _ ->
-            if (!scrollInitialized) {
-                lastScrollY = scrollY
-                scrollInitialized = true
-                return@setOnScrollChangeListener
-            }
-
-            lastScrollY = scrollY
-
-            if (
-                !showingArchivedChats &&
-                scrollY > dp(76) &&
-                archivedChatsRowView != null
-            ) {
-                val row = archivedChatsRowView
-                val adjustedScrollY = (scrollY - dp(76)).coerceAtLeast(0)
-
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                    .putBoolean("archived_chats_row_enabled", false)
-                    .apply()
-
-                archivedChatsRowHiddenByScroll = true
-                messagesContainer.removeView(row)
-                archivedChatsRowView = null
-                archivedAvatarView = null
-
-                messagesScroll.post {
-                    messagesScroll.scrollTo(0, adjustedScrollY)
-                }
-            }
-        }
-
         val chatLayerParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             0,
