@@ -678,6 +678,9 @@ companion object {
                         }
                     } else if (
                         archivedAvatarView == null &&
+                        getSharedPreferences(PREFS, MODE_PRIVATE)
+                            .getStringSet("archived_conversations", emptySet())
+                            .orEmpty().isNotEmpty() &&
                         !getSharedPreferences(PREFS, MODE_PRIVATE)
                             .getBoolean("archived_chats_row_enabled", false) &&
                         (
@@ -906,12 +909,18 @@ companion object {
             )
         }
 
+        val hasArchivedConversations =
+            conversations.keys.any { it in archivedAddresses }
+
         if (showingArchivedChats) {
             conversations.keys.retainAll(archivedAddresses)
         } else {
             archivedAddresses.forEach { conversations.remove(it) }
-            if (getSharedPreferences(PREFS, MODE_PRIVATE)
-                    .getBoolean("archived_chats_row_enabled", false)) {
+
+            val archiveRowEnabled = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean("archived_chats_row_enabled", false)
+
+            if (archiveRowEnabled && hasArchivedConversations) {
                 addArchivedChatsRow()
             }
         }
@@ -1974,8 +1983,9 @@ companion object {
             setImageResource(R.drawable.archive_down)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             contentDescription = "Archive"
+            imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
         }
-        iconFrame.addView(icon, FrameLayout.LayoutParams(dp(26), dp(26), Gravity.CENTER))
+        iconFrame.addView(icon, FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
 
         archivedAvatarView = iconFrame
         archivedChatsRowView = row
@@ -1983,7 +1993,7 @@ companion object {
             shape = GradientDrawable.OVAL
             setColor(Color.rgb(0, 129, 255))
         }
-        row.addView(iconFrame, LinearLayout.LayoutParams(dp(52), dp(52)).apply {
+        row.addView(iconFrame, LinearLayout.LayoutParams(dp(48), dp(48)).apply {
             rightMargin = dp(12)
         })
         row.addView(TextView(this).apply {
@@ -2005,9 +2015,13 @@ companion object {
 
     private fun showEmptyState() {
         val empty = TextView(this).apply {
-            text = "No Messages"
+            text = if (showingArchivedChats) {
+                "No archived chats"
+            } else {
+                "No Messages"
+            }
             textSize = 20f
-            setTextColor(Color.BLACK)
+            setTextColor(primaryText)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setPadding(0, dp(80), 0, 0)
