@@ -1653,9 +1653,17 @@ class ConversationActivity : Activity() {
         }
 
         val emojiAssetPath = emojiAnimationAsset(body)
-
         if (emojiAssetPath != null) {
             bubble.background = null
+
+            val miniEmojiView = TextView(this).apply {
+                tag = "small_animated_emoji"
+                text = body
+                textSize = 28f
+                gravity = Gravity.CENTER
+                visibility = View.GONE
+                setPadding(dp(2), 0, dp(2), 0)
+            }
 
             val animationView = LottieAnimationView(this).apply {
                 tag = "message_body"
@@ -1663,16 +1671,27 @@ class ConversationActivity : Activity() {
                 setRenderMode(com.airbnb.lottie.RenderMode.HARDWARE)
                 setAnimation(emojiAssetPath)
                 repeatCount = 0
-                setProgress(0.5f)
+                setProgress(0f)
+
                 setOnClickListener {
                     progress = 0f
                     playAnimation()
+
+                    if (miniEmojiView.visibility != View.VISIBLE) {
+                        miniEmojiView.visibility = View.VISIBLE
+                        animateEmoji(miniEmojiView, body)
+                    }
                 }
             }
 
             bubble.addView(
                 animationView,
                 LinearLayout.LayoutParams(dp(88), dp(88))
+            )
+
+            bubble.addView(
+                miniEmojiView,
+                LinearLayout.LayoutParams(dp(36), dp(44))
             )
         } else {
             val messageText = TextView(this).apply {
@@ -1762,6 +1781,67 @@ class ConversationActivity : Activity() {
             "🔥" -> "emoji/fire.json"
             "🎉" -> "emoji/party.json"
             else -> null
+        }
+    }
+
+    private fun animateEmoji(view: TextView, emoji: String) {
+        view.post {
+            view.pivotX = view.width / 2f
+            view.pivotY = view.height / 2f
+
+            when (emoji) {
+                "❤️" -> {
+                    ValueAnimator.ofFloat(1f, 1.18f, 1f).apply {
+                        duration = 650
+                        repeatCount = ValueAnimator.INFINITE
+                        interpolator = DecelerateInterpolator()
+                        addUpdateListener {
+                            val scale = it.animatedValue as Float
+                            view.scaleX = scale
+                            view.scaleY = scale
+                        }
+                        start()
+                    }
+                }
+
+                "😂" -> {
+                    ValueAnimator.ofFloat(-4f, 4f, -4f, 0f).apply {
+                        duration = 500
+                        repeatCount = ValueAnimator.INFINITE
+                        interpolator = DecelerateInterpolator()
+                        addUpdateListener {
+                            view.translationX = it.animatedValue as Float
+                        }
+                        start()
+                    }
+                }
+
+                "🔥" -> {
+                    ValueAnimator.ofFloat(0.92f, 1.08f, 0.96f, 1.04f, 1f).apply {
+                        duration = 700
+                        repeatCount = ValueAnimator.INFINITE
+                        interpolator = DecelerateInterpolator()
+                        addUpdateListener {
+                            val scale = it.animatedValue as Float
+                            view.scaleX = scale
+                            view.scaleY = scale
+                        }
+                        start()
+                    }
+                }
+
+                "🎉" -> {
+                    ValueAnimator.ofFloat(-8f, 8f, -5f, 5f, 0f).apply {
+                        duration = 800
+                        repeatCount = ValueAnimator.INFINITE
+                        interpolator = DecelerateInterpolator()
+                        addUpdateListener {
+                            view.rotation = it.animatedValue as Float
+                        }
+                        start()
+                    }
+                }
+            }
         }
     }
 
