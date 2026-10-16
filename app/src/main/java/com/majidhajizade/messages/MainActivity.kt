@@ -429,8 +429,7 @@ companion object {
         val floatingButton = FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColors(avatarGradientColors("A"))
-                orientation = GradientDrawable.Orientation.TL_BR
+                setColor(Color.rgb(0, 127, 255))
             }
             elevation = dp(18).toFloat()
             isClickable = true
@@ -3210,7 +3209,7 @@ companion object {
         private val plusPaint = android.graphics.Paint(
             android.graphics.Paint.ANTI_ALIAS_FLAG
         ).apply {
-            color = Color.rgb(0, 166, 255)
+            color = Color.rgb(0, 127, 255)
             style = android.graphics.Paint.Style.STROKE
             strokeCap = android.graphics.Paint.Cap.ROUND
             strokeJoin = android.graphics.Paint.Join.ROUND
