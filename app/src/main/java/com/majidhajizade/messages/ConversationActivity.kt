@@ -1229,14 +1229,19 @@ class ConversationActivity : Activity() {
             }
 
             if (bubble.findViewWithTag<View>("status_icon") == null) {
-                val icon = TextView(this).apply {
+                val icon = LinearLayout(this).apply {
                     tag = "status_icon"
-                    text = "✓"
-                    textSize = 12f
-                    setTextColor(secondaryText)
+                    orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER
-                    typeface = Typeface.DEFAULT_BOLD
                     contentDescription = "Sent"
+                    addView(
+                        android.widget.ImageView(this@ConversationActivity).apply {
+                            setImageResource(R.drawable.ic_message_tick)
+                            setColorFilter(secondaryText)
+                            contentDescription = "Sent"
+                        },
+                        LinearLayout.LayoutParams(dp(16), dp(16))
+                    )
                 }
                 val metaRow = bubble.findViewWithTag<LinearLayout>("message_meta_row")
                 if (metaRow != null) {
@@ -1376,12 +1381,30 @@ class ConversationActivity : Activity() {
                 ?: return
 
         val icon =
-            bubble.findViewWithTag<TextView>("status_icon")
+            bubble.findViewWithTag<LinearLayout>("status_icon")
                 ?: return
 
-        icon.text = "✓✓"
-        icon.textSize = 11f
-        icon.setTextColor(blue)
+        if (icon.childCount < 2) {
+            icon.layoutParams = icon.layoutParams.apply {
+                width = dp(24)
+                height = dp(16)
+            }
+            icon.addView(
+                android.widget.ImageView(this).apply {
+                    setImageResource(R.drawable.ic_message_tick)
+                    setColorFilter(blue)
+                    contentDescription = "Delivered"
+                },
+                LinearLayout.LayoutParams(dp(16), dp(16)).apply {
+                    leftMargin = dp(-8)
+                }
+            )
+        }
+
+        for (index in 0 until icon.childCount) {
+            (icon.getChildAt(index) as? android.widget.ImageView)
+                ?.setColorFilter(blue)
+        }
         icon.contentDescription = "Delivered"
     }
 
@@ -1900,10 +1923,7 @@ class ConversationActivity : Activity() {
                 Locale.getDefault()
             ).format(Date(date))
             textSize = 11f
-            setTextColor(
-                if (isDarkThemeEnabled()) Color.rgb(175, 175, 185)
-                else if (incoming) secondaryText else Color.rgb(225, 240, 255)
-            )
+            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
             gravity = Gravity.CENTER_VERTICAL
             includeFontPadding = false
         }
@@ -1949,6 +1969,19 @@ class ConversationActivity : Activity() {
                     gravity = Gravity.END
                 }
             )
+
+            val bodyText = bubble.findViewWithTag<TextView>("message_body")
+            bodyText?.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                bubble.post {
+                    val shape = bubble.background as? GradientDrawable
+                        ?: return@post
+                    shape.cornerRadius = if ((view as TextView).lineCount <= 1) {
+                        bubble.height / 2f
+                    } else {
+                        dp(22).toFloat()
+                    }
+                }
+            }
         } else {
             // Keep the animated-emoji layout and its timestamp behavior unchanged.
             time.gravity = if (incoming) Gravity.END else Gravity.START
