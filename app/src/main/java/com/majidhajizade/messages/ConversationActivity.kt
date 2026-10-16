@@ -1522,7 +1522,10 @@ class ConversationActivity : Activity() {
         }
     }
 
+    private var isPopulatingConversation = false
+
     private fun loadConversation() {
+        isPopulatingConversation = true
         messagesContainer.removeAllViews()
         lastMessageDate = null
         lastTimeView = null
@@ -1540,6 +1543,8 @@ class ConversationActivity : Activity() {
                 )
             }
 
+            isPopulatingConversation = false
+            playAllLargeEmojiAnimations()
             filterVisibleMessages()
             scrollView.post {
                 scrollView.fullScroll(View.FOCUS_DOWN)
@@ -1550,6 +1555,7 @@ class ConversationActivity : Activity() {
         if (checkSelfPermission(Manifest.permission.READ_SMS)
             != PackageManager.PERMISSION_GRANTED
         ) {
+            isPopulatingConversation = false
             return
         }
 
@@ -1589,9 +1595,25 @@ class ConversationActivity : Activity() {
             }
         }
 
+        isPopulatingConversation = false
+        playAllLargeEmojiAnimations()
         filterVisibleMessages()
         scrollView.post {
             scrollView.fullScroll(View.FOCUS_DOWN)
+        }
+    }
+
+    private fun playAllLargeEmojiAnimations() {
+        messagesContainer.post {
+            for (i in 0 until messagesContainer.childCount) {
+                val row = messagesContainer.getChildAt(i)
+                val emojiView =
+                    row.findViewWithTag<LottieAnimationView>("message_body")
+                if (emojiView != null && emojiView.isAttachedToWindow) {
+                    emojiView.progress = 0f
+                    emojiView.playAnimation()
+                }
+            }
         }
     }
 
@@ -1694,6 +1716,13 @@ class ConversationActivity : Activity() {
                     progress = 0f
                     playAnimation()
 
+                    // بازخورد لمسی برای هر بار لمس ایموجی قلب
+                    if (body.contains("❤")) {
+                        performHapticFeedback(
+                            android.view.HapticFeedbackConstants.VIRTUAL_KEY
+                        )
+                    }
+
                     miniEmojiView.animate().cancel()
                     miniEmojiView.cancelAnimation()
 
@@ -1707,7 +1736,7 @@ class ConversationActivity : Activity() {
                     animationRoot.getLocationOnScreen(rootLocation)
 
                     val startX = sourceLocation[0] - rootLocation[0] +
-                        (sourceEmojiView.width - effectSizePx) / 2f
+                        (sourceEmojiView.width - effectSizePx) / 2f - dp(12)
                     val startY = sourceLocation[1] - rootLocation[1] +
                         (sourceEmojiView.height - effectSizePx) / 2f
 
@@ -1862,6 +1891,18 @@ class ConversationActivity : Activity() {
         )
 
         messagesContainer.addView(wrapper)
+
+        // پیام جدید انیمیشن خودش را اجرا می‌کند؛ تاریخچه جداگانه اجرا می‌شود.
+        if (!isPopulatingConversation) {
+            val bodyEmojiView =
+                bubble.findViewWithTag<LottieAnimationView>("message_body")
+            bodyEmojiView?.post {
+                if (bodyEmojiView.isAttachedToWindow) {
+                    bodyEmojiView.progress = 0f
+                    bodyEmojiView.playAnimation()
+                }
+            }
+        }
 
         lastMessageDate = date
         lastTimeView = time
