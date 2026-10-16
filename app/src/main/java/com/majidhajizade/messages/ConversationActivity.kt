@@ -1955,11 +1955,13 @@ class ConversationActivity : Activity() {
         if (emojiAssetPath == null) {
             if (compactSingleLine) {
                 bubble.orientation = LinearLayout.HORIZONTAL
+                bubble.gravity = Gravity.BOTTOM
             }
             val metaRow = LinearLayout(this).apply {
                 tag = "message_meta_row"
                 orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                gravity = Gravity.END or
+                    if (compactSingleLine) Gravity.BOTTOM else Gravity.CENTER_VERTICAL
                 if (compactSingleLine) {
                     setPadding(0, 0, dp(8), 0)
                 } else {
