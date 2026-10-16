@@ -89,6 +89,14 @@
             android:exported="false" />
 
         <receiver
+            android:name=".SmsDeliveredReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.majidhajizade.messages.SMS_DELIVERED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".SmsReceiver"
             android:exported="true"
             android:permission="android.permission.BROADCAST_SMS">

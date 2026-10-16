@@ -26,6 +26,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import android.util.Log
 import com.airbnb.lottie.LottieDrawable
 import com.airbnb.lottie.LottieAnimationView
 import android.graphics.drawable.GradientDrawable
@@ -110,7 +111,7 @@ class ConversationActivity : Activity() {
             if (attemptSucceeded && sentMessage != null &&
                 savedSentMessageIds.add(messageId)
             ) {
-                saveSentMessage(sentMessage)
+                saveSentMessage(sentMessage, messageId)
             }
 
             val errorText = if (attemptSucceeded) {
@@ -174,7 +175,7 @@ class ConversationActivity : Activity() {
         setContentView(createScreen())
 
         val filter = IntentFilter("com.majidhajizade.messages.SMS_SENT")
-        val deliveredFilter = IntentFilter(ACTION_DELIVERED)
+        val deliveredFilter = IntentFilter(SmsDeliveredReceiver.ACTION_DELIVERED_UI)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(
@@ -1608,7 +1609,8 @@ class ConversationActivity : Activity() {
             Telephony.Sms.BODY,
             Telephony.Sms.DATE,
             Telephony.Sms.TYPE,
-            Telephony.Sms.ADDRESS
+            Telephony.Sms.ADDRESS,
+            Telephony.Sms._ID
         )
 
         val cursor = contentResolver.query(
@@ -1622,20 +1624,32 @@ class ConversationActivity : Activity() {
         lastMessageDate = null
         lastTimeView = null
 
+        val deliveredRows = getSharedPreferences(
+            "messages_settings",
+            MODE_PRIVATE
+        ).getStringSet(
+            SmsDeliveredReceiver.PREF_DELIVERED_ROW_IDS,
+            emptySet()
+        )?.toSet() ?: emptySet()
+
         cursor?.use {
             val bodyIndex = it.getColumnIndexOrThrow(Telephony.Sms.BODY)
             val dateIndex = it.getColumnIndexOrThrow(Telephony.Sms.DATE)
             val typeIndex = it.getColumnIndexOrThrow(Telephony.Sms.TYPE)
+            val idIndex = it.getColumnIndexOrThrow(Telephony.Sms._ID)
 
             while (it.moveToNext()) {
                 val body = it.getString(bodyIndex) ?: ""
                 val date = it.getLong(dateIndex)
                 val type = it.getInt(typeIndex)
+                val incoming = type == Telephony.Sms.MESSAGE_TYPE_INBOX
+                val rowId = it.getString(idIndex)
 
                 addMessage(
                     body = body,
                     date = date,
-                    incoming = type == Telephony.Sms.MESSAGE_TYPE_INBOX
+                    incoming = incoming,
+                    delivered = !incoming && rowId in deliveredRows
                 )
             }
         }
@@ -1670,7 +1684,8 @@ class ConversationActivity : Activity() {
         body: String,
         date: Long,
         incoming: Boolean,
-        messageId: String? = null
+        messageId: String? = null,
+        delivered: Boolean = false
     ) {
         val dayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(date))
         if (dayKey != lastDateHeaderKey) {
@@ -1726,6 +1741,11 @@ class ConversationActivity : Activity() {
         }
 
         val emojiAssetPath = emojiAnimationAsset(body)
+        val compactSingleLine =
+            emojiAssetPath == null &&
+            !body.contains('\n') &&
+            body.length <= 18 &&
+            body.none { it == '\u200d' || it == '\ufe0f' }
         if (emojiAssetPath != null) {
             bubble.background = null
 
@@ -1877,7 +1897,11 @@ class ConversationActivity : Activity() {
                 maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
                 autoLinkMask = Linkify.WEB_URLS or Linkify.PHONE_NUMBERS
                 movementMethod = LinkMovementMethod.getInstance()
-                setPadding(dp(14), dp(8), dp(10), dp(2))
+                if (compactSingleLine) {
+                    setPadding(dp(14), dp(2), dp(6), dp(2))
+                } else {
+                    setPadding(dp(14), dp(8), dp(10), dp(2))
+                }
             }
 
             bubble.addView(
@@ -1929,11 +1953,18 @@ class ConversationActivity : Activity() {
         }
 
         if (emojiAssetPath == null) {
+            if (compactSingleLine) {
+                bubble.orientation = LinearLayout.HORIZONTAL
+            }
             val metaRow = LinearLayout(this).apply {
                 tag = "message_meta_row"
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.END or Gravity.CENTER_VERTICAL
-                setPadding(dp(10), 0, dp(8), dp(4))
+                if (compactSingleLine) {
+                    setPadding(0, 0, dp(8), 0)
+                } else {
+                    setPadding(dp(10), 0, dp(8), dp(4))
+                }
             }
             metaRow.addView(
                 time,
@@ -1942,6 +1973,53 @@ class ConversationActivity : Activity() {
                     dp(16)
                 )
             )
+
+            if (!incoming && messageId == null && activeMeshId == null) {
+                val tickColor = if (delivered) {
+                    Color.rgb(0, 122, 255)
+                } else {
+                    secondaryText
+                }
+
+                val statusIcon = LinearLayout(this).apply {
+                    tag = "status_icon"
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    contentDescription = if (delivered) "Delivered" else "Sent"
+
+                    addView(
+                        android.widget.ImageView(this@ConversationActivity).apply {
+                            setImageResource(R.drawable.ic_message_tick)
+                            setColorFilter(tickColor)
+                            contentDescription = if (delivered) "Delivered" else "Sent"
+                        },
+                        LinearLayout.LayoutParams(dp(16), dp(16))
+                    )
+
+                    if (delivered) {
+                        addView(
+                            android.widget.ImageView(this@ConversationActivity).apply {
+                                setImageResource(R.drawable.ic_message_tick)
+                                setColorFilter(tickColor)
+                                contentDescription = "Delivered"
+                            },
+                            LinearLayout.LayoutParams(dp(16), dp(16)).apply {
+                                leftMargin = dp(-8)
+                            }
+                        )
+                    }
+                }
+
+                metaRow.addView(
+                    statusIcon,
+                    LinearLayout.LayoutParams(
+                        dp(if (delivered) 24 else 16),
+                        dp(16)
+                    ).apply {
+                        leftMargin = dp(2)
+                    }
+                )
+            }
 
             if (!incoming && messageId != null) {
                 val sendingIcon = TextView(this).apply {
@@ -1971,11 +2049,11 @@ class ConversationActivity : Activity() {
             )
 
             val bodyText = bubble.findViewWithTag<TextView>("message_body")
-            bodyText?.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+            bodyText?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
                 bubble.post {
                     val shape = bubble.background as? GradientDrawable
                         ?: return@post
-                    shape.cornerRadius = if ((view as TextView).lineCount <= 1) {
+                    shape.cornerRadius = if (compactSingleLine) {
                         bubble.height / 2f
                     } else {
                         dp(22).toFloat()
@@ -2041,7 +2119,7 @@ class ConversationActivity : Activity() {
         }
     }
 
-    private fun saveSentMessage(message: String) {
+    private fun saveSentMessage(message: String, messageId: String) {
         val values = ContentValues().apply {
             put(Telephony.Sms.ADDRESS, phone)
             put(Telephony.Sms.BODY, message)
@@ -2050,11 +2128,37 @@ class ConversationActivity : Activity() {
             put(Telephony.Sms.READ, 1)
         }
 
-        runCatching {
-            contentResolver.insert(
-                Telephony.Sms.CONTENT_URI,
-                values
-            )
+        val rowId = try {
+            contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
+                ?.lastPathSegment
+        } catch (e: Exception) {
+            Log.e("MessagesSms", "Failed to save sent SMS row", e)
+            null
+        } ?: run {
+            Log.e("MessagesSms", "SMS row insert returned no row ID")
+            return
+        }
+
+        val prefs = getSharedPreferences("messages_settings", MODE_PRIVATE)
+        prefs.edit()
+            .putString("sms_row_for_message_$messageId", rowId)
+            .apply()
+
+        val deliveredIds = prefs.getStringSet(
+            SmsDeliveredReceiver.PREF_DELIVERED_MESSAGE_IDS,
+            emptySet()
+        ) ?: emptySet()
+
+        if (messageId in deliveredIds) {
+            val deliveredRows = prefs.getStringSet(
+                "sms_delivered_row_ids",
+                emptySet()
+            )?.toMutableSet() ?: mutableSetOf()
+
+            deliveredRows.add(rowId)
+            prefs.edit()
+                .putStringSet("sms_delivered_row_ids", deliveredRows)
+                .apply()
         }
     }
 
@@ -2195,8 +2299,11 @@ class ConversationActivity : Activity() {
         }
 
         fun deliveredPendingIntent(index: Int): PendingIntent {
-            val deliveredIntent = Intent(ACTION_DELIVERED).apply {
-                setPackage(packageName)
+            val deliveredIntent = Intent(
+                this,
+                SmsDeliveredReceiver::class.java
+            ).apply {
+                action = SmsDeliveredReceiver.ACTION_DELIVERED
                 putExtra("message_id", messageId)
             }
             return PendingIntent.getBroadcast(
