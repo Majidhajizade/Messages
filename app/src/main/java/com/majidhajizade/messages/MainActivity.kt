@@ -3206,42 +3206,10 @@ companion object {
         context: android.content.Context
     ) : ImageView(context) {
 
-        private val plusPaint = android.graphics.Paint(
-            android.graphics.Paint.ANTI_ALIAS_FLAG
-        ).apply {
-            color = Color.rgb(0, 127, 255)
-            style = android.graphics.Paint.Style.STROKE
-            strokeCap = android.graphics.Paint.Cap.ROUND
-            strokeJoin = android.graphics.Paint.Join.ROUND
-            strokeWidth = dpLocal(3.5f)
-        }
-
         init {
-            setImageResource(R.drawable.floti)
-            setColorFilter(Color.WHITE)
+            setImageResource(R.drawable.telegram_compose_plus)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setPadding(
-                dpLocal(9f).toInt(),
-                dpLocal(9f).toInt(),
-                dpLocal(9f).toInt(),
-                dpLocal(9f).toInt()
-            )
             contentDescription = "New message"
-        }
-
-        override fun onDraw(canvas: android.graphics.Canvas) {
-            super.onDraw(canvas)
-
-            val cx = width / 2f
-            val cy = height / 2f
-            val arm = dpLocal(9f)
-
-            canvas.drawLine(cx - arm, cy, cx + arm, cy, plusPaint)
-            canvas.drawLine(cx, cy - arm, cx, cy + arm, plusPaint)
-        }
-
-        private fun dpLocal(value: Float): Float {
-            return value * resources.displayMetrics.density
         }
     }
 
