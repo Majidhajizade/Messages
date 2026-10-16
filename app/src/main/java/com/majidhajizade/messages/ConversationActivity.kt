@@ -1699,13 +1699,16 @@ class ConversationActivity : Activity() {
                         ?: return@setOnClickListener
                     val originalIndex = originalParent.indexOfChild(miniEmojiView)
                     val originalLayoutParams = miniEmojiView.layoutParams
+                    val animationRoot = miniEmojiView.rootView
+                        .findViewById<android.widget.FrameLayout>(android.R.id.content)
+                        ?: return@setOnClickListener
                     val startLocation = IntArray(2)
                     miniEmojiView.getLocationOnScreen(startLocation)
                     val rootLocation = IntArray(2)
-                    root.getLocationOnScreen(rootLocation)
+                    animationRoot.getLocationOnScreen(rootLocation)
 
                     originalParent.removeView(miniEmojiView)
-                    root.addView(
+                    animationRoot.addView(
                         miniEmojiView,
                         android.widget.FrameLayout.LayoutParams(
                             effectSizePx,
@@ -1729,7 +1732,7 @@ class ConversationActivity : Activity() {
 
                     miniEmojiView.bringToFront()
 
-                    val screenWidth = root.width.takeIf { it > 0 }
+                    val screenWidth = animationRoot.width.takeIf { it > 0 }
                         ?: resources.displayMetrics.widthPixels
                     val targetX = if (incoming) {
                         (screenWidth - effectSizePx).toFloat()
