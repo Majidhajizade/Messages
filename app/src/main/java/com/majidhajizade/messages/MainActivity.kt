@@ -543,7 +543,7 @@ companion object {
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             ).apply {
                 bottomMargin = dp(8)
             }
