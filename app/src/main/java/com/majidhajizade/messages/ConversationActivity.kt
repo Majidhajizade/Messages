@@ -1694,6 +1694,30 @@ class ConversationActivity : Activity() {
 
                     miniEmojiView.animate().cancel()
                     miniEmojiView.cancelAnimation()
+
+                    val originalParent = miniEmojiView.parent as? android.view.ViewGroup
+                        ?: return@setOnClickListener
+                    val originalIndex = originalParent.indexOfChild(miniEmojiView)
+                    val originalLayoutParams = miniEmojiView.layoutParams
+                    val startLocation = IntArray(2)
+                    miniEmojiView.getLocationOnScreen(startLocation)
+                    val rootLocation = IntArray(2)
+                    root.getLocationOnScreen(rootLocation)
+
+                    originalParent.removeView(miniEmojiView)
+                    root.addView(
+                        miniEmojiView,
+                        android.widget.FrameLayout.LayoutParams(
+                            effectSizePx,
+                            effectSizePx,
+                            Gravity.TOP or Gravity.START
+                        )
+                    )
+
+                    miniEmojiView.x =
+                        (startLocation[0] - rootLocation[0]).toFloat()
+                    miniEmojiView.y =
+                        (startLocation[1] - rootLocation[1]).toFloat()
                     miniEmojiView.translationX = 0f
                     miniEmojiView.translationY = 0f
                     miniEmojiView.scaleX = 0.72f
@@ -1703,23 +1727,39 @@ class ConversationActivity : Activity() {
                     miniEmojiView.visibility = View.VISIBLE
                     miniEmojiView.playAnimation()
 
+                    miniEmojiView.bringToFront()
+
+                    val screenWidth = root.width.takeIf { it > 0 }
+                        ?: resources.displayMetrics.widthPixels
+                    val targetX = if (incoming) {
+                        (screenWidth - effectSizePx).toFloat()
+                    } else {
+                        0f
+                    }
+
                     miniEmojiView.animate()
-                        .translationX(
-                            (if (incoming) 1f else -1f) *
-                                (resources.displayMetrics.widthPixels * 0.72f)
-                        )
+                        .x(targetX)
                         .scaleX(1f)
                         .scaleY(1f)
                         .alpha(0f)
-                        .setDuration(1100)
+                        .setDuration(3000)
                         .setInterpolator(DecelerateInterpolator())
                         .withEndAction {
+                            miniEmojiView.animate().cancel()
                             miniEmojiView.cancelAnimation()
-                            miniEmojiView.visibility = View.GONE
+                            (miniEmojiView.parent as? android.view.ViewGroup)
+                                ?.removeView(miniEmojiView)
+                            originalParent.addView(
+                                miniEmojiView,
+                                originalIndex.coerceIn(0, originalParent.childCount),
+                                originalLayoutParams
+                            )
                             miniEmojiView.translationX = 0f
+                            miniEmojiView.translationY = 0f
                             miniEmojiView.scaleX = 1f
                             miniEmojiView.scaleY = 1f
                             miniEmojiView.alpha = 1f
+                            miniEmojiView.visibility = View.GONE
                         }
                         .start()
                 }
