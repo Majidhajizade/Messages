@@ -4,6 +4,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ContentValues
+import android.util.Log
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -46,6 +48,59 @@ class SmsReceiver : BroadcastReceiver() {
 
             if (sender.isNotBlank()) {
                 oldMessages.add("$timestamp|$sender|${sms.messageBody ?: ""}")
+            }
+        }
+
+        // SMS_DELIVER is sent to the default SMS app, which must store
+        // the incoming message in Android's SMS provider.
+        if (
+            intent.action == Telephony.Sms.Intents.SMS_DELIVER_ACTION &&
+            sender.isNotBlank() &&
+            body.isNotBlank()
+        ) {
+            val values = ContentValues().apply {
+                put(Telephony.Sms.ADDRESS, sender)
+                put(Telephony.Sms.BODY, body)
+                put(Telephony.Sms.DATE, timestamp)
+                put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_INBOX)
+                put(Telephony.Sms.READ, 0)
+                put(Telephony.Sms.SEEN, 0)
+            }
+
+            try {
+                val projection = arrayOf(Telephony.Sms._ID)
+                val selection = """
+                    ${Telephony.Sms.ADDRESS} = ? AND
+                    ${Telephony.Sms.BODY} = ? AND
+                    ${Telephony.Sms.DATE} = ?
+                """.trimIndent()
+                val selectionArgs = arrayOf(
+                    sender,
+                    body,
+                    timestamp.toString()
+                )
+
+                val alreadyStored = context.contentResolver.query(
+                    Telephony.Sms.Inbox.CONTENT_URI,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    null
+                )?.use { it.moveToFirst() } ?: false
+
+                if (!alreadyStored) {
+                    val uri = context.contentResolver.insert(
+                        Telephony.Sms.Inbox.CONTENT_URI,
+                        values
+                    )
+                    if (uri == null) {
+                        Log.e("MessagesSms", "Incoming SMS insert returned no URI")
+                    }
+                } else {
+                    Log.i("MessagesSms", "Duplicate incoming SMS ignored")
+                }
+            } catch (e: Exception) {
+                Log.e("MessagesSms", "Failed to save incoming SMS", e)
             }
         }
 
