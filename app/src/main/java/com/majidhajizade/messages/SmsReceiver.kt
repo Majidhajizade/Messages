@@ -123,7 +123,7 @@ class SmsReceiver : BroadcastReceiver() {
             context,
             phone.hashCode() + 500000,
             replyIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag()
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         )
 
         val remoteInput = androidx.core.app.RemoteInput.Builder(REPLY_KEY)

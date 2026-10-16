@@ -300,15 +300,20 @@ class ConversationActivity : Activity() {
     }
 
     override fun onDestroy() {
-        val currentChatId =
-            phone.trim().uppercase(Locale.US)
+        if (::phone.isInitialized) {
+            val currentChatId = phone.trim().uppercase(Locale.US)
 
-        if (
-            MeshSession.activeChatId
-                ?.equals(currentChatId, ignoreCase = true) == true
-        ) {
-            MeshSession.activeMessageHandler = null
-            MeshSession.activeChatId = null
+            if (
+                MeshSession.activeChatId
+                    ?.equals(currentChatId, ignoreCase = true) == true
+            ) {
+                MeshSession.activeMessageHandler = null
+                MeshSession.activeChatId = null
+            }
+
+            if (activeMeshId == currentChatId) {
+                activeMeshId = null
+            }
         }
 
         runCatching {
@@ -316,10 +321,6 @@ class ConversationActivity : Activity() {
         }
         runCatching {
             unregisterReceiver(smsDeliveredReceiver)
-        }
-
-        if (activeMeshId == phone.trim().uppercase(Locale.US)) {
-            activeMeshId = null
         }
 
         super.onDestroy()
