@@ -1667,8 +1667,8 @@ class ConversationActivity : Activity() {
                 clipToPadding = false
             }
 
-            val effectSizePx = (resources.displayMetrics.widthPixels / 3f)
-                .toInt().coerceAtLeast(dp(120))
+            val effectSizePx = ((resources.displayMetrics.widthPixels / 3f)
+                .toInt().coerceAtLeast(dp(120))) * 2
 
             val miniEmojiView = LottieAnimationView(this).apply {
                 tag = "small_animated_emoji"
@@ -1703,9 +1703,13 @@ class ConversationActivity : Activity() {
                         .findViewById<android.widget.FrameLayout>(android.R.id.content)
                         ?: return@setOnClickListener
                     val startLocation = IntArray(2)
-                    miniEmojiView.getLocationOnScreen(startLocation)
+                    animationView.getLocationOnScreen(startLocation)
                     val rootLocation = IntArray(2)
                     animationRoot.getLocationOnScreen(rootLocation)
+                    val startX = startLocation[0] +
+                        (animationView.width - effectSizePx) / 2f
+                    val startY = startLocation[1] +
+                        (animationView.height - effectSizePx) / 2f
 
                     originalParent.removeView(miniEmojiView)
                     animationRoot.addView(
@@ -1717,10 +1721,8 @@ class ConversationActivity : Activity() {
                         )
                     )
 
-                    miniEmojiView.x =
-                        (startLocation[0] - rootLocation[0]).toFloat()
-                    miniEmojiView.y =
-                        (startLocation[1] - rootLocation[1]).toFloat()
+                    miniEmojiView.x = startX - rootLocation[0]
+                    miniEmojiView.y = startY - rootLocation[1]
                     miniEmojiView.translationX = 0f
                     miniEmojiView.translationY = 0f
                     miniEmojiView.scaleX = 0.72f
@@ -1745,7 +1747,7 @@ class ConversationActivity : Activity() {
                         .scaleX(1f)
                         .scaleY(1f)
                         .alpha(0f)
-                        .setDuration(3000)
+                        .setDuration(5000)
                         .setInterpolator(DecelerateInterpolator())
                         .withEndAction {
                             miniEmojiView.animate().cancel()
