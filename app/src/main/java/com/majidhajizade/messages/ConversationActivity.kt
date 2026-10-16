@@ -1608,7 +1608,7 @@ class ConversationActivity : Activity() {
             for (i in 0 until messagesContainer.childCount) {
                 val row = messagesContainer.getChildAt(i)
                 val emojiView =
-                    row.findViewWithTag<LottieAnimationView>("message_body")
+                    (row.findViewWithTag<View>("message_body") as? LottieAnimationView)
                 if (emojiView != null && emojiView.isAttachedToWindow) {
                     emojiView.progress = 0f
                     emojiView.playAnimation()
@@ -1895,7 +1895,7 @@ class ConversationActivity : Activity() {
         // پیام جدید انیمیشن خودش را اجرا می‌کند؛ تاریخچه جداگانه اجرا می‌شود.
         if (!isPopulatingConversation) {
             val bodyEmojiView =
-                bubble.findViewWithTag<LottieAnimationView>("message_body")
+                (bubble.findViewWithTag<View>("message_body") as? LottieAnimationView)
             bodyEmojiView?.post {
                 if (bodyEmojiView.isAttachedToWindow) {
                     bodyEmojiView.progress = 0f
