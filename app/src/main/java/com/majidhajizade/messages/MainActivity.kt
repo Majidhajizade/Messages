@@ -538,40 +538,34 @@ companion object {
         var pullStartScrollY = 0
         var pullDistance = 0f
         var pulling = false
-        val pullThreshold = dp(72).toFloat() * 0.85f
-        val maxPull = dp(72).toFloat()
+        val pullThreshold = dp(76).toFloat()
+        val maxPull = dp(136).toFloat()
 
         fun updatePullBanner(distance: Float) {
             val d = distance.coerceIn(0f, maxPull)
-            val progress = (d / maxPull).coerceIn(0f, 1f)
-            val ready = progress >= 0.85f
+            val ready = d >= pullThreshold
             val bannerColor = if (ready) {
-                Color.rgb(0, 136, 204)
+                Color.rgb(0, 129, 255)
             } else {
-                Color.rgb(198, 201, 204)
+                Color.rgb(190, 190, 195)
             }
 
             val params = pullBanner.layoutParams
-            params.height = dp(68) + (d * 0.2f).toInt()
+            params.height = dp(68) + (d * 0.5f).toInt()
             pullBanner.layoutParams = params
             pullBanner.translationY = 0f
-            pullBanner.alpha = (progress / 0.2f).coerceIn(0f, 1f)
+            pullBanner.alpha = (d / dp(12).toFloat()).coerceIn(0f, 1f)
             pullBanner.background = GradientDrawable().apply {
                 cornerRadius = 0f
                 setColor(bannerColor)
             }
 
-            // کشش با مقاومت بیشتر، نزدیک به رفتار آرشیو تلگرام
-            messagesScroll.translationY = d * 0.35f
-            pullLabel.text = if (ready) {
-                "Release for archive"
-            } else {
-                "Pull down for archive"
-            }
-            arrow.animate()
-                .rotation(if (ready) 180f else 0f)
-                .setDuration(100L)
-                .start()
+            // حرکت کششی با مقاومت؛ فهرست کادر را از جلو می‌پوشاند.
+            messagesScroll.translationY = d * 0.72f
+            pullLabel.text = if (ready)
+                "Release for archive" else "Pull down for archive"
+            arrow.animate().rotation(if (ready) 180f else 0f)
+                .setDuration(90L).start()
             pullBanner.visibility = View.VISIBLE
         }
 
