@@ -1756,8 +1756,8 @@ class ConversationActivity : Activity() {
                     miniEmojiView.animate().cancel()
                     miniEmojiView.x = startX
                     miniEmojiView.y = startY
-                    miniEmojiView.scaleX = 0.72f
-                    miniEmojiView.scaleY = 0.72f
+                    miniEmojiView.scaleX = 0.90f
+                    miniEmojiView.scaleY = 0.90f
                     miniEmojiView.alpha = 1f
                     miniEmojiView.progress = 0f
                     miniEmojiView.visibility = View.VISIBLE
@@ -1765,14 +1765,14 @@ class ConversationActivity : Activity() {
                     miniEmojiView.bringToFront()
 
                     val targetX = startX +
-                        if (incoming) effectSizePx * 0.65f else -effectSizePx * 0.65f
+                        if (incoming) effectSizePx * 0.90f else -effectSizePx * 0.90f
                     val targetY = startY - effectSizePx * 0.65f
 
                     miniEmojiView.animate()
                         .x(targetX)
                         .y(targetY)
-                        .scaleX(1f)
-                        .scaleY(1f)
+                        .scaleX(1.25f)
+                        .scaleY(1.25f)
                         .alpha(0f)
                         .setDuration(5000)
                         .setInterpolator(DecelerateInterpolator())
