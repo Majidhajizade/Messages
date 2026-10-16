@@ -1,5 +1,12 @@
 package com.majidhajizade.messages
 
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.PixelFormat
+import android.graphics.RectF
+import android.graphics.drawable.Drawable
+
 import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
@@ -110,7 +117,6 @@ class ConversationActivity : Activity() {
                 savedSentMessageIds.add(messageId)
             ) {
                 saveSentMessage(sentMessage)
-                loadConversation()
             }
 
             val errorText = if (attemptSucceeded) {
@@ -1688,18 +1694,14 @@ class ConversationActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(2), 0, dp(1))
-            background = GradientDrawable().apply {
-                setColor(
-                    if (isDarkThemeEnabled()) {
-                        if (incoming) Color.rgb(48, 48, 54)
-                        else Color.rgb(0, 95, 220)
-                    } else {
-                        if (incoming) Color.rgb(232, 232, 237)
-                        else Color.rgb(64, 201, 198)
-                    }
-                )
-                cornerRadius = dp(22).toFloat()
-            }
+            background = TelegramBubbleDrawable(
+                bubbleColor = if (isDarkThemeEnabled()) {
+                    if (incoming) Color.rgb(48, 48, 54) else Color.rgb(0, 95, 220)
+                } else {
+                    if (incoming) Color.rgb(232, 232, 237) else Color.rgb(64, 201, 198)
+                },
+                incoming = incoming
+            )
         }
 
         val emojiAssetPath = emojiAnimationAsset(body)
@@ -1854,7 +1856,7 @@ class ConversationActivity : Activity() {
                 maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
                 autoLinkMask = Linkify.WEB_URLS or Linkify.PHONE_NUMBERS
                 movementMethod = LinkMovementMethod.getInstance()
-                setPadding(dp(14), dp(7), dp(14), dp(7))
+                setPadding(dp(14), dp(8), dp(10), dp(2))
             }
 
             bubble.addView(
@@ -1913,7 +1915,7 @@ class ConversationActivity : Activity() {
                 tag = "message_meta_row"
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.END or Gravity.CENTER_VERTICAL
-                setPadding(dp(10), 0, dp(8), dp(3))
+                setPadding(dp(10), 0, dp(8), dp(4))
             }
             metaRow.addView(
                 time,
@@ -1943,9 +1945,11 @@ class ConversationActivity : Activity() {
             bubble.addView(
                 metaRow,
                 LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
-                )
+                ).apply {
+                    gravity = Gravity.END
+                }
             )
         } else {
             // Keep the animated-emoji layout and its timestamp behavior unchanged.
@@ -2258,6 +2262,75 @@ class ConversationActivity : Activity() {
             else -> 0
         }
         return colors[index]
+    }
+
+
+    private inner class TelegramBubbleDrawable(
+        private val bubbleColor: Int,
+        private val incoming: Boolean
+    ) : Drawable() {
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = bubbleColor
+            style = Paint.Style.FILL
+        }
+        private val bubblePath = Path()
+        private val tailPath = Path()
+        private val rect = RectF()
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            if (b.width() <= 0 || b.height() <= 0) return
+
+            val tailWidth = dp(5).toFloat()
+            val radius = dp(18).toFloat().coerceAtMost(b.height() / 2f)
+            val left = b.left.toFloat() + if (incoming) tailWidth else 0f
+            val right = b.right.toFloat() - if (incoming) 0f else tailWidth
+            val top = b.top.toFloat()
+            val bottom = b.bottom.toFloat()
+
+            rect.set(left, top, right, bottom)
+            bubblePath.reset()
+            bubblePath.addRoundRect(rect, radius, radius, Path.Direction.CW)
+            canvas.drawPath(bubblePath, paint)
+
+            tailPath.reset()
+            if (incoming) {
+                tailPath.moveTo(left + dp(2), bottom - dp(15))
+                tailPath.quadTo(
+                    b.left.toFloat() + dp(2), bottom - dp(7),
+                    b.left.toFloat(), bottom - dp(2).toFloat()
+                )
+                tailPath.quadTo(
+                    b.left.toFloat() + dp(8), bottom - dp(2).toFloat(),
+                    left + dp(10), bottom - dp(7).toFloat()
+                )
+            } else {
+                tailPath.moveTo(right - dp(2), bottom - dp(15))
+                tailPath.quadTo(
+                    b.right.toFloat() - dp(2), bottom - dp(7),
+                    b.right.toFloat(), bottom - dp(2).toFloat()
+                )
+                tailPath.quadTo(
+                    b.right.toFloat() - dp(8), bottom - dp(2).toFloat(),
+                    right - dp(10), bottom - dp(7).toFloat()
+                )
+            }
+            tailPath.close()
+            canvas.drawPath(tailPath, paint)
+        }
+
+        override fun setAlpha(alpha: Int) {
+            paint.alpha = alpha
+            invalidateSelf()
+        }
+
+        override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {
+            paint.colorFilter = colorFilter
+            invalidateSelf()
+        }
+
+        @Deprecated("Deprecated in Android")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
     private fun dp(value: Int): Int {
