@@ -1220,32 +1220,33 @@ class ConversationActivity : Activity() {
             ?: return
 
         bubble.findViewWithTag<View>("sending_icon")?.let {
-            bubble.removeView(it)
+            (it.parent as? android.view.ViewGroup)?.removeView(it)
         }
 
         if (success) {
             bubble.findViewWithTag<View>("failed_icon")?.let {
-                bubble.removeView(it)
+                (it.parent as? android.view.ViewGroup)?.removeView(it)
             }
 
             if (bubble.findViewWithTag<View>("status_icon") == null) {
                 val icon = TextView(this).apply {
                     tag = "status_icon"
                     text = "✓"
-                    textSize = 13f
+                    textSize = 12f
                     setTextColor(secondaryText)
                     gravity = Gravity.CENTER
                     typeface = Typeface.DEFAULT_BOLD
+                    contentDescription = "Sent"
                 }
-
-                bubble.addView(
-                    icon,
-                    0,
-                    LinearLayout.LayoutParams(dp(20), dp(22)).apply {
-                        gravity = Gravity.CENTER_VERTICAL
-                        setMargins(dp(7), 0, dp(2), 0)
-                    }
-                )
+                val metaRow = bubble.findViewWithTag<LinearLayout>("message_meta_row")
+                if (metaRow != null) {
+                    metaRow.addView(
+                        icon,
+                        LinearLayout.LayoutParams(dp(16), dp(16)).apply {
+                            leftMargin = dp(2)
+                        }
+                    )
+                }
             }
 
             return
@@ -1274,14 +1275,23 @@ class ConversationActivity : Activity() {
             }
         }
 
-        bubble.addView(
-            icon,
-            0,
-            LinearLayout.LayoutParams(dp(22), dp(22)).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                setMargins(dp(8), 0, dp(7), 0)
-            }
-        )
+        val metaRow = bubble.findViewWithTag<LinearLayout>("message_meta_row")
+        if (metaRow != null) {
+            metaRow.addView(
+                icon,
+                LinearLayout.LayoutParams(dp(18), dp(18)).apply {
+                    leftMargin = dp(3)
+                }
+            )
+        } else {
+            bubble.addView(
+                icon,
+                LinearLayout.LayoutParams(dp(22), dp(22)).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                    setMargins(dp(8), 0, dp(7), 0)
+                }
+            )
+        }
     }
 
     private fun retryFailedMessage(messageId: String) {
@@ -1317,22 +1327,32 @@ class ConversationActivity : Activity() {
         }
 
         // Remove the retry button while this one manual attempt is in progress.
-        bubble.removeView(failedIcon)
+        (failedIcon.parent as? android.view.ViewGroup)?.removeView(failedIcon)
         val sendingIcon = TextView(this).apply {
             tag = "sending_icon"
-            text = "…"
-            textSize = 16f
+            text = "◷"
+            textSize = 13f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(secondaryText)
+            contentDescription = "Sending"
         }
-        bubble.addView(
-            sendingIcon,
-            0,
-            LinearLayout.LayoutParams(dp(22), dp(22)).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                setMargins(dp(8), 0, dp(7), 0)
-            }
-        )
+        val metaRow = bubble.findViewWithTag<LinearLayout>("message_meta_row")
+        if (metaRow != null) {
+            metaRow.addView(
+                sendingIcon,
+                LinearLayout.LayoutParams(dp(16), dp(16)).apply {
+                    leftMargin = dp(2)
+                }
+            )
+        } else {
+            bubble.addView(
+                sendingIcon,
+                LinearLayout.LayoutParams(dp(22), dp(22)).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                    setMargins(dp(8), 0, dp(7), 0)
+                }
+            )
+        }
 
         try {
             sendSmsAttempt(messageId, message, true)
@@ -1359,8 +1379,10 @@ class ConversationActivity : Activity() {
             bubble.findViewWithTag<TextView>("status_icon")
                 ?: return
 
-        icon.text = "✓"
+        icon.text = "✓✓"
+        icon.textSize = 11f
         icon.setTextColor(blue)
+        icon.contentDescription = "Delivered"
     }
 
     private fun enterSearchMode() {
@@ -1663,9 +1685,9 @@ class ConversationActivity : Activity() {
 
         val bubble = LinearLayout(this).apply {
             tag = "message_bubble"
-            orientation = LinearLayout.HORIZONTAL
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(2), 0, dp(2))
+            setPadding(0, dp(2), 0, dp(1))
             background = GradientDrawable().apply {
                 setColor(
                     if (isDarkThemeEnabled()) {
@@ -1872,23 +1894,71 @@ class ConversationActivity : Activity() {
         )
 
         val time = TextView(this).apply {
+            tag = "message_time"
             text = SimpleDateFormat(
                 "HH:mm",
                 Locale.getDefault()
             ).format(Date(date))
             textSize = 11f
-            setTextColor(if (isDarkThemeEnabled()) Color.rgb(175, 175, 185) else secondaryText)
-            setPadding(dp(4), dp(2), dp(4), 0)
-            gravity = if (incoming) Gravity.END else Gravity.START
+            setTextColor(
+                if (isDarkThemeEnabled()) Color.rgb(175, 175, 185)
+                else if (incoming) secondaryText else Color.rgb(225, 240, 255)
+            )
+            gravity = Gravity.CENTER_VERTICAL
+            includeFontPadding = false
         }
 
-        wrapper.addView(
-            time,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+        if (emojiAssetPath == null) {
+            val metaRow = LinearLayout(this).apply {
+                tag = "message_meta_row"
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                setPadding(dp(10), 0, dp(8), dp(3))
+            }
+            metaRow.addView(
+                time,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    dp(16)
+                )
             )
-        )
+
+            if (!incoming && messageId != null) {
+                val sendingIcon = TextView(this).apply {
+                    tag = "sending_icon"
+                    text = "◷"
+                    textSize = 13f
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.rgb(225, 240, 255))
+                    contentDescription = "Sending"
+                }
+                metaRow.addView(
+                    sendingIcon,
+                    LinearLayout.LayoutParams(dp(16), dp(16)).apply {
+                        leftMargin = dp(2)
+                    }
+                )
+            }
+
+            bubble.addView(
+                metaRow,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        } else {
+            // Keep the animated-emoji layout and its timestamp behavior unchanged.
+            time.gravity = if (incoming) Gravity.END else Gravity.START
+            time.setPadding(dp(4), dp(2), dp(4), 0)
+            wrapper.addView(
+                time,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
 
         messagesContainer.addView(wrapper)
 
