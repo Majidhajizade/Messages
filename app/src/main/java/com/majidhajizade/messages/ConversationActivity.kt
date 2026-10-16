@@ -1697,30 +1697,32 @@ class ConversationActivity : Activity() {
                     miniEmojiView.animate().cancel()
                     miniEmojiView.cancelAnimation()
 
-                    val sourceParent = sourceEmojiView.parent as? android.view.ViewGroup
-                        ?: return@setOnClickListener
                     val sourceLocation = IntArray(2)
                     sourceEmojiView.getLocationOnScreen(sourceLocation)
-                    val containerLocation = IntArray(2)
-                    emojiContainer.getLocationOnScreen(containerLocation)
 
-                    val startX = sourceLocation[0] - containerLocation[0] +
+                    val animationRoot = window.decorView.findViewById<android.view.ViewGroup>(
+                        android.R.id.content
+                    ) ?: return@setOnClickListener
+                    val rootLocation = IntArray(2)
+                    animationRoot.getLocationOnScreen(rootLocation)
+
+                    val startX = sourceLocation[0] - rootLocation[0] +
                         (sourceEmojiView.width - effectSizePx) / 2f
-                    val startY = sourceLocation[1] - containerLocation[1] +
+                    val startY = sourceLocation[1] - rootLocation[1] +
                         (sourceEmojiView.height - effectSizePx) / 2f
 
                     (miniEmojiView.parent as? android.view.ViewGroup)
                         ?.removeView(miniEmojiView)
 
-                    emojiContainer.clipChildren = false
-                    emojiContainer.clipToPadding = false
+                    animationRoot.clipChildren = false
+                    animationRoot.clipToPadding = false
                     miniEmojiView.layoutParams =
                         android.widget.FrameLayout.LayoutParams(
                             effectSizePx,
                             effectSizePx,
                             Gravity.TOP or Gravity.START
                         )
-                    emojiContainer.addView(miniEmojiView)
+                    animationRoot.addView(miniEmojiView)
 
                     miniEmojiView.animate().cancel()
                     miniEmojiView.x = startX
@@ -1750,6 +1752,7 @@ class ConversationActivity : Activity() {
                             miniEmojiView.cancelAnimation()
                             (miniEmojiView.parent as? android.view.ViewGroup)
                                 ?.removeView(miniEmojiView)
+                            animationRoot.removeView(miniEmojiView)
                             emojiContainer.addView(
                                 miniEmojiView,
                                 android.widget.FrameLayout.LayoutParams(
