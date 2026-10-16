@@ -1738,14 +1738,15 @@ class ConversationActivity : Activity() {
 
                     val screenWidth = animationRoot.width.takeIf { it > 0 }
                         ?: resources.displayMetrics.widthPixels
-                    val targetX = if (incoming) {
-                        (screenWidth - effectSizePx).toFloat()
-                    } else {
-                        0f
-                    }
+                    val startXInRoot = startX - rootLocation[0]
+                    val startYInRoot = startY - rootLocation[1]
+                    val targetX = startXInRoot +
+                        if (incoming) effectSizePx * 0.65f else -effectSizePx * 0.65f
+                    val targetY = startYInRoot - effectSizePx * 0.65f
 
                     miniEmojiView.animate()
                         .x(targetX)
+                        .y(targetY)
                         .scaleX(1f)
                         .scaleY(1f)
                         .alpha(0f)
