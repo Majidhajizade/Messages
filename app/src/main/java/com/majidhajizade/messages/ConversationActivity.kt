@@ -1667,6 +1667,9 @@ class ConversationActivity : Activity() {
                 clipToPadding = false
             }
 
+            val effectSizePx = (resources.displayMetrics.widthPixels / 3f)
+                .toInt().coerceAtLeast(dp(120))
+
             val miniEmojiView = LottieAnimationView(this).apply {
                 tag = "small_animated_emoji"
                 contentDescription = body
@@ -1693,8 +1696,8 @@ class ConversationActivity : Activity() {
                     miniEmojiView.cancelAnimation()
                     miniEmojiView.translationX = 0f
                     miniEmojiView.translationY = 0f
-                    miniEmojiView.scaleX = 0.45f
-                    miniEmojiView.scaleY = 0.45f
+                    miniEmojiView.scaleX = 0.72f
+                    miniEmojiView.scaleY = 0.72f
                     miniEmojiView.alpha = 1f
                     miniEmojiView.progress = 0f
                     miniEmojiView.visibility = View.VISIBLE
@@ -1703,19 +1706,10 @@ class ConversationActivity : Activity() {
                     miniEmojiView.animate()
                         .translationX(
                             (if (incoming) 1f else -1f) *
-                                (resources.displayMetrics.widthPixels - dp(88) - dp(32))
-                                    .coerceAtLeast(dp(120)).toFloat()
+                                (resources.displayMetrics.widthPixels * 0.72f)
                         )
-                        .scaleX(
-                            (resources.displayMetrics.widthPixels /
-                                resources.displayMetrics.density / 3f / 44f)
-                                .coerceAtLeast(1.25f)
-                        )
-                        .scaleY(
-                            (resources.displayMetrics.widthPixels /
-                                resources.displayMetrics.density / 3f / 44f)
-                                .coerceAtLeast(1.25f)
-                        )
+                        .scaleX(1f)
+                        .scaleY(1f)
                         .alpha(0f)
                         .setDuration(1100)
                         .setInterpolator(DecelerateInterpolator())
@@ -1743,8 +1737,8 @@ class ConversationActivity : Activity() {
             emojiContainer.addView(
                 miniEmojiView,
                 android.widget.FrameLayout.LayoutParams(
-                    dp(44),
-                    dp(44),
+                    effectSizePx,
+                    effectSizePx,
                     Gravity.CENTER
                 )
             )
