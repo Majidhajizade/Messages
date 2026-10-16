@@ -481,9 +481,9 @@ companion object {
             clipToPadding = false
             isClickable = false
         }
-        val pullBanner = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+        val pullBanner = FrameLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
             setPadding(dp(14), dp(8), dp(22), dp(8))
             visibility = View.GONE
             alpha = 0f
@@ -493,6 +493,12 @@ companion object {
                 setColor(Color.rgb(190, 190, 195))
             }
         }
+
+        val pullContent = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
         val arrowCircle = FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -505,20 +511,43 @@ companion object {
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(70, 70, 75))
         }
-        arrowCircle.addView(arrow, FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER))
-        pullBanner.addView(arrowCircle, LinearLayout.LayoutParams(dp(40), dp(40)).apply {
-            rightMargin = dp(14)
-        })
+        arrowCircle.addView(
+            arrow,
+            FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER)
+        )
+        pullContent.addView(
+            arrowCircle,
+            LinearLayout.LayoutParams(dp(40), dp(40)).apply {
+                rightMargin = dp(14)
+            }
+        )
+        pullBanner.addView(
+            pullContent,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                Gravity.LEFT or Gravity.CENTER_VERTICAL
+            )
+        )
+
         val pullLabel = TextView(this).apply {
             text = "Pull down for archive"
             textSize = 16f
             setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER
             includeFontPadding = false
+            maxLines = 1
         }
-        pullBanner.addView(pullLabel, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ))
+        pullBanner.addView(
+            pullLabel,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER_HORIZONTAL or Gravity.BOTTOM
+            ).apply {
+                bottomMargin = dp(8)
+            }
+        )
         pullOverlay.addView(pullBanner, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, dp(68), Gravity.TOP
         ).apply {
