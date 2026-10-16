@@ -1688,6 +1688,8 @@ class ConversationActivity : Activity() {
                 repeatCount = 0
                 progress = 0f
 
+                val sourceEmojiView = this
+
                 setOnClickListener {
                     progress = 0f
                     playAnimation()
@@ -1703,13 +1705,13 @@ class ConversationActivity : Activity() {
                         .findViewById<android.widget.FrameLayout>(android.R.id.content)
                         ?: return@setOnClickListener
                     val startLocation = IntArray(2)
-                    animationView.getLocationOnScreen(startLocation)
+                    sourceEmojiView.getLocationOnScreen(startLocation)
                     val rootLocation = IntArray(2)
                     animationRoot.getLocationOnScreen(rootLocation)
                     val startX = startLocation[0] +
-                        (animationView.width - effectSizePx) / 2f
+                        (sourceEmojiView.width - effectSizePx) / 2f
                     val startY = startLocation[1] +
-                        (animationView.height - effectSizePx) / 2f
+                        (sourceEmojiView.height - effectSizePx) / 2f
 
                     originalParent.removeView(miniEmojiView)
                     animationRoot.addView(
