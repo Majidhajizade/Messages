@@ -1701,13 +1701,13 @@ class ConversationActivity : Activity() {
                         ?: return@setOnClickListener
                     val originalIndex = originalParent.indexOfChild(miniEmojiView)
                     val originalLayoutParams = miniEmojiView.layoutParams
-                    val animationRoot = miniEmojiView.rootView
+                    val animationRoot = this@ConversationActivity
                         .findViewById<android.widget.FrameLayout>(android.R.id.content)
                         ?: return@setOnClickListener
                     val startLocation = IntArray(2)
-                    sourceEmojiView.getLocationOnScreen(startLocation)
+                    sourceEmojiView.getLocationInWindow(startLocation)
                     val rootLocation = IntArray(2)
-                    animationRoot.getLocationOnScreen(rootLocation)
+                    animationRoot.getLocationInWindow(rootLocation)
                     val startX = startLocation[0] +
                         (sourceEmojiView.width - effectSizePx) / 2f
                     val startY = startLocation[1] +
