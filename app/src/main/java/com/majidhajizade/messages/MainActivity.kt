@@ -1660,16 +1660,20 @@ companion object {
         val video = android.widget.VideoView(this).apply {
             setBackgroundColor(Color.BLACK)
             if (videoFile.exists() && videoFile.length() > 0L) {
-                setVideoPath(videoFile.absolutePath)
                 setOnPreparedListener { player ->
                     player.isLooping = true
                     player.setVolume(0f, 0f)
-                    start()
+                    if (isMeshPanelVisible) {
+                        start()
+                    }
                 }
                 setOnErrorListener { _, what, extra ->
                     logMesh("VIDEO | playback error what=$what extra=$extra")
-                    true
+                    false
                 }
+                setVideoPath(videoFile.absolutePath)
+            } else {
+                logMesh("VIDEO | background file is missing or empty")
             }
         }
         root.addView(
@@ -1725,7 +1729,13 @@ companion object {
                 setStroke(dp(3), Color.argb(210, 255, 255, 255))
             }
             clipToOutline = true
-            contentDescription = "Mesh avatar"
+            setImageResource(R.drawable.mesh_mobile)
+            imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding(dp(29), dp(29), dp(29), dp(29))
+            contentDescription = "Mesh settings"
+            isClickable = true
+            isFocusable = true
         }
         center.addView(
             avatar,
@@ -1733,6 +1743,11 @@ companion object {
                 bottomMargin = dp(14)
             }
         )
+        avatar.setOnClickListener {
+            video.stopPlayback()
+            isMeshPanelVisible = false
+            showMeshIdSettings()
+        }
 
         center.addView(
             TextView(this).apply {
@@ -1772,7 +1787,7 @@ companion object {
         }
 
         meshStatusText = TextView(this).apply {
-            text = "Mesh آماده است"
+            text = "Mesh is ready"
             textSize = 12f
             gravity = Gravity.CENTER
             setTextColor(Color.LTGRAY)
@@ -1848,11 +1863,11 @@ companion object {
             val entered = searchInput.text.toString().trim()
                 .uppercase(Locale.US)
             if (!entered.matches(Regex("MJ-[A-Z0-9]{6}"))) {
-                searchInput.error = "شناسه باید مانند MJ-ABC123 باشد"
+                searchInput.error = "Enter an ID like MJ-ABC123"
                 return@setOnClickListener
             }
             if (entered == myMeshId.uppercase(Locale.US)) {
-                Toast.makeText(this, "این شناسه متعلق به خودت است", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "This is your own ID", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             selectedMeshId = entered
@@ -1860,14 +1875,14 @@ companion object {
             meshManager?.setTargetMeshId(entered)
             if (hasNearbyPermissions()) {
                 meshManager?.start()
-                meshStatusText?.text = "در حال جست‌وجوی $entered …"
+                meshStatusText?.text = "Searching for $entered..."
             } else {
                 ensureNearbyPermissions()
-                meshStatusText?.text = "برای جست‌وجو مجوزهای Nearby لازم است"
+                meshStatusText?.text = "Nearby permissions are required"
             }
             Toast.makeText(
                 this,
-                "شناسه ثبت شد؛ برای گفتگو باید درخواست چت پذیرفته شود.",
+                "ID saved. The chat request must be accepted to start a conversation.",
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -1886,24 +1901,10 @@ companion object {
             meshManager?.setTargetMeshId(null)
             if (hasNearbyPermissions()) {
                 meshManager?.start()
-                meshStatusText?.text = "در حال جست‌وجوی دستگاه‌های نزدیک …"
+                meshStatusText?.text = "Searching for nearby devices..."
             } else {
                 ensureNearbyPermissions()
             }
-        }
-
-        val settingsButton = makeMeshButton("Mesh settings")
-        bottomPanel.addView(
-            settingsButton,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(44)
-            )
-        )
-        settingsButton.setOnClickListener {
-            video.stopPlayback()
-            isMeshPanelVisible = false
-            showMeshIdSettings()
         }
 
         root.addView(
