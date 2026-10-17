@@ -1646,15 +1646,25 @@ companion object {
 
         val videoFile = java.io.File(cacheDir, "mesh-background.mp4")
         try {
-            if (!videoFile.exists() ||
-                videoFile.length() != assets.open("mesh-background.mp4").use { it.available().toLong() }
-            ) {
+            val assetSize = assets.open("mesh-background.mp4").use { input ->
+                var total = 0L
+                val buffer = ByteArray(8192)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                }
+                total
+            }
+
+            if (!videoFile.exists() || videoFile.length() != assetSize) {
                 assets.open("mesh-background.mp4").use { input ->
                     videoFile.outputStream().use { output -> input.copyTo(output) }
                 }
             }
+            logMesh("VIDEO | assetSize=$assetSize cacheSize=${videoFile.length()}")
         } catch (e: Exception) {
-            logMesh("VIDEO | Could not prepare background: ${e.message}")
+            logMesh("VIDEO | Could not prepare background: ${e.javaClass.simpleName}: ${e.message}")
         }
 
         val video = android.widget.VideoView(this).apply {
@@ -1663,15 +1673,23 @@ companion object {
                 setOnPreparedListener { player ->
                     player.isLooping = true
                     player.setVolume(0f, 0f)
+                    logMesh("VIDEO | prepared duration=${player.duration} visible=$isMeshPanelVisible")
                     if (isMeshPanelVisible) {
                         start()
+                        logMesh("VIDEO | start requested")
+                    } else {
+                        logMesh("VIDEO | start skipped because panel is hidden")
                     }
                 }
                 setOnErrorListener { _, what, extra ->
                     logMesh("VIDEO | playback error what=$what extra=$extra")
                     false
                 }
+                setOnCompletionListener {
+                    logMesh("VIDEO | playback completed")
+                }
                 setVideoPath(videoFile.absolutePath)
+                logMesh("VIDEO | setVideoPath path=${videoFile.absolutePath}")
             } else {
                 logMesh("VIDEO | background file is missing or empty")
             }
