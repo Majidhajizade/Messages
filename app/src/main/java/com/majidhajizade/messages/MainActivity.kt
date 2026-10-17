@@ -1789,7 +1789,7 @@ companion object {
 
         val searchInput = EditText(this).apply {
             hint = "Search id  •  MJ-XXXXXX"
-            singleLine = true
+            setSingleLine(true)
             textSize = 15f
             setTextColor(Color.WHITE)
             setHintTextColor(Color.LTGRAY)
