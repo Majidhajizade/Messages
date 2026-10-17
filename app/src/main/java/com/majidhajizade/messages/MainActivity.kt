@@ -2015,7 +2015,7 @@ companion object {
 
         meshFloatingScroll.addView(
             meshFloatingContainer,
-            android.widget.HorizontalScrollView.LayoutParams(
+            ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )

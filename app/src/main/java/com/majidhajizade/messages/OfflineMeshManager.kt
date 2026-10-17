@@ -406,7 +406,9 @@ class OfflineMeshManager(
 
     private fun completeHandshake(
         endpointId: String,
-        remoteMeshId: String
+        remoteMeshId: String,
+        remoteSigningKey: String,
+        remoteEncryptionKey: String
     ) {
         val normalized =
             remoteMeshId.trim().uppercase(Locale.US)
@@ -914,7 +916,9 @@ class OfflineMeshManager(
 
                         completeHandshake(
                             endpointId,
-                            remoteMeshId
+                            remoteMeshId,
+                            remotePublicKey,
+                            remoteEncryptionPublicKey
                         )
 
                         return
