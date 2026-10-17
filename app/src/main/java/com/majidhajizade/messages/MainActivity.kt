@@ -97,6 +97,11 @@ class MainActivity : Activity() {
     private val meshDevices = linkedMapOf<String, TextView>()
     private val meshDeviceRows = linkedMapOf<String, LinearLayout>()
     private val meshDeviceNames = linkedMapOf<String, String>()
+    private val meshFloatingAvatars = linkedMapOf<String, View>()
+    private var meshFloatingContainer: LinearLayout? = null
+    private var isMainActivityResumed = false
+    private val pendingMeshChatRequests = mutableSetOf<String>()
+    private val outgoingMeshChatRequests = mutableSetOf<String>()
     private var selectedMeshId: String? = null
     private var isMeshPanelVisible = false
     private var meshBackgroundPlayer: android.media.MediaPlayer? = null
@@ -209,6 +214,8 @@ companion object {
 
     override fun onResume() {
         super.onResume()
+        isMainActivityResumed = true
+        handleMeshRequestIntent(intent)
 
         if (checkSelfPermission(Manifest.permission.READ_SMS)
             == PackageManager.PERMISSION_GRANTED
@@ -1056,6 +1063,109 @@ companion object {
             ?.notify(senderId.hashCode(), notification)
     }
 
+    private fun sendMeshChatRequest(meshId: String) {
+        val target = meshId.trim().uppercase(Locale.US)
+        if (!target.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+            Toast.makeText(this, "Invalid Mesh ID", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val manager = meshManager
+        if (manager == null) {
+            Toast.makeText(this, "Mesh is not ready yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        outgoingMeshChatRequests.add(target)
+        manager.sendMeshMessage(target, "CHAT_REQUEST")
+        Toast.makeText(
+            this,
+            "Chat request sent to $target. Waiting for response.",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun handleIncomingMeshChatRequest(senderId: String) {
+        if (!senderId.matches(Regex("MJ-[A-Z0-9]{6}"))) return
+
+        if (isMainActivityResumed) {
+            showIncomingMeshChatRequestDialog(senderId)
+        } else {
+            showIncomingMeshChatRequestNotification(senderId)
+        }
+    }
+
+    private fun showIncomingMeshChatRequestDialog(senderId: String) {
+        if (!pendingMeshChatRequests.add(senderId)) return
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Chat request")
+            .setMessage("$senderId wants to start a conversation with you.")
+            .setCancelable(false)
+            .setPositiveButton("Accept") { _, _ ->
+                pendingMeshChatRequests.remove(senderId)
+                meshManager?.sendMeshMessage(senderId, "CHAT_ACCEPT")
+                openMeshConversation(senderId)
+            }
+            .setNegativeButton("Decline") { _, _ ->
+                pendingMeshChatRequests.remove(senderId)
+                meshManager?.sendMeshMessage(senderId, "CHAT_DECLINE")
+            }
+            .setOnCancelListener {
+                pendingMeshChatRequests.remove(senderId)
+            }
+            .show()
+    }
+
+    private fun showIncomingMeshChatRequestNotification(senderId: String) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("mesh_chat_request_sender", senderId)
+            putExtra("mesh_chat_request_action", "prompt")
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            senderId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = Notification.Builder(this, "mesh_messages")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Chat request from $senderId")
+            .setContentText("Open to accept or decline the request.")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setCategory(Notification.CATEGORY_MESSAGE)
+            .setPriority(Notification.PRIORITY_HIGH)
+            .build()
+
+        getSystemService(NotificationManager::class.java)
+            ?.notify(senderId.hashCode(), notification)
+    }
+
+    private fun handleMeshRequestIntent(intent: Intent?) {
+        val senderId = intent?.getStringExtra("mesh_chat_request_sender")
+            ?.trim()
+            ?.uppercase(Locale.US)
+            ?: return
+
+        if (!senderId.matches(Regex("MJ-[A-Z0-9]{6}"))) return
+
+        intent.removeExtra("mesh_chat_request_sender")
+        intent.removeExtra("mesh_chat_request_action")
+        showIncomingMeshChatRequestDialog(senderId)
+    }
+
     private fun setupMeshManager() {
         val meshId = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getString(MESH_ID, null)
@@ -1107,6 +1217,7 @@ companion object {
                         meshDeviceRows.remove(endpointId)?.let {
                             meshDevicesContainer?.removeView(it)
                         }
+                        removeFloatingMeshAvatar(endpointId)
                         updateMeshStatus()
                     }
                 }
@@ -1129,6 +1240,9 @@ companion object {
                         meshDevices[endpointId]?.apply {
                             text = "Connected"
                             setTextColor(Color.rgb(25, 120, 70))
+                        }
+                        if (isMeshPanelVisible) {
+                            addFloatingMeshAvatar(endpointId, name)
                         }
                         updateMeshStatus()
                     }
@@ -1156,6 +1270,7 @@ companion object {
                             text = "Disconnected"
                             setTextColor(secondaryText)
                         }
+                        removeFloatingMeshAvatar(endpointId)
                         updateMeshStatus()
                     }
                 }
@@ -1177,24 +1292,49 @@ companion object {
                         ?: endpointId
 
                     runOnUiThread {
-                        val activeChat = MeshSession.activeChatId
+                        when (message) {
+                            "CHAT_REQUEST" -> {
+                                handleIncomingMeshChatRequest(senderId)
+                            }
 
-                        if (
-                            activeChat != null &&
-                            activeChat.equals(
-                                senderId,
-                                ignoreCase = true
-                            )
-                        ) {
-                            MeshSession.activeMessageHandler?.invoke(
-                                senderId,
-                                message
-                            )
-                        } else {
-                            showMeshMessageNotification(
-                                senderId = senderId,
-                                message = message
-                            )
+                            "CHAT_ACCEPT" -> {
+                                if (outgoingMeshChatRequests.remove(senderId)) {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "$senderId accepted your chat request",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    openMeshConversation(senderId)
+                                }
+                            }
+
+                            "CHAT_DECLINE" -> {
+                                if (outgoingMeshChatRequests.remove(senderId)) {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "$senderId declined your chat request",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+
+                            else -> {
+                                val activeChat = MeshSession.activeChatId
+                                if (
+                                    activeChat != null &&
+                                    activeChat.equals(senderId, ignoreCase = true)
+                                ) {
+                                    MeshSession.activeMessageHandler?.invoke(
+                                        senderId,
+                                        message
+                                    )
+                                } else {
+                                    showMeshMessageNotification(
+                                        senderId = senderId,
+                                        message = message
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1500,8 +1640,93 @@ companion object {
         updateMeshStatus()
     }
 
+    private fun addFloatingMeshAvatar(endpointId: String, name: String) {
+        val container = meshFloatingContainer ?: return
+        val meshId = name.trim().uppercase(Locale.US)
+        if (!meshId.matches(Regex("MJ-[A-Z0-9]{6}"))) return
+
+        meshFloatingAvatars[endpointId]?.let {
+            if (it.parent === container) return
+            meshFloatingAvatars.remove(endpointId)
+        }
+
+        val item = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(6), dp(4), dp(6), dp(4))
+        }
+
+        val avatar = ImageView(this).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                avatarGradientColors(meshId)
+            ).apply {
+                shape = GradientDrawable.OVAL
+                setStroke(dp(2), Color.argb(220, 255, 255, 255))
+            }
+            clipToOutline = true
+            setImageResource(R.drawable.mesh_mobile)
+            imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding(dp(13), dp(13), dp(13), dp(13))
+            contentDescription = "Send chat request to $meshId"
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                sendMeshChatRequest(meshId)
+            }
+        }
+
+        item.addView(
+            avatar,
+            LinearLayout.LayoutParams(dp(54), dp(54))
+        )
+        item.addView(
+            TextView(this).apply {
+                text = meshId
+                textSize = 11f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                setShadowLayer(5f, 0f, 1f, Color.BLACK)
+                setPadding(0, dp(5), 0, 0)
+            },
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        container.addView(
+            item,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+        meshFloatingAvatars[endpointId] = item
+    }
+
+    private fun removeFloatingMeshAvatar(endpointId: String) {
+        meshFloatingAvatars.remove(endpointId)?.let { view ->
+            (view.parent as? ViewGroup)?.removeView(view)
+        }
+    }
+
     private fun openMeshConversation(endpointId: String) {
-        logMesh("CONNECTED | Ready to open conversation | endpoint=$endpointId")
+        val target = endpointId.trim().uppercase(Locale.US)
+        if (!target.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+            logMesh("Cannot open Mesh conversation: invalid Mesh ID")
+            return
+        }
+
+        startActivity(
+            Intent(this, ConversationActivity::class.java).apply {
+                putExtra("phone", target)
+                putExtra("mesh_id", target)
+                putExtra("offline_mesh", true)
+            }
+        )
     }
 
     private fun showHeaderMenu() {
@@ -1772,6 +1997,25 @@ companion object {
             )
         )
 
+        meshFloatingContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            clipChildren = false
+            clipToPadding = false
+        }
+        root.addView(
+            meshFloatingContainer,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            ).apply {
+                topMargin = dp(82)
+                leftMargin = dp(12)
+                rightMargin = dp(12)
+            }
+        )
+
         val close = TextView(this).apply {
             text = "×"
             textSize = 32f
@@ -2011,6 +2255,8 @@ companion object {
         releaseMeshBackgroundVideo()
         meshStatusText = null
         meshDevicesContainer = null
+        meshFloatingContainer = null
+        meshFloatingAvatars.clear()
         meshLogText = null
         if (MeshSession.activeChatId == null) {
             meshManager?.stop()
@@ -3905,7 +4151,14 @@ companion object {
 
 
     override fun onPause() {
+        isMainActivityResumed = false
         super.onPause()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleMeshRequestIntent(intent)
     }
 
     override fun onDestroy() {
