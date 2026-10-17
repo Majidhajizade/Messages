@@ -1059,9 +1059,6 @@ companion object {
 
         if (MeshSession.manager != null) {
             meshManager = MeshSession.manager
-            if (hasNearbyPermissions()) {
-                meshManager?.start()
-            }
             return
         }
 
@@ -1640,223 +1637,290 @@ companion object {
         meshPopup?.dismiss()
         isMeshPanelVisible = true
 
-        val page = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
-            setPadding(dp(18), dp(18), dp(18), dp(16))
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val myMeshId = prefs.getString(MESH_ID, "") ?: ""
+
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
         }
 
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        val titleBox = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
-        titleBox.addView(
-            TextView(this).apply {
-                text = "Mesh"
-                textSize = 25f
-                setTextColor(Color.rgb(18, 18, 22))
-                typeface = Typeface.DEFAULT_BOLD
+        val videoFile = java.io.File(cacheDir, "mesh-background.mp4")
+        try {
+            if (!videoFile.exists() ||
+                videoFile.length() != assets.open("mesh-background.mp4").use { it.available().toLong() }
+            ) {
+                assets.open("mesh-background.mp4").use { input ->
+                    videoFile.outputStream().use { output -> input.copyTo(output) }
+                }
             }
+        } catch (e: Exception) {
+            logMesh("VIDEO | Could not prepare background: ${e.message}")
+        }
+
+        val video = android.widget.VideoView(this).apply {
+            setBackgroundColor(Color.BLACK)
+            if (videoFile.exists() && videoFile.length() > 0L) {
+                setVideoPath(videoFile.absolutePath)
+                setOnPreparedListener { player ->
+                    player.isLooping = true
+                    player.setVolume(0f, 0f)
+                    start()
+                }
+                setOnErrorListener { _, what, extra ->
+                    logMesh("VIDEO | playback error what=$what extra=$extra")
+                    true
+                }
+            }
+        }
+        root.addView(
+            video,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
         )
 
-        meshStatusText = TextView(this).apply {
-            text = "Searching nearby devices…"
-            textSize = 12f
-            setTextColor(secondaryText)
-            setPadding(0, dp(3), 0, 0)
+        val shade = View(this).apply {
+            setBackgroundColor(Color.argb(72, 0, 0, 0))
         }
-
-        titleBox.addView(meshStatusText)
-
-        header.addView(
-            titleBox,
-            LinearLayout.LayoutParams(0, dp(52), 1f)
+        root.addView(
+            shade,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
         )
 
         val close = TextView(this).apply {
             text = "×"
-            textSize = 28f
-            setTextColor(Color.rgb(90, 90, 96))
+            textSize = 32f
             gravity = Gravity.CENTER
-            background = solidDrawable(
-                Color.rgb(245, 245, 248),
-                dp(18).toFloat()
-            )
-
-            setOnClickListener {
-                returnToHome()
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.argb(90, 20, 20, 24))
+                cornerRadius = dp(24).toFloat()
             }
+            setOnClickListener { returnToHome() }
         }
-
-        header.addView(
+        root.addView(
             close,
-            LinearLayout.LayoutParams(dp(42), dp(42))
+            FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply {
+                topMargin = dp(18)
+                marginEnd = dp(18)
+            }
         )
 
-        page.addView(header)
-
-        val myMeshId = getSharedPreferences(PREFS, MODE_PRIVATE)
-            .getString(MESH_ID, null)
-            ?: "Unknown"
-
-        val identityCard = LinearLayout(this).apply {
+        val center = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = solidDrawable(
-                Color.rgb(243, 247, 255),
-                dp(18).toFloat()
-            )
+            gravity = Gravity.CENTER
         }
 
-        identityCard.addView(
-            TextView(this).apply {
-                text = "YOUR MESH ID"
-                textSize = 10f
-                setTextColor(premiumBlue)
-                typeface = Typeface.DEFAULT_BOLD
-                letterSpacing = 0.08f
-            }
-        )
-
-        identityCard.addView(
-            TextView(this).apply {
-                text = myMeshId
-                textSize = 20f
-                setTextColor(Color.rgb(25, 45, 75))
-                typeface = Typeface.DEFAULT_BOLD
-                setPadding(0, dp(4), 0, 0)
-            }
-        )
-
-        page.addView(
-            identityCard,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(76)
+        val avatar = ImageView(this).apply {
+            val colors = avatarGradientColors(myMeshId.ifBlank { "Mesh" })
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                colors
             ).apply {
-                topMargin = dp(12)
-                bottomMargin = dp(12)
+                shape = GradientDrawable.OVAL
+                setStroke(dp(3), Color.argb(210, 255, 255, 255))
             }
-        )
-
-        val searchInput = EditText(this).apply {
-            hint = "Search Mesh ID"
-            textSize = 14f
-            setSingleLine(true)
-            setPadding(dp(14), 0, dp(14), 0)
-            background = solidDrawable(
-                Color.rgb(246, 246, 249),
-                dp(16).toFloat()
-            )
+            clipToOutline = true
+            contentDescription = "Mesh avatar"
         }
-
-        page.addView(
-            searchInput,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(50)
-            ).apply {
+        center.addView(
+            avatar,
+            LinearLayout.LayoutParams(dp(104), dp(104)).apply {
                 bottomMargin = dp(14)
             }
         )
 
-        val nearbyTitle = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        nearbyTitle.addView(
+        center.addView(
             TextView(this).apply {
-                text = "Nearby devices"
-                textSize = 15f
-                setTextColor(Color.rgb(30, 30, 35))
+                text = myMeshId
+                textSize = 19f
                 typeface = Typeface.DEFAULT_BOLD
-            },
-            LinearLayout.LayoutParams(0, dp(30), 1f)
-        )
-
-        nearbyTitle.addView(
-            TextView(this).apply {
-                text = "${meshDevices.size}"
-                textSize = 12f
+                setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
-                setTextColor(secondaryText)
-                background = solidDrawable(
-                    Color.rgb(242, 242, 245),
-                    dp(12).toFloat()
-                )
-                setPadding(dp(9), dp(4), dp(9), dp(4))
-            }
-        )
-
-        page.addView(
-            nearbyTitle,
+                setShadowLayer(8f, 0f, 2f, Color.BLACK)
+            },
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(34)
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
 
-        meshDevicesContainer = LinearLayout(this).apply {
+        root.addView(
+            center,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            ).apply {
+                bottomMargin = dp(110)
+            }
+        )
+
+        val bottomPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-        }
-
-        if (meshDevices.isEmpty()) {
-            meshDevicesContainer?.addView(
-                TextView(this).apply {
-                    tag = "mesh_empty"
-                    text = "No nearby devices yet\nKeep Mesh open to discover peers."
-                    textSize = 13f
-                    setTextColor(secondaryText)
-                    gravity = Gravity.CENTER
-                    setPadding(0, dp(22), 0, dp(22))
-                },
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(82)
-                )
-            )
-        } else {
-            meshDeviceRows.values.forEach { device ->
-                meshDevicesContainer?.addView(
-                    device,
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        dp(66)
-                    ).apply {
-                        bottomMargin = dp(8)
-                    }
-                )
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(18), dp(18), dp(18), dp(18))
+            background = GradientDrawable().apply {
+                setColor(Color.argb(190, 12, 12, 16))
+                cornerRadius = dp(28).toFloat()
+                setStroke(dp(1), Color.argb(45, 255, 255, 255))
             }
         }
 
-        val scroll = ScrollView(this).apply {
-            setFillViewport(true)
-            addView(
-                meshDevicesContainer,
-                ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            )
+        meshStatusText = TextView(this).apply {
+            text = "Mesh آماده است"
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(Color.LTGRAY)
         }
-
-        page.addView(
-            scroll,
+        bottomPanel.addView(
+            meshStatusText,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(10)
+            }
         )
 
+        val searchInput = EditText(this).apply {
+            hint = "Search id  •  MJ-XXXXXX"
+            singleLine = true
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.LTGRAY)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            setPadding(dp(18), 0, dp(18), 0)
+            background = GradientDrawable().apply {
+                setColor(Color.argb(45, 255, 255, 255))
+                cornerRadius = dp(26).toFloat()
+                setStroke(dp(1), Color.argb(90, 255, 255, 255))
+            }
+        }
+        bottomPanel.addView(
+            searchInput,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(52)
+            ).apply {
+                bottomMargin = dp(10)
+            }
+        )
 
-        setContentView(page)
+        fun makeMeshButton(label: String, primary: Boolean = false): TextView {
+            return TextView(this).apply {
+                text = label
+                textSize = 15f
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    setColor(
+                        if (primary) Color.rgb(53, 112, 230)
+                        else Color.argb(48, 255, 255, 255)
+                    )
+                    cornerRadius = dp(26).toFloat()
+                    if (!primary) {
+                        setStroke(dp(1), Color.argb(75, 255, 255, 255))
+                    }
+                }
+                isClickable = true
+                isFocusable = true
+            }
+        }
+
+        val searchButton = makeMeshButton("Search id", true)
+        bottomPanel.addView(
+            searchButton,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(48)
+            ).apply {
+                bottomMargin = dp(8)
+            }
+        )
+        searchButton.setOnClickListener {
+            val entered = searchInput.text.toString().trim()
+                .uppercase(Locale.US)
+            if (!entered.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+                searchInput.error = "شناسه باید مانند MJ-ABC123 باشد"
+                return@setOnClickListener
+            }
+            if (entered == myMeshId.uppercase(Locale.US)) {
+                Toast.makeText(this, "این شناسه متعلق به خودت است", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            selectedMeshId = entered
+            saveMeshDevice(entered)
+            meshManager?.setTargetMeshId(entered)
+            if (hasNearbyPermissions()) {
+                meshManager?.start()
+                meshStatusText?.text = "در حال جست‌وجوی $entered …"
+            } else {
+                ensureNearbyPermissions()
+                meshStatusText?.text = "برای جست‌وجو مجوزهای Nearby لازم است"
+            }
+            Toast.makeText(
+                this,
+                "شناسه ثبت شد؛ برای گفتگو باید درخواست چت پذیرفته شود.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+
+        val autoSearchButton = makeMeshButton("Auto Search")
+        bottomPanel.addView(
+            autoSearchButton,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(44)
+            ).apply {
+                bottomMargin = dp(8)
+            }
+        )
+        autoSearchButton.setOnClickListener {
+            meshManager?.setTargetMeshId(null)
+            if (hasNearbyPermissions()) {
+                meshManager?.start()
+                meshStatusText?.text = "در حال جست‌وجوی دستگاه‌های نزدیک …"
+            } else {
+                ensureNearbyPermissions()
+            }
+        }
+
+        val settingsButton = makeMeshButton("Mesh settings")
+        bottomPanel.addView(
+            settingsButton,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(44)
+            )
+        )
+        settingsButton.setOnClickListener {
+            video.stopPlayback()
+            isMeshPanelVisible = false
+            showMeshIdSettings()
+        }
+
+        root.addView(
+            bottomPanel,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM
+            ).apply {
+                leftMargin = dp(14)
+                rightMargin = dp(14)
+                bottomMargin = dp(18)
+            }
+        )
+
+        meshDevicesContainer = null
+        setContentView(root)
         updateMeshStatus()
     }
 
@@ -1869,6 +1933,9 @@ companion object {
         meshStatusText = null
         meshDevicesContainer = null
         meshLogText = null
+        if (MeshSession.activeChatId == null) {
+            meshManager?.stop()
+        }
         setContentView(createHomeScreen())
         updateMeshStatus()
     }
