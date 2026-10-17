@@ -1346,7 +1346,6 @@ companion object {
                         meshStatusText?.setTextColor(
                             Color.rgb(190, 55, 55)
                         )
-                        logMesh("ERROR | $message")
                     }
                 }
             }
@@ -1999,12 +1998,31 @@ companion object {
 
         meshFloatingContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+            gravity = Gravity.CENTER_VERTICAL
             clipChildren = false
             clipToPadding = false
+            setPadding(dp(6), dp(4), dp(6), dp(4))
         }
-        root.addView(
+
+        val meshFloatingScroll =
+            android.widget.HorizontalScrollView(this).apply {
+                isHorizontalScrollBarEnabled = false
+                isFillViewport = false
+                clipChildren = false
+                clipToPadding = false
+                overScrollMode = View.OVER_SCROLL_NEVER
+            }
+
+        meshFloatingScroll.addView(
             meshFloatingContainer,
+            android.widget.HorizontalScrollView.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        root.addView(
+            meshFloatingScroll,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT,

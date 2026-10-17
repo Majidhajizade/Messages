@@ -58,7 +58,7 @@ class OfflineMeshManager(
 
         private const val SEEN_LIMIT = 2000
 
-        private val STRATEGY = Strategy.P2P_POINT_TO_POINT
+        private val STRATEGY = Strategy.P2P_CLUSTER
     }
 
     private val identity = MeshIdentity(context)
@@ -85,6 +85,14 @@ class OfflineMeshManager(
     private val endpointSigningPublicKeys =
         ConcurrentHashMap<String, String>()
 
+    // Public keys indexed by mesh ID, including indirectly reachable peers.
+    private val meshSigningKeys =
+        ConcurrentHashMap<String, String>()
+    private val meshEncryptionKeys =
+        ConcurrentHashMap<String, String>()
+
+    private val meshKeyLock = Any()
+
     private val handshakeTimeouts =
         ConcurrentHashMap<String, Runnable>()
 
@@ -97,8 +105,13 @@ class OfflineMeshManager(
     private val pendingMessages = LinkedHashMap<String, MeshMessage>()
     private val pendingLock = Any()
 
+    private val relayPendingMessages =
+        LinkedHashMap<String, MeshMessage>()
+    private val relayPendingLock = Any()
+
     private val pendingAttempts = ConcurrentHashMap<String, Int>()
     private val messageReturnRoutes = ConcurrentHashMap<String, String>()
+    private val messageReturnPeerIds = ConcurrentHashMap<String, String>()
 
     private fun queuePendingMessage(message: MeshMessage) {
         if (message.destination == null) return
@@ -119,20 +132,92 @@ class OfflineMeshManager(
             pendingMessages.remove(messageId)
         }
         pendingAttempts.remove(messageId)
-        messageReturnRoutes.remove(messageId)
+    }
+
+    private fun queueRelayPendingMessage(message: MeshMessage) {
+        if (message.destination == null) return
+
+        synchronized(relayPendingLock) {
+            relayPendingMessages[message.id] = message
+
+            while (relayPendingMessages.size > SEEN_LIMIT) {
+                val iterator = relayPendingMessages.entries.iterator()
+                val removedId = iterator.next().key
+                iterator.remove()
+                pendingAttempts.remove(removedId)
+            }
+        }
+    }
+
+    private fun removeRelayPendingMessage(messageId: String) {
+        synchronized(relayPendingLock) {
+            relayPendingMessages.remove(messageId)
+        }
+        pendingAttempts.remove(messageId)
     }
 
     private fun retryPendingMessages() {
         val pending = synchronized(pendingLock) {
             pendingMessages.values.toList()
         }
+        retryMessageBatch(pending, relay = false)
 
-        pending.forEach { message ->
+        val relayed = synchronized(relayPendingLock) {
+            relayPendingMessages.values.toList()
+        }
+        retryMessageBatch(relayed, relay = true)
+
+        val acks = synchronized(pendingAckLock) {
+            pendingAcks.values.toList()
+        }
+        acks.forEach { ack ->
+            val activeEndpoint = if (
+                connectedEndpoints.contains(ack.endpointId)
+            ) {
+                ack.endpointId
+            } else {
+                ack.peerMeshId?.let { peerMeshId ->
+                    connectedEndpoints.firstOrNull { endpointId ->
+                        endpointNames[endpointId]?.equals(
+                            peerMeshId,
+                            ignoreCase = true
+                        ) == true
+                    }
+                }
+            }
+
+            if (activeEndpoint != null) {
+                val routedAck = if (activeEndpoint == ack.endpointId) {
+                    ack
+                } else {
+                    ack.copy(endpointId = activeEndpoint)
+                }
+
+                synchronized(pendingAckLock) {
+                    if (pendingAcks[ack.messageId] == ack) {
+                        pendingAcks[ack.messageId] = routedAck
+                    }
+                }
+
+                transmitAck(routedAck)
+            }
+        }
+    }
+
+    private fun retryMessageBatch(
+        messages: List<MeshMessage>,
+        relay: Boolean
+    ) {
+        messages.forEach { message ->
             pendingAttempts[message.id] =
                 (pendingAttempts[message.id] ?: 0) + 1
 
             if (message.ttl <= 0) {
-                removePendingMessage(message.id)
+                if (relay) {
+                    removeRelayPendingMessage(message.id)
+                } else {
+                    removePendingMessage(message.id)
+                }
                 return@forEach
             }
 
@@ -141,27 +226,17 @@ class OfflineMeshManager(
                     .toByteArray(Charsets.UTF_8)
             )
 
-            var deliveredToDestination = false
-
-            connectedEndpoints.forEach { endpointId ->
-                val peerId = endpointNames[endpointId]
-
-                if (
-                    message.destination == null ||
-                    peerId.equals(message.destination, ignoreCase = true)
-                ) {
-                    deliveredToDestination = true
+            connectedEndpoints
+                .filter { endpointId ->
+                    !relay ||
+                        messageReturnRoutes[message.id] != endpointId
                 }
-
-                connectionsClient.sendPayload(
-                    endpointId,
-                    payload
-                )
-            }
-
-            if (deliveredToDestination) {
-                removePendingMessage(message.id)
-            }
+                .forEach { endpointId ->
+                    connectionsClient.sendPayload(
+                        endpointId,
+                        payload
+                    )
+                }
         }
     }
 
@@ -349,11 +424,36 @@ class OfflineMeshManager(
 
         handshakeTimeouts.remove(endpointId)?.let(handler::removeCallbacks)
 
-        val wanted = targetMeshId
+        val keyConflict = synchronized(meshKeyLock) {
+            val existingSigningKey = meshSigningKeys[normalized]
+            val existingEncryptionKey = meshEncryptionKeys[normalized]
 
-        if (wanted != null &&
-            !normalized.equals(wanted, ignoreCase = true)
-        ) {
+            if (
+                (existingSigningKey != null &&
+                    existingSigningKey != remoteSigningKey) ||
+                (existingEncryptionKey != null &&
+                    existingEncryptionKey != remoteEncryptionKey)
+            ) {
+                true
+            } else {
+                meshSigningKeys.putIfAbsent(
+                    normalized,
+                    remoteSigningKey
+                )
+                meshEncryptionKeys.putIfAbsent(
+                    normalized,
+                    remoteEncryptionKey
+                )
+                false
+            }
+        }
+
+        if (keyConflict) {
+            listener.onError(
+                "Mesh ID key conflict for $normalized; refusing connection"
+            )
+            endpointPublicKeys.remove(endpointId)
+            endpointSigningPublicKeys.remove(endpointId)
             connectionsClient.disconnectFromEndpoint(endpointId)
             return
         }
@@ -389,6 +489,17 @@ class OfflineMeshManager(
             return true
         }
     }
+
+    private data class PendingAck(
+        val messageId: String,
+        val sourceMeshId: String,
+        val endpointId: String,
+        val relay: Boolean,
+        val peerMeshId: String?
+    )
+
+    private val pendingAcks = LinkedHashMap<String, PendingAck>()
+    private val pendingAckLock = Any()
 
     private data class MeshPacket(
         val version: Int,
@@ -432,16 +543,21 @@ class OfflineMeshManager(
         message: MeshMessage
     ): Boolean {
         return try {
+            val sourceId =
+                message.source.trim().uppercase(Locale.US)
+
+            if (!sourceId.matches(Regex("MJ-[A-Z0-9]{6}"))) {
+                return false
+            }
+
             val publicKeyBase64 =
-                endpointSigningPublicKeys.entries
-                    .firstOrNull {
-                        endpointNames[it.key]
-                            ?.equals(
-                                message.source,
-                                ignoreCase = true
-                            ) == true
-                    }
-                    ?.let { endpointSigningPublicKeys[it.key] }
+                meshSigningKeys[sourceId]
+                    ?: endpointSigningPublicKeys.entries
+                        .firstOrNull {
+                            endpointNames[it.key]
+                                ?.equals(sourceId, ignoreCase = true) == true
+                        }
+                        ?.let { endpointSigningPublicKeys[it.key] }
                     ?: return false
 
             val keyBytes = Base64.decode(
@@ -570,25 +686,105 @@ class OfflineMeshManager(
     private fun sendAck(
         endpointId: String,
         messageId: String
-    ) {
+    ): com.google.android.gms.tasks.Task<Void> {
         val payload = Payload.fromBytes(
             "$ACK_PREFIX$messageId|$meshId"
                 .toByteArray(Charsets.UTF_8)
         )
 
-        connectionsClient.sendPayload(
+        return connectionsClient.sendPayload(
             endpointId,
             payload
         )
     }
 
+    private fun queueAndSendAck(
+        endpointId: String,
+        messageId: String,
+        sourceMeshId: String,
+        relay: Boolean
+    ) {
+        val ack = PendingAck(
+            messageId = messageId,
+            sourceMeshId = sourceMeshId,
+            endpointId = endpointId,
+            relay = relay,
+            peerMeshId = endpointNames[endpointId]
+                ?.takeIf { it.matches(Regex("MJ-[A-Z0-9]{6}")) }
+                ?: messageReturnPeerIds[messageId]
+        )
+
+        synchronized(pendingAckLock) {
+            pendingAcks[messageId] = ack
+        }
+
+        transmitAck(ack)
+    }
+
+    private fun transmitAck(ack: PendingAck) {
+        if (!connectedEndpoints.contains(ack.endpointId)) {
+            return
+        }
+
+        sendAck(
+            ack.endpointId,
+            ack.messageId
+        ).addOnSuccessListener {
+            synchronized(pendingAckLock) {
+                if (pendingAcks[ack.messageId] == ack) {
+                    pendingAcks.remove(ack.messageId)
+                }
+            }
+
+            if (ack.relay) {
+                rememberAck(ack.messageId)
+                removeRelayPendingMessage(ack.messageId)
+                messageReturnRoutes.remove(ack.messageId)
+                messageReturnPeerIds.remove(ack.messageId)
+            }
+        }.addOnFailureListener { error ->
+            listener.onError(
+                "Mesh ACK remains queued for retry: ${
+                    error.message ?: "unknown error"
+                }"
+            )
+        }
+    }
+
     private fun forwardAck(
         messageId: String,
-        sourceMeshId: String
+        sourceMeshId: String,
+        incomingEndpointId: String
     ) {
-        if (sourceMeshId.equals(meshId, ignoreCase = true)) {
+        val pendingMessage =
+            synchronized(pendingLock) {
+                pendingMessages[messageId]
+            }
+
+        if (
+            pendingMessage != null &&
+            pendingMessage.source.equals(meshId, ignoreCase = true) &&
+            pendingMessage.destination.equals(
+                sourceMeshId,
+                ignoreCase = true
+            )
+        ) {
             removePendingMessage(messageId)
             messageReturnRoutes.remove(messageId)
+            messageReturnPeerIds.remove(messageId)
+            return
+        }
+
+        val relayedMessage = synchronized(relayPendingLock) {
+            relayPendingMessages[messageId]
+        } ?: return
+
+        if (
+            !relayedMessage.destination.equals(
+                sourceMeshId,
+                ignoreCase = true
+            )
+        ) {
             return
         }
 
@@ -596,18 +792,28 @@ class OfflineMeshManager(
             messageReturnRoutes[messageId]
                 ?: return
 
-        if (!connectedEndpoints.contains(returnEndpointId)) {
+        val returnPeerMeshId =
+            messageReturnPeerIds[messageId]
+
+        val activeReturnEndpointId =
+            returnPeerMeshId?.let { peerMeshId ->
+                connectedEndpoints.firstOrNull { endpointId ->
+                    endpointNames[endpointId]?.equals(
+                        peerMeshId,
+                        ignoreCase = true
+                    ) == true
+                }
+            } ?: returnEndpointId
+
+        if (activeReturnEndpointId == incomingEndpointId) {
             return
         }
 
-        val payload = Payload.fromBytes(
-            "$ACK_PREFIX$messageId|$sourceMeshId"
-                .toByteArray(Charsets.UTF_8)
-        )
-
-        connectionsClient.sendPayload(
-            returnEndpointId,
-            payload
+        queueAndSendAck(
+            activeReturnEndpointId,
+            messageId,
+            sourceMeshId,
+            relay = true
         )
     }
 
@@ -622,6 +828,8 @@ class OfflineMeshManager(
         val forwarded = message.copy(
             ttl = message.ttl - 1
         )
+
+        queueRelayPendingMessage(forwarded)
 
         val payload = Payload.fromBytes(
             encodeMessage(forwarded)
@@ -733,15 +941,15 @@ class OfflineMeshManager(
 
                     if (
                         messageId.isEmpty() ||
-                        sourceMeshId.isEmpty() ||
-                        !rememberAck(messageId)
+                        sourceMeshId.isEmpty()
                     ) {
                         return
                     }
 
                     forwardAck(
                         messageId,
-                        sourceMeshId
+                        sourceMeshId,
+                        endpointId
                     )
                     return
                 }
@@ -764,11 +972,36 @@ class OfflineMeshManager(
                     return
                 }
 
-                messageReturnRoutes[meshMessage.id] = endpointId
-
                 if (!rememberMessage(meshMessage.id)) {
+                    if (
+                        meshMessage.destination != null &&
+                        meshMessage.destination.equals(
+                            meshId,
+                            ignoreCase = true
+                        )
+                    ) {
+                        queueAndSendAck(
+                            endpointId,
+                            meshMessage.id,
+                            meshId,
+                            relay = false
+                        )
+                    }
                     return
                 }
+
+                messageReturnRoutes.putIfAbsent(
+                    meshMessage.id,
+                    endpointId
+                )
+                endpointNames[endpointId]
+                    ?.takeIf { it.matches(Regex("MJ-[A-Z0-9]{6}")) }
+                    ?.let { peerMeshId ->
+                        messageReturnPeerIds.putIfAbsent(
+                            meshMessage.id,
+                            peerMeshId
+                        )
+                    }
 
                 val destination = meshMessage.destination
 
@@ -802,12 +1035,14 @@ class OfflineMeshManager(
                     )
 
                     if (destination != null) {
-                        sendAck(endpointId, meshMessage.id)
-                        removePendingMessage(meshMessage.id)
+                        queueAndSendAck(
+                            endpointId,
+                            meshMessage.id,
+                            meshId,
+                            relay = false
+                        )
                     }
                 } else {
-                    queuePendingMessage(meshMessage)
-
                     forwardMessage(
                         meshMessage,
                         endpointId
@@ -891,6 +1126,8 @@ class OfflineMeshManager(
                     ?.let(handler::removeCallbacks)
 
                 endpointNames.remove(endpointId)
+                endpointPublicKeys.remove(endpointId)
+                endpointSigningPublicKeys.remove(endpointId)
 
                 listener.onPeerDisconnected(endpointId)
             }
@@ -911,19 +1148,6 @@ class OfflineMeshManager(
                     endpointId,
                     remoteName
                 )
-
-                val wanted = targetMeshId
-
-                if (
-                    wanted != null &&
-                    !remoteName.equals(
-                        wanted,
-                        ignoreCase = true
-                    )
-                ) {
-                    listener.onPeerLost(endpointId)
-                    return
-                }
 
                 if (
                     connectedEndpoints.contains(endpointId) ||
@@ -986,9 +1210,12 @@ class OfflineMeshManager(
             override fun onEndpointLost(
                 endpointId: String
             ) {
-                endpointNames.remove(endpointId)
+                connectedEndpoints.remove(endpointId)
                 connectingEndpoints.remove(endpointId)
                 handshakeEndpoints.remove(endpointId)
+                endpointNames.remove(endpointId)
+                endpointPublicKeys.remove(endpointId)
+                endpointSigningPublicKeys.remove(endpointId)
 
                 handshakeTimeouts
                     .remove(endpointId)
@@ -1086,15 +1313,20 @@ class OfflineMeshManager(
     private fun encryptionPublicKeyForMeshId(
         destination: String
     ): PublicKey? {
-        val endpointId = endpointNames.entries
-            .firstOrNull {
-                it.value.equals(destination, ignoreCase = true)
-            }
-            ?.key
-            ?: return null
+        val normalizedDestination =
+            destination.trim().uppercase(Locale.US)
 
         val publicKeyBase64 =
-            endpointPublicKeys[endpointId]
+            meshEncryptionKeys[normalizedDestination]
+                ?: endpointNames.entries
+                    .firstOrNull {
+                        it.value.equals(
+                            normalizedDestination,
+                            ignoreCase = true
+                        )
+                    }
+                    ?.key
+                    ?.let { endpointPublicKeys[it] }
                 ?: return null
 
         return try {
@@ -1187,6 +1419,7 @@ class OfflineMeshManager(
 
         rememberMessage(signedMeshMessage.id)
         messageReturnRoutes.remove(signedMeshMessage.id)
+        messageReturnPeerIds.remove(signedMeshMessage.id)
 
         if (normalizedDestination != null && connectedEndpoints.isEmpty()) {
             queuePendingMessage(signedMeshMessage)
