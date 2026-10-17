@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.ContactsContract
 import android.provider.Telephony
+import android.telephony.PhoneNumberUtils
 import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
 
@@ -114,7 +115,11 @@ class SmsReceiver : BroadcastReceiver() {
                 Context.MODE_PRIVATE
             ).getStringSet("blocked_numbers", emptySet()) ?: emptySet()
 
-            if (!blocked.contains(sender.trim())) {
+            val activePhone = ConversationActivity.activeConversationPhone
+            val sameConversationIsOpen = !activePhone.isNullOrBlank() &&
+                PhoneNumberUtils.compare(activePhone, sender)
+
+            if (!blocked.contains(sender.trim()) && !sameConversationIsOpen) {
                 showNotification(context, sender, body)
             }
         }

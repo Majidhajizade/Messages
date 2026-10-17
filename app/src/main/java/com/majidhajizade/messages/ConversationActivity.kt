@@ -10,14 +10,18 @@ import android.content.Intent
 import android.net.Uri
 import android.content.ContentValues
 import android.content.IntentFilter
+import android.database.ContentObserver
 import android.content.pm.PackageManager
 import android.provider.ContactsContract
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.Build
 import android.provider.Telephony
 import android.telephony.SmsManager
+import android.telephony.PhoneNumberUtils
 import android.view.Gravity
 import android.view.View
 import android.widget.EditText
@@ -56,6 +60,7 @@ class ConversationActivity : Activity() {
     private val secondaryText = Color.rgb(110, 110, 115)
 
     private lateinit var phone: String
+    private var smsContentObserver: ContentObserver? = null
     private lateinit var offlineMeshManager: OfflineMeshManager
 
     companion object {
@@ -67,6 +72,9 @@ class ConversationActivity : Activity() {
         @Volatile
         var activeMeshId: String? = null
             private set
+
+        @Volatile
+        var activeConversationPhone: String? = null
     }
 
     private val savedSentMessageIds = mutableSetOf<String>()
@@ -127,11 +135,13 @@ class ConversationActivity : Activity() {
                 }
             }
 
-            Toast.makeText(
-                this@ConversationActivity,
-                errorText,
-                Toast.LENGTH_LONG
-            ).show()
+            if (!attemptSucceeded) {
+                Toast.makeText(
+                    this@ConversationActivity,
+                    errorText,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
 
@@ -329,12 +339,53 @@ class ConversationActivity : Activity() {
     override fun onResume() {
         super.onResume()
 
+        if (::phone.isInitialized) {
+            activeConversationPhone = phone
+        }
+
         if (::messagesContainer.isInitialized &&
             checkSelfPermission(Manifest.permission.READ_SMS)
                 == PackageManager.PERMISSION_GRANTED
         ) {
             loadConversation()
+
+            if (smsContentObserver == null) {
+                smsContentObserver = object : ContentObserver(
+                    Handler(Looper.getMainLooper())
+                ) {
+                    override fun onChange(selfChange: Boolean) {
+                        super.onChange(selfChange)
+                        if (::phone.isInitialized &&
+                            ::messagesContainer.isInitialized &&
+                            checkSelfPermission(Manifest.permission.READ_SMS)
+                                == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            loadConversation()
+                        }
+                    }
+                }
+                contentResolver.registerContentObserver(
+                    Telephony.Sms.CONTENT_URI,
+                    true,
+                    smsContentObserver!!
+                )
+            }
         }
+    }
+
+    override fun onPause() {
+        if (::phone.isInitialized &&
+            PhoneNumberUtils.compare(activeConversationPhone ?: "", phone)
+        ) {
+            activeConversationPhone = null
+        }
+
+        smsContentObserver?.let { observer ->
+            runCatching { contentResolver.unregisterContentObserver(observer) }
+        }
+        smsContentObserver = null
+
+        super.onPause()
     }
 
     private fun hasNearbyPermissions(): Boolean {
