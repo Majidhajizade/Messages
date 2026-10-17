@@ -99,6 +99,23 @@ class MainActivity : Activity() {
     private val meshDeviceNames = linkedMapOf<String, String>()
     private var selectedMeshId: String? = null
     private var isMeshPanelVisible = false
+    private var meshBackgroundPlayer: android.media.MediaPlayer? = null
+    private var meshBackgroundSurface: android.view.Surface? = null
+
+    private fun releaseMeshBackgroundVideo() {
+        meshBackgroundPlayer?.runCatching {
+            setOnPreparedListener(null)
+            setOnErrorListener(null)
+            setOnInfoListener(null)
+            if (isPlaying) pause()
+            reset()
+            release()
+        }
+        meshBackgroundPlayer = null
+
+        meshBackgroundSurface?.runCatching { release() }
+        meshBackgroundSurface = null
+    }
     private var isSettingsPageVisible = false
     private var isMeshLogPageVisible = false
     private val rowViews = mutableMapOf<String, TextView>()
@@ -1667,35 +1684,77 @@ companion object {
             logMesh("VIDEO | Could not prepare background: ${e.javaClass.simpleName}: ${e.message}")
         }
 
-        val video = android.widget.VideoView(this).apply {
-            setBackgroundColor(Color.BLACK)
-            if (videoFile.exists() && videoFile.length() > 0L) {
-                setOnPreparedListener { player ->
-                    player.isLooping = true
-                    player.setVolume(0f, 0f)
-                    logMesh("VIDEO | prepared duration=${player.duration} visible=$isMeshPanelVisible")
-                    if (isMeshPanelVisible) {
-                        start()
-                        logMesh("VIDEO | start requested")
-                    } else {
-                        logMesh("VIDEO | start skipped because panel is hidden")
+        val videoTexture = android.view.TextureView(this)
+
+        videoTexture.surfaceTextureListener =
+            object : android.view.TextureView.SurfaceTextureListener {
+                override fun onSurfaceTextureAvailable(
+                    surfaceTexture: android.graphics.SurfaceTexture,
+                    width: Int,
+                    height: Int
+                ) {
+                    if (!videoFile.exists() || videoFile.length() <= 0L) {
+                        logMesh("VIDEO | background file is missing or empty")
+                        return
+                    }
+
+                    try {
+                        releaseMeshBackgroundVideo()
+                        val surface = android.view.Surface(surfaceTexture)
+                        meshBackgroundSurface = surface
+                        val player = android.media.MediaPlayer()
+                        meshBackgroundPlayer = player
+
+                        player.setSurface(surface)
+                        player.setDataSource(videoFile.absolutePath)
+                        player.isLooping = true
+                        player.setVolume(0f, 0f)
+
+                        player.setOnPreparedListener {
+                            logMesh("VIDEO | TextureView prepared duration=${it.duration} visible=$isMeshPanelVisible")
+                            if (isMeshPanelVisible) {
+                                it.start()
+                                logMesh("VIDEO | TextureView start requested")
+                            }
+                        }
+
+                        player.setOnErrorListener { _, what, extra ->
+                            logMesh("VIDEO | TextureView playback error what=$what extra=$extra")
+                            true
+                        }
+
+                        player.setOnInfoListener { _, what, extra ->
+                            logMesh("VIDEO | TextureView info what=$what extra=$extra")
+                            false
+                        }
+
+                        player.prepareAsync()
+                    } catch (e: Exception) {
+                        logMesh("VIDEO | TextureView setup failed: ${e.javaClass.simpleName}: ${e.message}")
+                        releaseMeshBackgroundVideo()
                     }
                 }
-                setOnErrorListener { _, what, extra ->
-                    logMesh("VIDEO | playback error what=$what extra=$extra")
-                    false
+
+                override fun onSurfaceTextureSizeChanged(
+                    surface: android.graphics.SurfaceTexture,
+                    width: Int,
+                    height: Int
+                ) = Unit
+
+                override fun onSurfaceTextureDestroyed(
+                    surfaceTexture: android.graphics.SurfaceTexture
+                ): Boolean {
+                    releaseMeshBackgroundVideo()
+                    return true
                 }
-                setOnCompletionListener {
-                    logMesh("VIDEO | playback completed")
-                }
-                setVideoPath(videoFile.absolutePath)
-                logMesh("VIDEO | setVideoPath path=${videoFile.absolutePath}")
-            } else {
-                logMesh("VIDEO | background file is missing or empty")
+
+                override fun onSurfaceTextureUpdated(
+                    surface: android.graphics.SurfaceTexture
+                ) = Unit
             }
-        }
+
         root.addView(
-            video,
+            videoTexture,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
@@ -1762,8 +1821,8 @@ companion object {
             }
         )
         avatar.setOnClickListener {
-            video.stopPlayback()
             isMeshPanelVisible = false
+            releaseMeshBackgroundVideo()
             showMeshIdSettings()
         }
 
@@ -1949,6 +2008,7 @@ companion object {
         }
 
         isMeshPanelVisible = false
+        releaseMeshBackgroundVideo()
         meshStatusText = null
         meshDevicesContainer = null
         meshLogText = null
