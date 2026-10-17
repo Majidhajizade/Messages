@@ -1848,7 +1848,7 @@ companion object {
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER
             ).apply {
-                bottomMargin = dp(110)
+                bottomMargin = dp(75)
             }
         )
 
