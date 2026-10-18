@@ -2035,9 +2035,6 @@ class ConversationActivity : Activity() {
         val closeToPrevious = previousDate != null &&
             date - previousDate < 60_000L
 
-        if (closeToPrevious) {
-            lastTimeView?.visibility = View.GONE
-        }
 
         val bubble = LinearLayout(this).apply {
             tag = "message_bubble"
@@ -2062,7 +2059,8 @@ class ConversationActivity : Activity() {
             emojiAssetPath == null &&
             !body.contains('\n') &&
             body.length <= 18 &&
-            body.none { it == '\u200d' || it == '\ufe0f' }
+            body.none { it == '\u200d' || it == '\ufe0f' } &&
+            body.trim().isNotEmpty()
         if (emojiAssetPath != null) {
             bubble.background = null
 
@@ -2277,16 +2275,17 @@ class ConversationActivity : Activity() {
             val metaRow = LinearLayout(this).apply {
                 tag = "message_meta_row"
                 orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.END or
+                layoutDirection = View.LAYOUT_DIRECTION_LTR
+                gravity = Gravity.RIGHT or
                     if (compactSingleLine) Gravity.BOTTOM else Gravity.CENTER_VERTICAL
                 if (compactSingleLine) {
                     setPadding(0, 0, dp(8), 0)
                 } else {
                     setPadding(dp(10), 0, dp(8), dp(4))
                 }
-                visibility = View.GONE
-                alpha = 0f
-                translationY = dp(4).toFloat()
+                visibility = View.VISIBLE
+                alpha = 1f
+                translationY = 0f
             }
             metaRow.addView(
                 time,
@@ -2360,62 +2359,15 @@ class ConversationActivity : Activity() {
                 )
             }
 
-            wrapper.addView(
+            bubble.addView(
                 metaRow,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     dp(16)
                 ).apply {
-                    topMargin = -dp(16)
-                    gravity = if (incoming) Gravity.START else Gravity.END
+                    gravity = Gravity.RIGHT
                 }
             )
-
-            var metadataVisible = false
-            bubble.isClickable = true
-            bubble.setOnClickListener {
-                metadataVisible = !metadataVisible
-
-                bubble.animate().cancel()
-                metaRow.animate().cancel()
-
-                if (metadataVisible) {
-                    metaRow.visibility = View.VISIBLE
-                    metaRow.alpha = 0f
-                    metaRow.translationY = dp(4).toFloat()
-
-                    bubble.animate()
-                        .translationY(-dp(16).toFloat())
-                        .setDuration(220)
-                        .setInterpolator(DecelerateInterpolator())
-                        .start()
-
-                    metaRow.animate()
-                        .alpha(1f)
-                        .translationY(0f)
-                        .setDuration(220)
-                        .setInterpolator(DecelerateInterpolator())
-                        .start()
-                } else {
-                    bubble.animate()
-                        .translationY(0f)
-                        .setDuration(220)
-                        .setInterpolator(DecelerateInterpolator())
-                        .start()
-
-                    metaRow.animate()
-                        .alpha(0f)
-                        .translationY(dp(4).toFloat())
-                        .setDuration(180)
-                        .setInterpolator(DecelerateInterpolator())
-                        .withEndAction {
-                            if (!metadataVisible) {
-                                metaRow.visibility = View.GONE
-                            }
-                        }
-                        .start()
-                }
-            }
 
             val bodyText = bubble.findViewWithTag<TextView>("message_body")
             bodyText?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
