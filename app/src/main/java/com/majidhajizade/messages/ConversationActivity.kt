@@ -564,7 +564,7 @@ class ConversationActivity : Activity() {
                 val bottomRight = if (!incomingMessage) joined else r
                 val bottomLeft = if (incomingMessage) joined else r
 
-                canvas.drawRoundRect(
+                path.addRoundRect(
                     rect,
                     floatArrayOf(
                         topLeft, topLeft,
@@ -572,8 +572,9 @@ class ConversationActivity : Activity() {
                         bottomRight, bottomRight,
                         bottomLeft, bottomLeft
                     ),
-                    paint
+                    android.graphics.Path.Direction.CW
                 )
+                canvas.drawPath(path, paint)
                 paint.shader = null
                 return
             }
