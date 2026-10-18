@@ -549,10 +549,14 @@ class ConversationActivity : Activity() {
             // Telegram-style grouped bubbles: intermediate messages have no tail.
             // The corners facing the adjacent message become smaller.
             if (groupPosition == 1 || groupPosition == 2) {
+                val tailInset = dp(8).toFloat()
+                val bodyLeft = if (incomingMessage) left + tailInset else left + padding
+                val bodyRight = if (!incomingMessage) right - tailInset else right - padding
+
                 rect.set(
-                    left + padding,
+                    bodyLeft,
                     top + padding,
-                    right - padding,
+                    bodyRight,
                     bottom - padding
                 )
 
@@ -2270,14 +2274,13 @@ class ConversationActivity : Activity() {
         if (emojiAssetPath == null) {
             if (compactSingleLine) {
                 bubble.orientation = LinearLayout.HORIZONTAL
-                bubble.gravity = Gravity.BOTTOM
+                bubble.gravity = Gravity.CENTER_VERTICAL
             }
             val metaRow = LinearLayout(this).apply {
                 tag = "message_meta_row"
                 orientation = LinearLayout.HORIZONTAL
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
-                gravity = Gravity.RIGHT or
-                    if (compactSingleLine) Gravity.BOTTOM else Gravity.CENTER_VERTICAL
+                gravity = Gravity.RIGHT or Gravity.CENTER_VERTICAL
                 if (compactSingleLine) {
                     setPadding(0, 0, dp(8), 0)
                 } else {
