@@ -2264,10 +2264,15 @@ class ConversationActivity : Activity() {
         }
 
         if (emojiAssetPath == null) {
-            if (compactSingleLine) {
-                bubble.orientation = LinearLayout.HORIZONTAL
-                bubble.gravity = Gravity.CENTER_VERTICAL
+            // Short messages keep text and time on one line.
+            // Longer messages place the time/status row below the text.
+            bubble.orientation = if (compactSingleLine) {
+                LinearLayout.HORIZONTAL
+            } else {
+                LinearLayout.VERTICAL
             }
+            bubble.gravity = Gravity.CENTER_VERTICAL
+
             val metaRow = LinearLayout(this).apply {
                 tag = "message_meta_row"
                 orientation = LinearLayout.HORIZONTAL
