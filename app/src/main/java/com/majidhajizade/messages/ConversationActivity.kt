@@ -635,13 +635,51 @@ class ConversationActivity : Activity() {
             clipChildren = false
             clipToPadding = false
             isFillViewport = true
+
+            if (!darkTheme) {
+                val wallpaperGradient = GradientDrawable(
+                    GradientDrawable.Orientation.TL_BR,
+                    intArrayOf(
+                        Color.rgb(219, 221, 187),
+                        Color.rgb(107, 165, 135),
+                        Color.rgb(213, 216, 141),
+                        Color.rgb(136, 184, 132)
+                    )
+                )
+
+                val wallpaperBitmap = android.graphics.BitmapFactory.decodeResource(
+                    resources,
+                    R.drawable.telegram_default_pattern
+                )
+
+                val wallpaperPattern = android.graphics.drawable.BitmapDrawable(
+                    resources,
+                    wallpaperBitmap
+                ).apply {
+                    gravity = Gravity.FILL
+                    paint.isFilterBitmap = true
+                    paint.colorFilter = android.graphics.PorterDuffColorFilter(
+                        Color.rgb(73, 105, 83),
+                        android.graphics.PorterDuff.Mode.SRC_IN
+                    )
+                    alpha = 87
+                }
+
+                background = android.graphics.drawable.LayerDrawable(
+                    arrayOf(wallpaperGradient, wallpaperPattern)
+                )
+            } else {
+                setBackgroundColor(Color.rgb(12, 12, 14))
+            }
         }
 
         messagesContainer = LinearLayout(this).apply {
             clipChildren = false
             clipToPadding = false
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(if (isDarkThemeEnabled()) Color.rgb(12, 12, 14) else Color.rgb(245, 245, 247))
+            setBackgroundColor(
+                if (darkTheme) Color.rgb(12, 12, 14) else Color.TRANSPARENT
+            )
             setPadding(dp(16), dp(94), dp(16), dp(12))
         }
 
