@@ -482,6 +482,80 @@ class ConversationActivity : Activity() {
         return android.graphics.drawable.LayerDrawable(arrayOf(gradient, pattern))
     }
 
+    private inner class MessageBubbleDrawable(
+        private val bubbleColor: Int,
+        private val incomingMessage: Boolean
+    ) : android.graphics.drawable.Drawable() {
+        private val paint = android.graphics.Paint(
+            android.graphics.Paint.ANTI_ALIAS_FLAG
+        )
+        private var compact = false
+
+        fun setCompact(value: Boolean) {
+            if (compact != value) {
+                compact = value
+                invalidateSelf()
+            }
+        }
+
+        override fun draw(canvas: android.graphics.Canvas) {
+            val b = bounds
+            if (b.isEmpty) return
+
+            paint.color = bubbleColor
+            paint.style = android.graphics.Paint.Style.FILL
+
+            val tail = dp(5).toFloat()
+            val bottom = b.bottom.toFloat()
+            val bodyBottom = bottom - tail
+            val radius = if (compact) {
+                (bodyBottom - b.top) / 2f
+            } else {
+                dp(22).toFloat()
+            }
+
+            canvas.drawRoundRect(
+                b.left.toFloat(),
+                b.top.toFloat(),
+                b.right.toFloat(),
+                bodyBottom,
+                radius,
+                radius,
+                paint
+            )
+
+            val path = android.graphics.Path()
+            val y = bodyBottom - dp(4).toFloat()
+            if (incomingMessage) {
+                path.moveTo(b.left + dp(9).toFloat(), y)
+                path.lineTo(b.left.toFloat(), bottom)
+                path.lineTo(b.left + dp(19).toFloat(), bodyBottom)
+            } else {
+                path.moveTo(b.right - dp(19).toFloat(), bodyBottom)
+                path.lineTo(b.right.toFloat(), bottom)
+                path.lineTo(b.right - dp(9).toFloat(), y)
+            }
+            path.close()
+            canvas.drawPath(path, paint)
+        }
+
+        override fun setAlpha(alpha: Int) {
+            paint.alpha = alpha
+            invalidateSelf()
+        }
+
+        override fun setColorFilter(
+            colorFilter: android.graphics.ColorFilter?
+        ) {
+            paint.colorFilter = colorFilter
+            invalidateSelf()
+        }
+
+        @Deprecated("Deprecated in Android")
+        override fun getOpacity(): Int =
+            android.graphics.PixelFormat.TRANSLUCENT
+    }
+
     private fun createScreen(): View {
         val darkTheme = isDarkThemeEnabled()
         val root = android.widget.FrameLayout(this).apply {
@@ -1314,12 +1388,12 @@ class ConversationActivity : Activity() {
         val bubble = wrapper.findViewWithTag<LinearLayout>("message_bubble")
             ?: return
 
-        bubble.findViewWithTag<View>("sending_icon")?.let {
+        wrapper.findViewWithTag<View>("sending_icon")?.let {
             (it.parent as? android.view.ViewGroup)?.removeView(it)
         }
 
         if (success) {
-            bubble.findViewWithTag<View>("failed_icon")?.let {
+            wrapper.findViewWithTag<View>("failed_icon")?.let {
                 (it.parent as? android.view.ViewGroup)?.removeView(it)
             }
 
@@ -1338,7 +1412,7 @@ class ConversationActivity : Activity() {
                         LinearLayout.LayoutParams(dp(16), dp(16))
                     )
                 }
-                val metaRow = bubble.findViewWithTag<LinearLayout>("message_meta_row")
+                val metaRow = wrapper.findViewWithTag<LinearLayout>("message_meta_row")
                 if (metaRow != null) {
                     metaRow.addView(
                         icon,
@@ -1352,7 +1426,7 @@ class ConversationActivity : Activity() {
             return
         }
 
-        if (bubble.findViewWithTag<View>("failed_icon") != null) {
+        if (wrapper.findViewWithTag<View>("failed_icon") != null) {
             return
         }
 
@@ -1375,7 +1449,7 @@ class ConversationActivity : Activity() {
             }
         }
 
-        val metaRow = bubble.findViewWithTag<LinearLayout>("message_meta_row")
+        val metaRow = wrapper.findViewWithTag<LinearLayout>("message_meta_row")
         if (metaRow != null) {
             metaRow.addView(
                 icon,
@@ -1399,7 +1473,7 @@ class ConversationActivity : Activity() {
             ?: return
         val bubble = wrapper.findViewWithTag<LinearLayout>("message_bubble")
             ?: return
-        val failedIcon = bubble.findViewWithTag<View>("failed_icon")
+        val failedIcon = wrapper.findViewWithTag<View>("failed_icon")
             ?: return
         val message = messageBodyText(
             bubble.findViewWithTag<View>("message_body")
@@ -1436,7 +1510,7 @@ class ConversationActivity : Activity() {
             setTextColor(secondaryText)
             contentDescription = "Sending"
         }
-        val metaRow = bubble.findViewWithTag<LinearLayout>("message_meta_row")
+        val metaRow = wrapper.findViewWithTag<LinearLayout>("message_meta_row")
         if (metaRow != null) {
             metaRow.addView(
                 sendingIcon,
@@ -1476,7 +1550,7 @@ class ConversationActivity : Activity() {
                 ?: return
 
         val icon =
-            bubble.findViewWithTag<LinearLayout>("status_icon")
+            wrapper.findViewWithTag<LinearLayout>("status_icon")
                 ?: return
 
         if (icon.childCount < 2) {
@@ -1820,18 +1894,16 @@ class ConversationActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(2), 0, dp(1))
-            background = GradientDrawable().apply {
-                setColor(
-                    if (isDarkThemeEnabled()) {
-                        if (incoming) Color.rgb(48, 48, 54)
-                        else Color.rgb(0, 95, 220)
-                    } else {
-                        if (incoming) Color.rgb(232, 232, 237)
-                        else Color.rgb(64, 201, 198)
-                    }
-                )
-                cornerRadius = dp(22).toFloat()
-            }
+            background = MessageBubbleDrawable(
+                if (isDarkThemeEnabled()) {
+                    if (incoming) Color.rgb(48, 48, 54)
+                    else Color.rgb(0, 95, 220)
+                } else {
+                    if (incoming) Color.rgb(232, 232, 237)
+                    else Color.rgb(64, 201, 198)
+                },
+                incoming
+            )
         }
 
         val emojiAssetPath = emojiAnimationAsset(body)
@@ -2061,6 +2133,9 @@ class ConversationActivity : Activity() {
                 } else {
                     setPadding(dp(10), 0, dp(8), dp(4))
                 }
+                visibility = View.GONE
+                alpha = 0f
+                translationY = dp(4).toFloat()
             }
             metaRow.addView(
                 time,
@@ -2134,26 +2209,69 @@ class ConversationActivity : Activity() {
                 )
             }
 
-            bubble.addView(
+            wrapper.addView(
                 metaRow,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
+                    dp(16)
                 ).apply {
-                    gravity = Gravity.END
+                    topMargin = -dp(16)
+                    gravity = if (incoming) Gravity.START else Gravity.END
                 }
             )
+
+            var metadataVisible = false
+            bubble.isClickable = true
+            bubble.setOnClickListener {
+                metadataVisible = !metadataVisible
+
+                bubble.animate().cancel()
+                metaRow.animate().cancel()
+
+                if (metadataVisible) {
+                    metaRow.visibility = View.VISIBLE
+                    metaRow.alpha = 0f
+                    metaRow.translationY = dp(4).toFloat()
+
+                    bubble.animate()
+                        .translationY(-dp(16).toFloat())
+                        .setDuration(220)
+                        .setInterpolator(DecelerateInterpolator())
+                        .start()
+
+                    metaRow.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(220)
+                        .setInterpolator(DecelerateInterpolator())
+                        .start()
+                } else {
+                    bubble.animate()
+                        .translationY(0f)
+                        .setDuration(220)
+                        .setInterpolator(DecelerateInterpolator())
+                        .start()
+
+                    metaRow.animate()
+                        .alpha(0f)
+                        .translationY(dp(4).toFloat())
+                        .setDuration(180)
+                        .setInterpolator(DecelerateInterpolator())
+                        .withEndAction {
+                            if (!metadataVisible) {
+                                metaRow.visibility = View.GONE
+                            }
+                        }
+                        .start()
+                }
+            }
 
             val bodyText = bubble.findViewWithTag<TextView>("message_body")
             bodyText?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
                 bubble.post {
-                    val shape = bubble.background as? GradientDrawable
+                    val shape = bubble.background as? MessageBubbleDrawable
                         ?: return@post
-                    shape.cornerRadius = if (compactSingleLine) {
-                        bubble.height / 2f
-                    } else {
-                        dp(22).toFloat()
-                    }
+                    shape.setCompact(compactSingleLine)
                 }
             }
         } else {
