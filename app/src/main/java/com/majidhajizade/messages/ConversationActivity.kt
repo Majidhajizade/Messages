@@ -440,46 +440,9 @@ class ConversationActivity : Activity() {
             .getBoolean("dark_mode", false)
 
     private fun createChatWallpaper(darkTheme: Boolean): android.graphics.drawable.Drawable {
-        val colors = if (darkTheme) {
-            intArrayOf(
-                Color.rgb(30, 53, 87),
-                Color.rgb(21, 26, 54),
-                Color.rgb(28, 67, 82),
-                Color.rgb(42, 69, 65)
-            )
-        } else {
-            intArrayOf(
-                Color.rgb(219, 221, 187),
-                Color.rgb(107, 165, 135),
-                Color.rgb(213, 216, 141),
-                Color.rgb(136, 184, 132)
-            )
-        }
-
-        val gradient = GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            colors
+        return android.graphics.drawable.ColorDrawable(
+            if (darkTheme) Color.BLACK else Color.WHITE
         )
-
-        val bitmap = android.graphics.BitmapFactory.decodeResource(
-            resources,
-            R.drawable.telegram_default_pattern
-        )
-
-        val pattern = android.graphics.drawable.BitmapDrawable(
-            resources,
-            bitmap
-        ).apply {
-            gravity = Gravity.FILL
-            paint.isFilterBitmap = true
-            paint.colorFilter = android.graphics.PorterDuffColorFilter(
-                if (darkTheme) Color.rgb(10, 24, 34) else Color.rgb(73, 105, 83),
-                android.graphics.PorterDuff.Mode.SRC_IN
-            )
-            alpha = if (darkTheme) 55 else 87
-        }
-
-        return android.graphics.drawable.LayerDrawable(arrayOf(gradient, pattern))
     }
 
     private inner class MessageBubbleDrawable(
@@ -718,9 +681,9 @@ class ConversationActivity : Activity() {
         val backCapsule = LinearLayout(this).apply {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(Color.argb(115, 255, 255, 255))
+                setColor(Color.argb(230, 255, 255, 255))
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.argb(180, 255, 255, 255))
+                setStroke(dp(1), Color.argb(242, 255, 255, 255))
             }
             elevation = dp(3).toFloat()
             setOnClickListener {
@@ -756,9 +719,9 @@ class ConversationActivity : Activity() {
 
         profileCapsule = android.widget.FrameLayout(this).apply {
             background = GradientDrawable().apply {
-                setColor(Color.argb(115, 255, 255, 255))
+                setColor(Color.argb(230, 255, 255, 255))
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.argb(180, 255, 255, 255))
+                setStroke(dp(1), Color.argb(242, 255, 255, 255))
             }
             elevation = dp(3).toFloat()
         }
@@ -861,9 +824,9 @@ class ConversationActivity : Activity() {
         val moreCapsule = LinearLayout(this).apply {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(Color.argb(115, 255, 255, 255))
+                setColor(Color.argb(230, 255, 255, 255))
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.argb(180, 255, 255, 255))
+                setStroke(dp(1), Color.argb(242, 255, 255, 255))
             }
             elevation = dp(3).toFloat()
         }
@@ -1161,8 +1124,9 @@ class ConversationActivity : Activity() {
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(9), dp(9), dp(9), dp(9))
             background = GradientDrawable().apply {
-                setColor(Color.rgb(0, 122, 255))
+                setColor(Color.rgb(11, 218, 81))
                 shape = GradientDrawable.OVAL
+                setStroke(dp(2), Color.rgb(11, 218, 81))
             }
 
             elevation = dp(1).toFloat()
@@ -1790,9 +1754,9 @@ class ConversationActivity : Activity() {
                 searchQuery = ""
                 profileCapsule.removeAllViews()
                 profileCapsule.background = GradientDrawable().apply {
-                    setColor(Color.argb(115, 255, 255, 255))
+                    setColor(Color.argb(230, 255, 255, 255))
                     cornerRadius = dp(24).toFloat()
-                    setStroke(dp(1), Color.argb(180, 255, 255, 255))
+                    setStroke(dp(1), Color.argb(242, 255, 255, 255))
                 }
                 profileCapsule.addView(
                     profile,
@@ -2048,10 +2012,10 @@ class ConversationActivity : Activity() {
             setPadding(0, dp(2), 0, dp(1))
             background = MessageBubbleDrawable(
                 if (isDarkThemeEnabled()) {
-                    if (incoming) Color.rgb(48, 48, 54)
+                    if (incoming) Color.rgb(58, 58, 60)
                     else Color.rgb(0, 95, 220)
                 } else {
-                    if (incoming) Color.rgb(232, 232, 237)
+                    if (incoming) Color.rgb(229, 229, 234)
                     else Color.rgb(64, 201, 198)
                 },
                 incoming
