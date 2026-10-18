@@ -486,6 +486,7 @@ class ConversationActivity : Activity() {
         private val bubbleColor: Int,
         private val incomingMessage: Boolean
     ) : android.graphics.drawable.Drawable() {
+
         private val paint = android.graphics.Paint(
             android.graphics.Paint.ANTI_ALIAS_FLAG
         )
@@ -502,41 +503,79 @@ class ConversationActivity : Activity() {
             val b = bounds
             if (b.isEmpty) return
 
-            paint.color = bubbleColor
-            paint.style = android.graphics.Paint.Style.FILL
-
-            val tail = dp(5).toFloat()
+            val left = b.left.toFloat()
+            val top = b.top.toFloat()
+            val right = b.right.toFloat()
             val bottom = b.bottom.toFloat()
-            val bodyBottom = bottom - tail
+            val tailSize = dp(5).toFloat()
+            val bodyBottom = bottom - tailSize
+            val bodyHeight = bodyBottom - top
+
+            paint.style = android.graphics.Paint.Style.FILL
+            paint.color = bubbleColor
+            paint.shader = if (incomingMessage) {
+                null
+            } else {
+                android.graphics.LinearGradient(
+                    left,
+                    top,
+                    right,
+                    bodyBottom,
+                    intArrayOf(
+                        android.graphics.Color.rgb(0, 208, 234),
+                        android.graphics.Color.rgb(0, 133, 209)
+                    ),
+                    null,
+                    android.graphics.Shader.TileMode.CLAMP
+                )
+            }
+
             val radius = if (compact) {
-                (bodyBottom - b.top) / 2f
+                (bodyHeight / 2f).coerceAtLeast(0f)
             } else {
-                dp(22).toFloat()
+                dp(22).toFloat().coerceAtMost(bodyHeight / 2f)
             }
 
-            canvas.drawRoundRect(
-                b.left.toFloat(),
-                b.top.toFloat(),
-                b.right.toFloat(),
-                bodyBottom,
-                radius,
-                radius,
-                paint
+            val body = android.graphics.RectF(
+                left,
+                top,
+                right,
+                bodyBottom
             )
+            canvas.drawRoundRect(body, radius, radius, paint)
 
-            val path = android.graphics.Path()
-            val y = bodyBottom - dp(4).toFloat()
+            // A curved tail is drawn in the same paint so its fill
+            // exactly matches the bubble, including the outgoing gradient.
+            val tail = android.graphics.Path()
             if (incomingMessage) {
-                path.moveTo(b.left + dp(9).toFloat(), y)
-                path.lineTo(b.left.toFloat(), bottom)
-                path.lineTo(b.left + dp(19).toFloat(), bodyBottom)
+                tail.moveTo(left + dp(17), bodyBottom - dp(9))
+                tail.cubicTo(
+                    left + dp(12), bodyBottom - dp(2),
+                    left + dp(6), bottom - dp(1),
+                    left, bottom
+                )
+                tail.cubicTo(
+                    left + dp(2), bottom - dp(7),
+                    left + dp(5), bottom - dp(8),
+                    left + dp(9), bodyBottom
+                )
             } else {
-                path.moveTo(b.right - dp(19).toFloat(), bodyBottom)
-                path.lineTo(b.right.toFloat(), bottom)
-                path.lineTo(b.right - dp(9).toFloat(), y)
+                tail.moveTo(right - dp(17), bodyBottom - dp(9))
+                tail.cubicTo(
+                    right - dp(12), bodyBottom - dp(2),
+                    right - dp(6), bottom - dp(1),
+                    right, bottom
+                )
+                tail.cubicTo(
+                    right - dp(2), bottom - dp(7),
+                    right - dp(5), bottom - dp(8),
+                    right - dp(9), bodyBottom
+                )
             }
-            path.close()
-            canvas.drawPath(path, paint)
+            tail.close()
+            canvas.drawPath(tail, paint)
+
+            paint.shader = null
         }
 
         override fun setAlpha(alpha: Int) {
