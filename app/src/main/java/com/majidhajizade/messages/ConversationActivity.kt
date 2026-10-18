@@ -548,7 +548,7 @@ class ConversationActivity : Activity() {
 
             if (!incomingMessage) {
                 // Outgoing: rounded body with a lower-right tail.
-                path.moveTo(right - dp(2.6f), bottom - padding)
+                path.moveTo(right - dp(3), bottom - padding)
                 path.lineTo(left + padding + radius, bottom - padding)
 
                 rect.set(
@@ -590,7 +590,7 @@ class ConversationActivity : Activity() {
                 path.arcTo(rect, 180f, -83f, false)
             } else {
                 // Incoming: mirrored Telegram-style lower-left tail.
-                path.moveTo(left + dp(2.6f), bottom - padding)
+                path.moveTo(left + dp(3), bottom - padding)
                 path.lineTo(right - padding - radius, bottom - padding)
 
                 rect.set(
