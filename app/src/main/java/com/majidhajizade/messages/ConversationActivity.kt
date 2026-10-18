@@ -439,15 +439,55 @@ class ConversationActivity : Activity() {
         getSharedPreferences("messages_settings", MODE_PRIVATE)
             .getBoolean("dark_mode", false)
 
+    private fun createChatWallpaper(darkTheme: Boolean): android.graphics.drawable.Drawable {
+        val colors = if (darkTheme) {
+            intArrayOf(
+                Color.rgb(30, 53, 87),
+                Color.rgb(21, 26, 54),
+                Color.rgb(28, 67, 82),
+                Color.rgb(42, 69, 65)
+            )
+        } else {
+            intArrayOf(
+                Color.rgb(219, 221, 187),
+                Color.rgb(107, 165, 135),
+                Color.rgb(213, 216, 141),
+                Color.rgb(136, 184, 132)
+            )
+        }
+
+        val gradient = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            colors
+        )
+
+        val bitmap = android.graphics.BitmapFactory.decodeResource(
+            resources,
+            R.drawable.telegram_default_pattern
+        )
+
+        val pattern = android.graphics.drawable.BitmapDrawable(
+            resources,
+            bitmap
+        ).apply {
+            gravity = Gravity.FILL
+            paint.isFilterBitmap = true
+            paint.colorFilter = android.graphics.PorterDuffColorFilter(
+                if (darkTheme) Color.rgb(10, 24, 34) else Color.rgb(73, 105, 83),
+                android.graphics.PorterDuff.Mode.SRC_IN
+            )
+            alpha = if (darkTheme) 55 else 87
+        }
+
+        return android.graphics.drawable.LayerDrawable(arrayOf(gradient, pattern))
+    }
+
     private fun createScreen(): View {
         val darkTheme = isDarkThemeEnabled()
         val root = android.widget.FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
-            setBackgroundColor(
-                if (darkTheme) Color.rgb(12, 12, 14)
-                else Color.rgb(245, 245, 247)
-            )
+            background = createChatWallpaper(darkTheme)
         }
 
         val header = android.widget.FrameLayout(this).apply {
@@ -636,50 +676,14 @@ class ConversationActivity : Activity() {
             clipToPadding = false
             isFillViewport = true
 
-            if (!darkTheme) {
-                val wallpaperGradient = GradientDrawable(
-                    GradientDrawable.Orientation.TL_BR,
-                    intArrayOf(
-                        Color.rgb(219, 221, 187),
-                        Color.rgb(107, 165, 135),
-                        Color.rgb(213, 216, 141),
-                        Color.rgb(136, 184, 132)
-                    )
-                )
-
-                val wallpaperBitmap = android.graphics.BitmapFactory.decodeResource(
-                    resources,
-                    R.drawable.telegram_default_pattern
-                )
-
-                val wallpaperPattern = android.graphics.drawable.BitmapDrawable(
-                    resources,
-                    wallpaperBitmap
-                ).apply {
-                    gravity = Gravity.FILL
-                    paint.isFilterBitmap = true
-                    paint.colorFilter = android.graphics.PorterDuffColorFilter(
-                        Color.rgb(73, 105, 83),
-                        android.graphics.PorterDuff.Mode.SRC_IN
-                    )
-                    alpha = 87
-                }
-
-                background = android.graphics.drawable.LayerDrawable(
-                    arrayOf(wallpaperGradient, wallpaperPattern)
-                )
-            } else {
-                setBackgroundColor(Color.rgb(12, 12, 14))
-            }
+            setBackgroundColor(Color.TRANSPARENT)
         }
 
         messagesContainer = LinearLayout(this).apply {
             clipChildren = false
             clipToPadding = false
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(
-                if (darkTheme) Color.rgb(12, 12, 14) else Color.TRANSPARENT
-            )
+            setBackgroundColor(Color.TRANSPARENT)
             setPadding(dp(16), dp(94), dp(16), dp(12))
         }
 
