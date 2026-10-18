@@ -522,8 +522,8 @@ class ConversationActivity : Activity() {
                     right,
                     bodyBottom,
                     intArrayOf(
-                        android.graphics.Color.rgb(0, 208, 234),
-                        android.graphics.Color.rgb(0, 133, 209)
+                        android.graphics.Color.rgb(11, 218, 81),
+                        android.graphics.Color.rgb(11, 218, 81)
                     ),
                     null,
                     android.graphics.Shader.TileMode.CLAMP
@@ -544,34 +544,48 @@ class ConversationActivity : Activity() {
             )
             canvas.drawRoundRect(body, radius, radius, paint)
 
-            // A curved tail is drawn in the same paint so its fill
-            // exactly matches the bubble, including the outgoing gradient.
+            // Smooth iOS-style tail, seamlessly joined to the bubble body.
             val tail = android.graphics.Path()
+            val tailWidth = dp(13).toFloat()
+            val tailHeight = dp(7).toFloat()
+            val joinInset = dp(3).toFloat()
+
             if (incomingMessage) {
-                tail.moveTo(left + dp(17), bodyBottom - dp(9))
+                tail.moveTo(left + tailWidth, bodyBottom - tailHeight)
                 tail.cubicTo(
-                    left + dp(12), bodyBottom - dp(2),
-                    left + dp(6), bottom - dp(1),
-                    left, bottom
+                    left + tailWidth - dp(1), bodyBottom - dp(1),
+                    left + dp(5), bottom,
+                    left + joinInset, bottom
                 )
                 tail.cubicTo(
-                    left + dp(2), bottom - dp(7),
-                    left + dp(5), bottom - dp(8),
+                    left + dp(1), bottom - dp(1),
+                    left + dp(1), bottom - dp(4),
+                    left + dp(2), bodyBottom - dp(2)
+                )
+                tail.cubicTo(
+                    left + dp(4), bodyBottom,
+                    left + dp(7), bodyBottom,
                     left + dp(9), bodyBottom
                 )
             } else {
-                tail.moveTo(right - dp(17), bodyBottom - dp(9))
+                tail.moveTo(right - tailWidth, bodyBottom - tailHeight)
                 tail.cubicTo(
-                    right - dp(12), bodyBottom - dp(2),
-                    right - dp(6), bottom - dp(1),
-                    right, bottom
+                    right - tailWidth + dp(1), bodyBottom - dp(1),
+                    right - dp(5), bottom,
+                    right - joinInset, bottom
                 )
                 tail.cubicTo(
-                    right - dp(2), bottom - dp(7),
-                    right - dp(5), bottom - dp(8),
+                    right - dp(1), bottom - dp(1),
+                    right - dp(1), bottom - dp(4),
+                    right - dp(2), bodyBottom - dp(2)
+                )
+                tail.cubicTo(
+                    right - dp(4), bodyBottom,
+                    right - dp(7), bodyBottom,
                     right - dp(9), bodyBottom
                 )
             }
+
             tail.close()
             canvas.drawPath(tail, paint)
 
