@@ -507,9 +507,19 @@ class ConversationActivity : Activity() {
             val top = b.top.toFloat()
             val right = b.right.toFloat()
             val bottom = b.bottom.toFloat()
-            val tailSize = dp(5).toFloat()
-            val bodyBottom = bottom - tailSize
-            val bodyHeight = bodyBottom - top
+            val width = right - left
+            val height = bottom - top
+            if (width <= 0f || height <= 0f) return
+
+            val tailWidth = dp(12).toFloat().coerceAtMost(width * 0.22f)
+            val tailHeight = dp(7).toFloat().coerceAtMost(height * 0.25f)
+            val radius = if (compact) {
+                (height / 2f).coerceAtLeast(0f)
+            } else {
+                dp(22).toFloat().coerceAtMost(height / 2f)
+            }
+            val bodyBottom = bottom - tailHeight
+            val r = radius.coerceAtMost((bodyBottom - top) / 2f)
 
             paint.style = android.graphics.Paint.Style.FILL
             paint.color = bubbleColor
@@ -517,10 +527,7 @@ class ConversationActivity : Activity() {
                 null
             } else {
                 android.graphics.LinearGradient(
-                    left,
-                    top,
-                    right,
-                    bodyBottom,
+                    left, top, right, bodyBottom,
                     intArrayOf(
                         android.graphics.Color.rgb(11, 218, 81),
                         android.graphics.Color.rgb(11, 218, 81)
@@ -530,65 +537,52 @@ class ConversationActivity : Activity() {
                 )
             }
 
-            val radius = if (compact) {
-                (bodyHeight / 2f).coerceAtLeast(0f)
-            } else {
-                dp(22).toFloat().coerceAtMost(bodyHeight / 2f)
-            }
-
-            val body = android.graphics.RectF(
-                left,
-                top,
-                right,
-                bodyBottom
-            )
-            canvas.drawRoundRect(body, radius, radius, paint)
-
-            // Smooth iOS-style tail, seamlessly joined to the bubble body.
-            val tail = android.graphics.Path()
-            val tailWidth = dp(13).toFloat()
-            val tailHeight = dp(7).toFloat()
-            val joinInset = dp(3).toFloat()
+            val path = android.graphics.Path()
 
             if (incomingMessage) {
-                tail.moveTo(left + tailWidth, bodyBottom - tailHeight)
-                tail.cubicTo(
-                    left + tailWidth - dp(1), bodyBottom - dp(1),
-                    left + dp(5), bottom,
-                    left + joinInset, bottom
+                // Incoming bubble: integrated lower-left tail.
+                path.moveTo(left + r, top)
+                path.lineTo(right - r, top)
+                path.cubicTo(right - r / 2f, top, right, top + r / 2f, right, top + r)
+                path.lineTo(right, bodyBottom - r)
+                path.cubicTo(right, bodyBottom - r / 2f, right - r / 2f, bodyBottom, right - r, bodyBottom)
+                path.lineTo(left + tailWidth, bodyBottom)
+                path.cubicTo(
+                    left + tailWidth * 0.72f, bodyBottom + tailHeight * 0.05f,
+                    left + tailWidth * 0.55f, bottom - tailHeight * 0.08f,
+                    left + tailWidth * 0.15f, bottom
                 )
-                tail.cubicTo(
-                    left + dp(1), bottom - dp(1),
-                    left + dp(1), bottom - dp(4),
-                    left + dp(2), bodyBottom - dp(2)
+                path.cubicTo(
+                    left + tailWidth * 0.12f, bottom,
+                    left, bottom - tailHeight * 0.12f,
+                    left, bottom - tailHeight * 0.48f
                 )
-                tail.cubicTo(
-                    left + dp(4), bodyBottom,
-                    left + dp(7), bodyBottom,
-                    left + dp(9), bodyBottom
-                )
+                path.lineTo(left, top + r)
+                path.cubicTo(left, top + r / 2f, left + r / 2f, top, left + r, top)
             } else {
-                tail.moveTo(right - tailWidth, bodyBottom - tailHeight)
-                tail.cubicTo(
-                    right - tailWidth + dp(1), bodyBottom - dp(1),
-                    right - dp(5), bottom,
-                    right - joinInset, bottom
+                // Outgoing bubble: integrated lower-right tail.
+                path.moveTo(left + r, top)
+                path.lineTo(right - r, top)
+                path.cubicTo(right - r / 2f, top, right, top + r / 2f, right, top + r)
+                path.lineTo(right, bottom - tailHeight * 0.48f)
+                path.cubicTo(
+                    right, bottom - tailHeight * 0.12f,
+                    right - tailWidth * 0.12f, bottom,
+                    right - tailWidth * 0.15f, bottom
                 )
-                tail.cubicTo(
-                    right - dp(1), bottom - dp(1),
-                    right - dp(1), bottom - dp(4),
-                    right - dp(2), bodyBottom - dp(2)
+                path.cubicTo(
+                    right - tailWidth * 0.55f, bottom - tailHeight * 0.08f,
+                    right - tailWidth * 0.72f, bodyBottom + tailHeight * 0.05f,
+                    right - tailWidth, bodyBottom
                 )
-                tail.cubicTo(
-                    right - dp(4), bodyBottom,
-                    right - dp(7), bodyBottom,
-                    right - dp(9), bodyBottom
-                )
+                path.lineTo(left + r, bodyBottom)
+                path.cubicTo(left + r / 2f, bodyBottom, left, bodyBottom - r / 2f, left, bodyBottom - r)
+                path.lineTo(left, top + r)
+                path.cubicTo(left, top + r / 2f, left + r / 2f, top, left + r, top)
             }
 
-            tail.close()
-            canvas.drawPath(tail, paint)
-
+            path.close()
+            canvas.drawPath(path, paint)
             paint.shader = null
         }
 
