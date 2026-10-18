@@ -511,23 +511,13 @@ class ConversationActivity : Activity() {
             val height = bottom - top
             if (width <= 0f || height <= 0f) return
 
-            val tailWidth = dp(12).toFloat().coerceAtMost(width * 0.22f)
-            val tailHeight = dp(7).toFloat().coerceAtMost(height * 0.25f)
-            val radius = if (compact) {
-                (height / 2f).coerceAtLeast(0f)
-            } else {
-                dp(22).toFloat().coerceAtMost(height / 2f)
-            }
-            val bodyBottom = bottom - tailHeight
-            val r = radius.coerceAtMost((bodyBottom - top) / 2f)
-
             paint.style = android.graphics.Paint.Style.FILL
             paint.color = bubbleColor
             paint.shader = if (incomingMessage) {
                 null
             } else {
                 android.graphics.LinearGradient(
-                    left, top, right, bodyBottom,
+                    left, top, right, bottom,
                     intArrayOf(
                         android.graphics.Color.rgb(11, 218, 81),
                         android.graphics.Color.rgb(11, 218, 81)
@@ -538,47 +528,108 @@ class ConversationActivity : Activity() {
             }
 
             val path = android.graphics.Path()
+            val rect = android.graphics.RectF()
+            val padding = dp(2).toFloat()
 
-            if (incomingMessage) {
-                // Incoming bubble: integrated lower-left tail.
-                path.moveTo(left + r, top)
-                path.lineTo(right - r, top)
-                path.cubicTo(right - r / 2f, top, right, top + r / 2f, right, top + r)
-                path.lineTo(right, bodyBottom - r)
-                path.cubicTo(right, bodyBottom - r / 2f, right - r / 2f, bodyBottom, right - r, bodyBottom)
-                path.lineTo(left + tailWidth, bodyBottom)
-                path.cubicTo(
-                    left + tailWidth * 0.72f, bodyBottom + tailHeight * 0.05f,
-                    left + tailWidth * 0.55f, bottom - tailHeight * 0.08f,
-                    left + tailWidth * 0.15f, bottom
+            // Keep short messages capsule-shaped.
+            if (compact) {
+                rect.set(left, top, right, bottom)
+                canvas.drawRoundRect(rect, height / 2f, height / 2f, paint)
+                paint.shader = null
+                return
+            }
+
+            // Telegram-style TYPE_TEXT bubble geometry.
+            val radius = dp(22).toFloat()
+                .coerceAtMost((height - padding) / 2f)
+                .coerceAtMost(width / 2f)
+            val smallRadius = dp(6).toFloat()
+            val tailInset = dp(8).toFloat()
+
+            if (!incomingMessage) {
+                // Outgoing: rounded body with a lower-right tail.
+                path.moveTo(right - dp(2.6f), bottom - padding)
+                path.lineTo(left + padding + radius, bottom - padding)
+
+                rect.set(
+                    left + padding,
+                    bottom - padding - radius * 2f,
+                    left + padding + radius * 2f,
+                    bottom - padding
                 )
-                path.cubicTo(
-                    left + tailWidth * 0.12f, bottom,
-                    left, bottom - tailHeight * 0.12f,
-                    left, bottom - tailHeight * 0.48f
+                path.arcTo(rect, 90f, 90f, false)
+
+                path.lineTo(left + padding, top + padding + radius)
+
+                rect.set(
+                    left + padding,
+                    top + padding,
+                    left + padding + radius * 2f,
+                    top + padding + radius * 2f
                 )
-                path.lineTo(left, top + r)
-                path.cubicTo(left, top + r / 2f, left + r / 2f, top, left + r, top)
+                path.arcTo(rect, 180f, 90f, false)
+
+                path.lineTo(right - tailInset - radius, top + padding)
+
+                rect.set(
+                    right - tailInset - radius * 2f,
+                    top + padding,
+                    right - tailInset,
+                    top + padding + radius * 2f
+                )
+                path.arcTo(rect, 270f, 90f, false)
+
+                path.lineTo(right - tailInset, bottom - padding - smallRadius - dp(3))
+
+                rect.set(
+                    right - tailInset,
+                    bottom - padding - smallRadius * 2f - dp(9),
+                    right - dp(7) + smallRadius * 2f,
+                    bottom - padding - dp(1)
+                )
+                path.arcTo(rect, 180f, -83f, false)
             } else {
-                // Outgoing bubble: integrated lower-right tail.
-                path.moveTo(left + r, top)
-                path.lineTo(right - r, top)
-                path.cubicTo(right - r / 2f, top, right, top + r / 2f, right, top + r)
-                path.lineTo(right, bottom - tailHeight * 0.48f)
-                path.cubicTo(
-                    right, bottom - tailHeight * 0.12f,
-                    right - tailWidth * 0.12f, bottom,
-                    right - tailWidth * 0.15f, bottom
+                // Incoming: mirrored Telegram-style lower-left tail.
+                path.moveTo(left + dp(2.6f), bottom - padding)
+                path.lineTo(right - padding - radius, bottom - padding)
+
+                rect.set(
+                    right - padding - radius * 2f,
+                    bottom - padding - radius * 2f,
+                    right - padding,
+                    bottom - padding
                 )
-                path.cubicTo(
-                    right - tailWidth * 0.55f, bottom - tailHeight * 0.08f,
-                    right - tailWidth * 0.72f, bodyBottom + tailHeight * 0.05f,
-                    right - tailWidth, bodyBottom
+                path.arcTo(rect, 90f, -90f, false)
+
+                path.lineTo(right - padding, top + padding + radius)
+
+                rect.set(
+                    right - padding - radius * 2f,
+                    top + padding,
+                    right - padding,
+                    top + padding + radius * 2f
                 )
-                path.lineTo(left + r, bodyBottom)
-                path.cubicTo(left + r / 2f, bodyBottom, left, bodyBottom - r / 2f, left, bodyBottom - r)
-                path.lineTo(left, top + r)
-                path.cubicTo(left, top + r / 2f, left + r / 2f, top, left + r, top)
+                path.arcTo(rect, 0f, -90f, false)
+
+                path.lineTo(left + tailInset + radius, top + padding)
+
+                rect.set(
+                    left + tailInset,
+                    top + padding,
+                    left + tailInset + radius * 2f,
+                    top + padding + radius * 2f
+                )
+                path.arcTo(rect, 270f, -90f, false)
+
+                path.lineTo(left + tailInset, bottom - padding - smallRadius - dp(3))
+
+                rect.set(
+                    left + dp(7) - smallRadius * 2f,
+                    bottom - padding - smallRadius * 2f - dp(9),
+                    left + dp(8),
+                    bottom - padding - dp(1)
+                )
+                path.arcTo(rect, 0f, 83f, false)
             }
 
             path.close()
