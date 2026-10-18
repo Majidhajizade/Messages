@@ -491,12 +491,27 @@ class ConversationActivity : Activity() {
             android.graphics.Paint.ANTI_ALIAS_FLAG
         )
         private var compact = false
+        private var groupPosition = 0
 
         fun setCompact(value: Boolean) {
             if (compact != value) {
                 compact = value
                 invalidateSelf()
             }
+        }
+
+        fun setGroupPosition(value: Int) {
+            val safeValue = value.coerceIn(0, 3)
+            if (groupPosition != safeValue) {
+                groupPosition = safeValue
+                invalidateSelf()
+            }
+        }
+
+        fun extendGroup() {
+            // A bubble that gains a following sibling is no longer the tail.
+            // Preserve the first-item state; later items become middle items.
+            setGroupPosition(if (groupPosition == 0 || groupPosition == 3) 1 else 2)
         }
 
         override fun draw(canvas: android.graphics.Canvas) {
@@ -531,10 +546,34 @@ class ConversationActivity : Activity() {
             val rect = android.graphics.RectF()
             val padding = dp(2).toFloat()
 
-            // Keep short messages capsule-shaped.
-            if (compact) {
-                rect.set(left, top, right, bottom)
-                canvas.drawRoundRect(rect, height / 2f, height / 2f, paint)
+            // Telegram-style grouped bubbles: intermediate messages have no tail.
+            // The corners facing the adjacent message become smaller.
+            if (groupPosition == 1 || groupPosition == 2) {
+                rect.set(
+                    left + padding,
+                    top + padding,
+                    right - padding,
+                    bottom - padding
+                )
+
+                val r = dp(18).toFloat().coerceAtMost(height / 2f)
+                val joined = dp(5).toFloat().coerceAtMost(height / 2f)
+
+                val topLeft = if (incomingMessage && groupPosition == 2) joined else r
+                val topRight = if (!incomingMessage && groupPosition == 2) joined else r
+                val bottomRight = if (!incomingMessage) joined else r
+                val bottomLeft = if (incomingMessage) joined else r
+
+                canvas.drawRoundRect(
+                    rect,
+                    floatArrayOf(
+                        topLeft, topLeft,
+                        topRight, topRight,
+                        bottomRight, bottomRight,
+                        bottomLeft, bottomLeft
+                    ),
+                    paint
+                )
                 paint.shader = null
                 return
             }
@@ -545,6 +584,11 @@ class ConversationActivity : Activity() {
                 .coerceAtMost(width / 2f)
             val smallRadius = dp(6).toFloat()
             val tailInset = dp(8).toFloat()
+            val topTailRadius = if (groupPosition == 3) {
+                smallRadius.coerceAtMost(height / 2f)
+            } else {
+                radius
+            }
 
             if (!incomingMessage) {
                 // Outgoing: rounded body with a lower-right tail.
@@ -569,13 +613,12 @@ class ConversationActivity : Activity() {
                 )
                 path.arcTo(rect, 180f, 90f, false)
 
-                path.lineTo(right - tailInset - radius, top + padding)
-
+                path.lineTo(right - tailInset - topTailRadius, top + padding)
                 rect.set(
-                    right - tailInset - radius * 2f,
+                    right - tailInset - topTailRadius * 2f,
                     top + padding,
                     right - tailInset,
-                    top + padding + radius * 2f
+                    top + padding + topTailRadius * 2f
                 )
                 path.arcTo(rect, 270f, 90f, false)
 
@@ -611,13 +654,12 @@ class ConversationActivity : Activity() {
                 )
                 path.arcTo(rect, 0f, -90f, false)
 
-                path.lineTo(left + tailInset + radius, top + padding)
-
+                path.lineTo(left + tailInset + topTailRadius, top + padding)
                 rect.set(
                     left + tailInset,
                     top + padding,
-                    left + tailInset + radius * 2f,
-                    top + padding + radius * 2f
+                    left + tailInset + topTailRadius * 2f,
+                    top + padding + topTailRadius * 2f
                 )
                 path.arcTo(rect, 270f, -90f, false)
 
@@ -1842,6 +1884,10 @@ class ConversationActivity : Activity() {
         lastMessageDate = null
         lastTimeView = null
         lastDateHeaderKey = null
+        lastMessageBubbleDrawable = null
+        lastBubbleIncoming = null
+        lastBubbleDate = null
+        lastBubbleDayKey = null
 
         if (activeMeshId != null) {
             MeshMessageStore.loadMessages(
@@ -1946,6 +1992,11 @@ class ConversationActivity : Activity() {
     private var lastDateHeaderKey: String? = null
     private var lastTimeView: TextView? = null
 
+    private var lastMessageBubbleDrawable: MessageBubbleDrawable? = null
+    private var lastBubbleIncoming: Boolean? = null
+    private var lastBubbleDate: Long? = null
+    private var lastBubbleDayKey: String? = null
+
     private fun addMessage(
         body: String,
         date: Long,
@@ -1989,6 +2040,7 @@ class ConversationActivity : Activity() {
 
         val bubble = LinearLayout(this).apply {
             tag = "message_bubble"
+            contentDescription = if (incoming) "incoming_message_bubble" else "outgoing_message_bubble"
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(2), 0, dp(1))
@@ -2384,6 +2436,34 @@ class ConversationActivity : Activity() {
                 )
             )
         }
+
+        // Group only adjacent regular bubbles from the same side and same day.
+        // A group is broken by a sender change, a day change, an animated emoji,
+        // or a gap longer than two minutes.
+        val currentShape = bubble.background as? MessageBubbleDrawable
+        val previousShape = lastMessageBubbleDrawable
+        val previousDateForGroup = lastBubbleDate
+        val groupWindowMs = 2 * 60 * 1000L
+
+        val sameGroup = currentShape != null &&
+            previousShape != null &&
+            lastBubbleIncoming == incoming &&
+            previousDateForGroup != null &&
+            date >= previousDateForGroup &&
+            date - previousDateForGroup <= groupWindowMs &&
+            lastBubbleDayKey == dayKey
+
+        if (sameGroup) {
+            previousShape!!.extendGroup()
+            currentShape!!.setGroupPosition(3) // last message: show tail
+        } else {
+            currentShape?.setGroupPosition(0) // standalone message: show tail
+        }
+
+        lastMessageBubbleDrawable = currentShape
+        lastBubbleIncoming = if (currentShape != null) incoming else null
+        lastBubbleDate = if (currentShape != null) date else null
+        lastBubbleDayKey = if (currentShape != null) dayKey else null
 
         messagesContainer.addView(wrapper)
 
