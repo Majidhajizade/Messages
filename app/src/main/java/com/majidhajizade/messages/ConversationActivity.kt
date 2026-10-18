@@ -685,7 +685,7 @@ class ConversationActivity : Activity() {
                 cornerRadius = dp(24).toFloat()
                 setStroke(dp(1), Color.argb(242, 255, 255, 255))
             }
-            elevation = dp(3).toFloat()
+            elevation = dp(5).toFloat()
             setOnClickListener {
                 finish()
             }
@@ -723,7 +723,7 @@ class ConversationActivity : Activity() {
                 cornerRadius = dp(24).toFloat()
                 setStroke(dp(1), Color.argb(242, 255, 255, 255))
             }
-            elevation = dp(3).toFloat()
+            elevation = dp(5).toFloat()
         }
 
         val isUnsavedNumber = !phone.matches(Regex("MJ-[A-Z0-9]{6}")) &&
@@ -828,7 +828,7 @@ class ConversationActivity : Activity() {
                 cornerRadius = dp(24).toFloat()
                 setStroke(dp(1), Color.argb(242, 255, 255, 255))
             }
-            elevation = dp(3).toFloat()
+            elevation = dp(5).toFloat()
         }
 
         val moreButton = TextView(this).apply {
@@ -2008,16 +2008,12 @@ class ConversationActivity : Activity() {
             tag = "message_bubble"
             contentDescription = if (incoming) "incoming_message_bubble" else "outgoing_message_bubble"
             orientation = LinearLayout.VERTICAL
+            setBaselineAligned(false)
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(2), 0, dp(1))
             background = MessageBubbleDrawable(
-                if (isDarkThemeEnabled()) {
-                    if (incoming) Color.rgb(58, 58, 60)
-                    else Color.rgb(0, 95, 220)
-                } else {
-                    if (incoming) Color.rgb(229, 229, 234)
-                    else Color.rgb(64, 201, 198)
-                },
+                if (incoming) Color.rgb(229, 229, 234)
+                else Color.rgb(11, 218, 81),
                 incoming
             )
         }
@@ -2029,6 +2025,10 @@ class ConversationActivity : Activity() {
             body.length <= 18 &&
             body.none { it == '\u200d' || it == '\ufe0f' } &&
             body.trim().isNotEmpty()
+        if (compactSingleLine) {
+            bubble.minimumHeight = dp(38)
+        }
+
         if (emojiAssetPath != null) {
             bubble.background = null
 
@@ -2175,13 +2175,16 @@ class ConversationActivity : Activity() {
                 text = body
                 textSize = 16f
                 setTextColor(
-                    if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK
+                    if (!incoming || isDarkThemeEnabled()) Color.WHITE
+                    else Color.BLACK
                 )
                 maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
                 autoLinkMask = Linkify.WEB_URLS or Linkify.PHONE_NUMBERS
                 movementMethod = LinkMovementMethod.getInstance()
                 if (compactSingleLine) {
-                    setPadding(dp(14), dp(2), dp(6), dp(2))
+                    includeFontPadding = false
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(dp(14), dp(5), dp(6), dp(5))
                 } else {
                     setPadding(dp(14), dp(8), dp(10), dp(2))
                 }
@@ -2243,6 +2246,7 @@ class ConversationActivity : Activity() {
             val metaRow = LinearLayout(this).apply {
                 tag = "message_meta_row"
                 orientation = LinearLayout.HORIZONTAL
+                setBaselineAligned(false)
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
                 gravity = Gravity.RIGHT or Gravity.CENTER_VERTICAL
                 if (compactSingleLine) {
