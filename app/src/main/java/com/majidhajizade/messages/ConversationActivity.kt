@@ -681,9 +681,9 @@ class ConversationActivity : Activity() {
         val backCapsule = LinearLayout(this).apply {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(Color.argb(230, 255, 255, 255))
+                setColor(Color.rgb(250, 250, 250))
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.argb(242, 255, 255, 255))
+                setStroke(dp(1), Color.rgb(218, 218, 218))
             }
             elevation = dp(5).toFloat()
             setOnClickListener {
@@ -719,9 +719,9 @@ class ConversationActivity : Activity() {
 
         profileCapsule = android.widget.FrameLayout(this).apply {
             background = GradientDrawable().apply {
-                setColor(Color.argb(230, 255, 255, 255))
+                setColor(Color.rgb(250, 250, 250))
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.argb(242, 255, 255, 255))
+                setStroke(dp(1), Color.rgb(218, 218, 218))
             }
             elevation = dp(5).toFloat()
         }
@@ -824,9 +824,9 @@ class ConversationActivity : Activity() {
         val moreCapsule = LinearLayout(this).apply {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(Color.argb(230, 255, 255, 255))
+                setColor(Color.rgb(250, 250, 250))
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.argb(242, 255, 255, 255))
+                setStroke(dp(1), Color.rgb(218, 218, 218))
             }
             elevation = dp(5).toFloat()
         }
@@ -2012,7 +2012,7 @@ class ConversationActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(2), 0, dp(1))
             background = MessageBubbleDrawable(
-                if (incoming) Color.rgb(229, 229, 234)
+                if (incoming) Color.rgb(236, 236, 236)
                 else Color.rgb(11, 218, 81),
                 incoming
             )
@@ -2248,11 +2248,12 @@ class ConversationActivity : Activity() {
                 orientation = LinearLayout.HORIZONTAL
                 setBaselineAligned(false)
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
-                gravity = Gravity.RIGHT or Gravity.CENTER_VERTICAL
+                gravity = Gravity.RIGHT or
+                    (if (compactSingleLine) Gravity.CENTER_VERTICAL else Gravity.BOTTOM)
                 if (compactSingleLine) {
                     setPadding(0, 0, dp(8), 0)
                 } else {
-                    setPadding(dp(10), 0, dp(8), dp(4))
+                    setPadding(dp(10), 0, dp(8), 0)
                 }
                 visibility = View.VISIBLE
                 alpha = 1f
