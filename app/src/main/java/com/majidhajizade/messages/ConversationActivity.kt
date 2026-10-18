@@ -681,11 +681,18 @@ class ConversationActivity : Activity() {
         val backCapsule = LinearLayout(this).apply {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(Color.rgb(250, 250, 250))
+                setColor(
+                    if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
+                    else Color.rgb(250, 250, 250)
+                )
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.rgb(218, 218, 218))
+                setStroke(
+                    dp(1),
+                    if (isDarkThemeEnabled()) Color.rgb(67, 67, 75)
+                    else Color.rgb(218, 218, 218)
+                )
             }
-            elevation = dp(5).toFloat()
+            elevation = dp(1).toFloat()
             setOnClickListener {
                 finish()
             }
@@ -719,11 +726,18 @@ class ConversationActivity : Activity() {
 
         profileCapsule = android.widget.FrameLayout(this).apply {
             background = GradientDrawable().apply {
-                setColor(Color.rgb(250, 250, 250))
+                setColor(
+                    if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
+                    else Color.rgb(250, 250, 250)
+                )
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.rgb(218, 218, 218))
+                setStroke(
+                    dp(1),
+                    if (isDarkThemeEnabled()) Color.rgb(67, 67, 75)
+                    else Color.rgb(218, 218, 218)
+                )
             }
-            elevation = dp(5).toFloat()
+            elevation = dp(1).toFloat()
         }
 
         val isUnsavedNumber = !phone.matches(Regex("MJ-[A-Z0-9]{6}")) &&
@@ -824,11 +838,18 @@ class ConversationActivity : Activity() {
         val moreCapsule = LinearLayout(this).apply {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(Color.rgb(250, 250, 250))
+                setColor(
+                    if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
+                    else Color.rgb(250, 250, 250)
+                )
                 cornerRadius = dp(24).toFloat()
-                setStroke(dp(1), Color.rgb(218, 218, 218))
+                setStroke(
+                    dp(1),
+                    if (isDarkThemeEnabled()) Color.rgb(67, 67, 75)
+                    else Color.rgb(218, 218, 218)
+                )
             }
-            elevation = dp(5).toFloat()
+            elevation = dp(1).toFloat()
         }
 
         val moreButton = TextView(this).apply {
@@ -2012,8 +2033,12 @@ class ConversationActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(2), 0, dp(1))
             background = MessageBubbleDrawable(
-                if (incoming) Color.rgb(236, 236, 236)
-                else Color.rgb(11, 218, 81),
+                if (incoming) {
+                    if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
+                    else Color.rgb(236, 236, 236)
+                } else {
+                    Color.rgb(11, 218, 81)
+                },
                 incoming
             )
         }
