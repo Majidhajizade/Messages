@@ -332,7 +332,7 @@ companion object {
             setTextColor(primaryText)
             gravity = Gravity.CENTER
             contentDescription = "Search messages"
-            setOnClickListener { showSmsSearchDialog() }
+            setOnClickListener { showSmsSearchPage() }
         }
 
         header.addView(
@@ -1786,37 +1786,274 @@ companion object {
         )
     }
 
-    private fun showSmsSearchDialog() {
-        val input = EditText(this).apply {
-            hint = "Contact, number or message"
-            setSingleLine(true)
-            textSize = 16f
-            setText(smsSearchQuery)
-            setSelection(text.length)
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
+    private fun showSmsSearchPage() {
+        val previousQuery = smsSearchQuery
+        smsSearchQuery = ""
+
+        val pageBackground = if (isDarkMode) Color.rgb(18, 18, 18) else Color.WHITE
+        val textColor = if (isDarkMode) Color.WHITE else Color.rgb(25, 25, 25)
+        val secondaryColor = if (isDarkMode) Color.rgb(170, 170, 170) else Color.rgb(105, 105, 105)
+        val capsuleColor = if (isDarkMode) Color.rgb(48, 48, 48) else Color.rgb(242, 242, 244)
+
+        window.statusBarColor = pageBackground
+        window.navigationBarColor = pageBackground
+        window.decorView.systemUiVisibility =
+            if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(pageBackground)
+            setPadding(dp(16), dp(8), dp(16), 0)
         }
 
-        val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Search messages")
-            .setView(input)
-            .setPositiveButton("Done", null)
-            .setNeutralButton("Clear") { _, _ -> input.setText("") }
-            .create()
+        val topRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
 
-        input.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(text: android.text.Editable?) {
-                smsSearchQuery = text?.toString().orEmpty()
+        val backButton = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_back_arrow)
+            imageTintList = android.content.res.ColorStateList.valueOf(textColor)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            contentDescription = "Back"
+            setPadding(dp(2), dp(2), dp(2), dp(2))
+            setOnClickListener {
+                smsSearchQuery = ""
+                setContentView(createHomeScreen())
                 loadMessages()
+                window.statusBarColor = screenBackground
+                window.navigationBarColor = screenBackground
+                window.decorView.systemUiVisibility =
+                    if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
             }
+        }
+
+        topRow.addView(backButton, LinearLayout.LayoutParams(dp(40), dp(48)))
+
+        val searchBox = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = solidDrawable(capsuleColor, dp(28).toFloat())
+            setPadding(dp(16), 0, dp(14), 0)
+        }
+
+        val searchInput = EditText(this).apply {
+            hint = "Search"
+            textSize = 16f
+            setTextColor(textColor)
+            setHintTextColor(secondaryColor)
+            singleLine = true
+            background = null
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+            setPadding(0, 0, 0, 0)
+        }
+
+        searchBox.addView(
+            searchInput,
+            LinearLayout.LayoutParams(0, dp(48), 1f)
+        )
+
+        topRow.addView(
+            searchBox,
+            LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                leftMargin = dp(4)
+            }
+        )
+
+        page.addView(
+            topRow,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(56)
+            )
+        )
+
+        val results = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(8), 0, dp(16))
+        }
+
+        val resultsScroll = android.widget.ScrollView(this).apply {
+            isFillViewport = true
+            addView(
+                results,
+                android.widget.ScrollView.LayoutParams(
+                    android.widget.ScrollView.LayoutParams.MATCH_PARENT,
+                    android.widget.ScrollView.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+
+        page.addView(
+            resultsScroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
+
+        setContentView(page)
+
+        fun addSearchResult(address: String, body: String, date: Long, subtitle: String) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                isClickable = true
+                isFocusable = true
+                background = android.util.TypedValue().let {
+                    val out = android.util.TypedValue()
+                    theme.resolveAttribute(android.R.attr.selectableItemBackground, out, true)
+                    if (out.resourceId != 0) {
+                        android.graphics.drawable.Drawable.createFromXml(
+                            resources,
+                            resources.getXml(out.resourceId)
+                        )
+                    } else null
+                }
+                setOnClickListener { openConversation(address) }
+            }
+
+            val name = getContactName(address)?.takeIf { it.isNotBlank() } ?: address
+            row.addView(TextView(this).apply {
+                text = name
+                textSize = 16f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(textColor)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            })
+
+            row.addView(TextView(this).apply {
+                text = body
+                textSize = 14f
+                setTextColor(secondaryColor)
+                maxLines = 2
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(0, dp(4), 0, 0)
+            })
+
+            if (subtitle.isNotBlank()) {
+                row.addView(TextView(this).apply {
+                    text = subtitle
+                    textSize = 11f
+                    setTextColor(secondaryColor)
+                    setPadding(0, dp(4), 0, 0)
+                })
+            }
+
+            results.addView(
+                row,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+
+            val divider = View(this).apply {
+                setBackgroundColor(if (isDarkMode) Color.rgb(48, 48, 48) else Color.rgb(238, 238, 238))
+            }
+            results.addView(divider, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
+            ))
+        }
+
+        fun refreshSearchResults(queryText: String) {
+            results.removeAllViews()
+            val query = queryText.trim()
+            if (query.isEmpty()) return
+
+            val seen = mutableSetOf<String>()
+            val projection = arrayOf(
+                Telephony.Sms.ADDRESS,
+                Telephony.Sms.BODY,
+                Telephony.Sms.DATE
+            )
+            val cursor = contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                projection,
+                null,
+                null,
+                "${Telephony.Sms.DATE} DESC"
+            )
+
+            cursor?.use { rows ->
+                while (rows.moveToNext()) {
+                    val address = rows.getString(
+                        rows.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
+                    ) ?: "Unknown"
+                    val body = rows.getString(
+                        rows.getColumnIndexOrThrow(Telephony.Sms.BODY)
+                    ) ?: ""
+                    val date = rows.getLong(
+                        rows.getColumnIndexOrThrow(Telephony.Sms.DATE)
+                    )
+                    val name = getContactName(address).orEmpty()
+
+                    if (
+                        !address.contains(query, ignoreCase = true) &&
+                        !name.contains(query, ignoreCase = true) &&
+                        !body.contains(query, ignoreCase = true)
+                    ) return@use
+
+                    val key = "$address|$body|$date"
+                    if (seen.add(key)) {
+                        addSearchResult(
+                            address,
+                            body,
+                            date,
+                            SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(date))
+                        )
+                    }
+                }
+            }
+
+            MeshMessageStore.loadConversations(this).forEach { meshId ->
+                val messages = MeshMessageStore.loadMessages(this, meshId)
+                messages.asReversed().forEach { message ->
+                    val name = meshId
+                    if (
+                        name.contains(query, ignoreCase = true) ||
+                        message.body.contains(query, ignoreCase = true)
+                    ) {
+                        val key = "$meshId|${message.body}|${message.date}"
+                        if (seen.add(key)) {
+                            addSearchResult(
+                                meshId,
+                                message.body,
+                                message.date,
+                                SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(message.date))
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (results.childCount == 0) {
+                results.addView(TextView(this).apply {
+                    text = "No results"
+                    textSize = 15f
+                    gravity = Gravity.CENTER
+                    setTextColor(secondaryColor)
+                    setPadding(0, dp(28), 0, dp(28))
+                })
+            }
+        }
+
+        searchInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                refreshSearchResults(s?.toString().orEmpty())
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
-        dialog.show()
-        input.requestFocus()
-        dialog.window?.setSoftInputMode(
-            android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
-        )
+        searchInput.requestFocus()
+        searchInput.post {
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.showSoftInput(searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
     }
 
     private fun showHeaderMenu() {
@@ -3222,25 +3459,17 @@ companion object {
             }
         )
 
-        val searchButton = TextView(this).apply {
-            text = "Search"
-            textSize = 12f
-            setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
-            gravity = Gravity.CENTER
-            contentDescription = "Search messages"
-            setOnClickListener { showSmsSearchDialog() }
-        }
-        header.addView(searchButton, LinearLayout.LayoutParams(dp(48), dp(48)))
-
-        val lockButton = TextView(this).apply {
-            text = "Lock"
-            textSize = 12f
-            setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
-            gravity = Gravity.CENTER
+        val hideButton = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_block)
+            imageTintList = android.content.res.ColorStateList.valueOf(
+                if (isDarkMode) Color.WHITE else Color.BLACK
+            )
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             contentDescription = "Hide selected chats"
             setOnClickListener { hideSelected() }
         }
-        header.addView(lockButton, LinearLayout.LayoutParams(dp(48), dp(48)))
+        header.addView(hideButton, LinearLayout.LayoutParams(dp(48), dp(48)))
+
         return header
     }
 
