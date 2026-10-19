@@ -497,8 +497,8 @@ class ConversationActivity : Activity() {
                 android.graphics.LinearGradient(
                     left, top, right, bottom,
                     intArrayOf(
-                        android.graphics.Color.rgb(11, 218, 81),
-                        android.graphics.Color.rgb(11, 218, 81)
+                        android.graphics.Color.rgb(50, 205, 50),
+                        android.graphics.Color.rgb(50, 205, 50)
                     ),
                     null,
                     android.graphics.Shader.TileMode.CLAMP
@@ -1527,31 +1527,6 @@ class ConversationActivity : Activity() {
                 (it.parent as? android.view.ViewGroup)?.removeView(it)
             }
 
-            if (bubble.findViewWithTag<View>("status_icon") == null) {
-                val icon = LinearLayout(this).apply {
-                    tag = "status_icon"
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER
-                    contentDescription = "Sent"
-                    addView(
-                        android.widget.ImageView(this@ConversationActivity).apply {
-                            setImageResource(R.drawable.ic_message_tick)
-                            setColorFilter(secondaryText)
-                            contentDescription = "Sent"
-                        },
-                        LinearLayout.LayoutParams(dp(16), dp(16))
-                    )
-                }
-                val metaRow = wrapper.findViewWithTag<LinearLayout>("message_meta_row")
-                if (metaRow != null) {
-                    metaRow.addView(
-                        icon,
-                        LinearLayout.LayoutParams(dp(16), dp(16)).apply {
-                            leftMargin = dp(2)
-                        }
-                    )
-                }
-            }
 
             return
         }
@@ -1632,31 +1607,6 @@ class ConversationActivity : Activity() {
 
         // Remove the retry button while this one manual attempt is in progress.
         (failedIcon.parent as? android.view.ViewGroup)?.removeView(failedIcon)
-        val sendingIcon = TextView(this).apply {
-            tag = "sending_icon"
-            text = "◷"
-            textSize = 13f
-            gravity = Gravity.CENTER
-            setTextColor(secondaryText)
-            contentDescription = "Sending"
-        }
-        val metaRow = wrapper.findViewWithTag<LinearLayout>("message_meta_row")
-        if (metaRow != null) {
-            metaRow.addView(
-                sendingIcon,
-                LinearLayout.LayoutParams(dp(16), dp(16)).apply {
-                    leftMargin = dp(2)
-                }
-            )
-        } else {
-            bubble.addView(
-                sendingIcon,
-                LinearLayout.LayoutParams(dp(22), dp(22)).apply {
-                    gravity = Gravity.CENTER_VERTICAL
-                    setMargins(dp(8), 0, dp(7), 0)
-                }
-            )
-        }
 
         try {
             sendSmsAttempt(messageId, message, true)
@@ -1671,40 +1621,7 @@ class ConversationActivity : Activity() {
     }
 
     private fun updateMessageDelivered(messageId: String) {
-        val wrapper =
-            messagesContainer.findViewWithTag<LinearLayout>(messageId)
-                ?: return
-
-        val bubble =
-            wrapper.findViewWithTag<LinearLayout>("message_bubble")
-                ?: return
-
-        val icon =
-            wrapper.findViewWithTag<LinearLayout>("status_icon")
-                ?: return
-
-        if (icon.childCount < 2) {
-            icon.layoutParams = icon.layoutParams.apply {
-                width = dp(24)
-                height = dp(16)
-            }
-            icon.addView(
-                android.widget.ImageView(this).apply {
-                    setImageResource(R.drawable.ic_message_tick)
-                    setColorFilter(blue)
-                    contentDescription = "Delivered"
-                },
-                LinearLayout.LayoutParams(dp(16), dp(16)).apply {
-                    leftMargin = dp(-8)
-                }
-            )
-        }
-
-        for (index in 0 until icon.childCount) {
-            (icon.getChildAt(index) as? android.widget.ImageView)
-                ?.setColorFilter(blue)
-        }
-        icon.contentDescription = "Delivered"
+        // تأیید تحویل حفظ می‌شود؛ آیکون تیک نمایش داده نمی‌شود.
     }
 
     private fun enterSearchMode() {
@@ -2037,7 +1954,7 @@ class ConversationActivity : Activity() {
                     if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
                     else Color.rgb(236, 236, 236)
                 } else {
-                    Color.rgb(11, 218, 81)
+                    Color.rgb(50, 205, 50)
                 },
                 incoming
             )
@@ -2264,13 +2181,8 @@ class ConversationActivity : Activity() {
         }
 
         if (emojiAssetPath == null) {
-            // Short messages keep text and time on one line.
-            // Longer messages place the time/status row below the text.
-            bubble.orientation = if (compactSingleLine) {
-                LinearLayout.HORIZONTAL
-            } else {
-                LinearLayout.VERTICAL
-            }
+            // Keep the timestamp at the bottom-right of text bubbles.
+            bubble.orientation = LinearLayout.VERTICAL
             bubble.gravity = Gravity.CENTER_VERTICAL
 
             val metaRow = LinearLayout(this).apply {
@@ -2297,74 +2209,11 @@ class ConversationActivity : Activity() {
                 )
             )
 
-            if (!incoming && messageId == null && activeMeshId == null) {
-                val tickColor = if (delivered) {
-                    Color.rgb(0, 122, 255)
-                } else {
-                    secondaryText
-                }
-
-                val statusIcon = LinearLayout(this).apply {
-                    tag = "status_icon"
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER
-                    contentDescription = if (delivered) "Delivered" else "Sent"
-
-                    addView(
-                        android.widget.ImageView(this@ConversationActivity).apply {
-                            setImageResource(R.drawable.ic_message_tick)
-                            setColorFilter(tickColor)
-                            contentDescription = if (delivered) "Delivered" else "Sent"
-                        },
-                        LinearLayout.LayoutParams(dp(16), dp(16))
-                    )
-
-                    if (delivered) {
-                        addView(
-                            android.widget.ImageView(this@ConversationActivity).apply {
-                                setImageResource(R.drawable.ic_message_tick)
-                                setColorFilter(tickColor)
-                                contentDescription = "Delivered"
-                            },
-                            LinearLayout.LayoutParams(dp(16), dp(16)).apply {
-                                leftMargin = dp(-8)
-                            }
-                        )
-                    }
-                }
-
-                metaRow.addView(
-                    statusIcon,
-                    LinearLayout.LayoutParams(
-                        dp(if (delivered) 24 else 16),
-                        dp(16)
-                    ).apply {
-                        leftMargin = dp(2)
-                    }
-                )
-            }
-
-            if (!incoming && messageId != null) {
-                val sendingIcon = TextView(this).apply {
-                    tag = "sending_icon"
-                    text = "◷"
-                    textSize = 13f
-                    gravity = Gravity.CENTER
-                    setTextColor(Color.rgb(225, 240, 255))
-                    contentDescription = "Sending"
-                }
-                metaRow.addView(
-                    sendingIcon,
-                    LinearLayout.LayoutParams(dp(16), dp(16)).apply {
-                        leftMargin = dp(2)
-                    }
-                )
-            }
 
             bubble.addView(
                 metaRow,
                 LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.MATCH_PARENT,
                     dp(16)
                 ).apply {
                     gravity = Gravity.RIGHT
