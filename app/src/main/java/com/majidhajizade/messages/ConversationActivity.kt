@@ -2134,13 +2134,78 @@ class ConversationActivity : Activity() {
                 }
             }
 
-            bubble.addView(
-                messageText,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
+            if (compactSingleLine) {
+                val inlineRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setBaselineAligned(false)
+                    layoutDirection = if (incoming) {
+                        View.LAYOUT_DIRECTION_LTR
+                    } else {
+                        View.LAYOUT_DIRECTION_RTL
+                    }
+                    tag = "message_inline_row"
+                }
+
+                val inlineTime = TextView(this).apply {
+                    tag = "message_time"
+                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(date))
+                    textSize = 11f
+                    setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
+                    gravity = Gravity.CENTER_VERTICAL
+                    includeFontPadding = false
+                }
+
+                if (incoming) {
+                    inlineRow.addView(
+                        messageText,
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        )
+                    )
+                    inlineRow.addView(
+                        inlineTime,
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            dp(16)
+                        )
+                    )
+                } else {
+                    inlineRow.addView(
+                        inlineTime,
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            dp(16)
+                        )
+                    )
+                    inlineRow.addView(
+                        messageText,
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        )
+                    )
+                }
+
+                inlineTime.setPadding(dp(3), 0, dp(8), 0)
+
+                bubble.addView(
+                    inlineRow,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
                 )
-            )
+            } else {
+                bubble.addView(
+                    messageText,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                )
+            }
         }
 
         val wrapper = LinearLayout(this).apply {
@@ -2203,24 +2268,28 @@ class ConversationActivity : Activity() {
                 alpha = 1f
                 translationY = 0f
             }
-            metaRow.addView(
-                time,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    dp(16)
+            if (!compactSingleLine) {
+                metaRow.addView(
+                    time,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        dp(16)
+                    )
                 )
-            )
+            }
 
 
-            bubble.addView(
-                metaRow,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    dp(16)
-                ).apply {
-                    gravity = Gravity.RIGHT
-                }
-            )
+            if (!compactSingleLine) {
+                bubble.addView(
+                    metaRow,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        dp(16)
+                    ).apply {
+                        gravity = Gravity.RIGHT
+                    }
+                )
+            }
 
             val bodyText = bubble.findViewWithTag<TextView>("message_body")
             bodyText?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
