@@ -2250,8 +2250,8 @@ class ConversationActivity : Activity() {
                 } else {
                     Gravity.END or Gravity.CENTER_VERTICAL
                 }
-                marginStart = if (incoming) 0 else dp(8)
-                marginEnd = if (incoming) dp(8) else 0
+                marginStart = if (incoming) dp(8) else 0
+                marginEnd = if (incoming) 0 else dp(8)
             }
             messageLayer.addView(time, timeParams)
 
@@ -2275,7 +2275,7 @@ class ConversationActivity : Activity() {
 
             val groupSwipeRows = mutableListOf<Pair<View, TextView>>()
             val applyGroupSwipe: (Float) -> Unit = { rawDx ->
-                val resistedDx = (rawDx * 0.72f).coerceIn(
+                val resistedDx = (rawDx * 0.42f).coerceIn(
                     -maxReveal.toFloat(),
                     maxReveal.toFloat()
                 )
@@ -2306,8 +2306,10 @@ class ConversationActivity : Activity() {
                     itemBubble.animate().cancel()
                     itemTime.animate().cancel()
                     itemBubble.translationX = resistedDx
+                    // ساعت در سمت بیرونی حباب باقی می‌ماند.
                     itemTime.translationX = resistedDx
                     itemTime.alpha = alpha
+                    itemTime.bringToFront()
                 }
             }
 
@@ -2509,8 +2511,17 @@ class ConversationActivity : Activity() {
 
         messagesContainer.addView(wrapper)
 
-        // پیام جدید انیمیشن خودش را اجرا می‌کند؛ تاریخچه جداگانه اجرا می‌شود.
+        // پیام تازه با محوشدن و حرکت بسیار کوتاه، نرم ظاهر می‌شود.
         if (!isPopulatingConversation) {
+            wrapper.alpha = 0f
+            wrapper.translationY = dp(8).toFloat()
+            wrapper.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(220L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+
             val bodyEmojiView =
                 (bubble.findViewWithTag<View>("message_body") as? LottieAnimationView)
             bodyEmojiView?.post {
