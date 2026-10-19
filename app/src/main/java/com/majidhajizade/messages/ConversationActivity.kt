@@ -2135,9 +2135,9 @@ class ConversationActivity : Activity() {
                 if (compactSingleLine) {
                     includeFontPadding = false
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding(dp(12), dp(5), dp(12), dp(5))
+                    setPadding(dp(16), dp(7), dp(16), dp(7))
                 } else {
-                    setPadding(dp(12), dp(7), dp(12), dp(7))
+                    setPadding(dp(16), dp(9), dp(16), dp(9))
                 }
             }
 
@@ -2236,6 +2236,8 @@ class ConversationActivity : Activity() {
                 } else {
                     Gravity.END or Gravity.CENTER_VERTICAL
                 }
+                marginStart = if (incoming) 0 else dp(8)
+                marginEnd = if (incoming) dp(8) else 0
             }
             messageLayer.addView(time, timeParams)
 
@@ -2260,6 +2262,8 @@ class ConversationActivity : Activity() {
             bubble.setOnTouchListener { view, event ->
                 when (event.actionMasked) {
                     android.view.MotionEvent.ACTION_DOWN -> {
+                        view.animate().cancel()
+                        time.animate().cancel()
                         downX = event.rawX
                         downY = event.rawY
                         horizontalDrag = false
@@ -2279,14 +2283,17 @@ class ConversationActivity : Activity() {
                         }
 
                         if (horizontalDrag) {
-                            val revealDistance = if (incoming) {
-                                dx.coerceAtLeast(0f).coerceAtMost(maxReveal.toFloat())
-                            } else {
-                                (-dx).coerceAtLeast(0f).coerceAtMost(maxReveal.toFloat())
-                            }
+                            val revealDistance = kotlin.math.abs(dx)
+                                .coerceAtMost(maxReveal.toFloat())
 
-                            view.translationX = if (incoming) revealDistance else -revealDistance
-                            time.alpha = (revealDistance / maxReveal.toFloat()).coerceIn(0f, 1f)
+                            // حباب در هر دو جهت، همراه حرکت انگشت کشیده می‌شود.
+                            view.translationX = dx.coerceIn(
+                                -maxReveal.toFloat(),
+                                maxReveal.toFloat()
+                            )
+                            time.alpha = (
+                                revealDistance / maxReveal.toFloat()
+                            ).coerceIn(0f, 1f)
                             true
                         } else {
                             false
@@ -2298,13 +2305,14 @@ class ConversationActivity : Activity() {
                         if (horizontalDrag) {
                             view.animate()
                                 .translationX(0f)
-                                .setDuration(190L)
+                                .setDuration(240L)
                                 .setInterpolator(android.view.animation.DecelerateInterpolator())
                                 .start()
 
                             time.animate()
                                 .alpha(0f)
-                                .setDuration(150L)
+                                .setDuration(220L)
+                                .setInterpolator(android.view.animation.DecelerateInterpolator())
                                 .start()
 
                             view.parent?.requestDisallowInterceptTouchEvent(false)
