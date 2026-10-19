@@ -1914,24 +1914,31 @@ class ConversationActivity : Activity() {
         val dayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(date))
         if (dayKey != lastDateHeaderKey) {
             val dateHeader = TextView(this).apply {
-                text = SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(date))
-                textSize = 12f
-                setTextColor(Color.rgb(90, 90, 95))
-                gravity = Gravity.CENTER
-                setPadding(dp(14), dp(5), dp(14), dp(5))
-                background = GradientDrawable().apply {
-                    setColor(Color.rgb(230, 230, 234))
-                    cornerRadius = dp(18).toFloat()
+                text = when {
+                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(date)) ==
+                        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) -> "Today"
+                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(date)) ==
+                        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(
+                            Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000L)
+                        ) -> "Yesterday"
+                    else -> SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(date))
                 }
+                textSize = 12f
+                setTextColor(if (isDarkThemeEnabled()) Color.LTGRAY else Color.rgb(120, 120, 125))
+                gravity = Gravity.CENTER
+                includeFontPadding = false
             }
             val dateHeaderRow = LinearLayout(this).apply {
                 tag = "date_header_row"
                 gravity = Gravity.CENTER
                 setPadding(0, dp(10), 0, dp(8))
-                addView(dateHeader, LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ))
+                addView(
+                    dateHeader,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                )
             }
             messagesContainer.addView(dateHeaderRow)
             lastDateHeaderKey = dayKey
@@ -2147,48 +2154,13 @@ class ConversationActivity : Activity() {
                     tag = "message_inline_row"
                 }
 
-                val inlineTime = TextView(this).apply {
-                    tag = "message_time"
-                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(date))
-                    textSize = 11f
-                    setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
-                    gravity = Gravity.CENTER_VERTICAL
-                    includeFontPadding = false
-                }
-
-                if (incoming) {
-                    inlineRow.addView(
-                        messageText,
-                        LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
+                inlineRow.addView(
+                    messageText,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
                     )
-                    inlineRow.addView(
-                        inlineTime,
-                        LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            dp(16)
-                        )
-                    )
-                } else {
-                    inlineRow.addView(
-                        inlineTime,
-                        LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            dp(16)
-                        )
-                    )
-                    inlineRow.addView(
-                        messageText,
-                        LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                    )
-                }
-
-                inlineTime.setPadding(dp(3), 0, dp(12), 0)
+                )
 
                 bubble.addView(
                     inlineRow,
@@ -2227,14 +2199,6 @@ class ConversationActivity : Activity() {
             }
         }
 
-        wrapper.addView(
-            bubble,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        )
-
         val time = TextView(this).apply {
             tag = "message_time"
             text = SimpleDateFormat(
@@ -2248,48 +2212,121 @@ class ConversationActivity : Activity() {
         }
 
         if (emojiAssetPath == null) {
-            // Keep the timestamp at the bottom-right of text bubbles.
-            bubble.orientation = LinearLayout.VERTICAL
-            bubble.gravity = Gravity.CENTER_VERTICAL
+            // ساعت بیرون حباب می‌ماند و با کشیدن پیام آشکار می‌شود.
+            val messageLayer = android.widget.FrameLayout(this).apply {
+                clipChildren = false
+                clipToPadding = false
+            }
 
-            val metaRow = LinearLayout(this).apply {
-                tag = "message_meta_row"
-                orientation = LinearLayout.HORIZONTAL
-                setBaselineAligned(false)
-                layoutDirection = View.LAYOUT_DIRECTION_LTR
-                gravity = Gravity.RIGHT or
-                    (if (compactSingleLine) Gravity.CENTER_VERTICAL else Gravity.BOTTOM)
-                if (compactSingleLine) {
-                    setPadding(0, 0, dp(8), 0)
-                } else {
-                    setPadding(dp(10), 0, dp(12), 0)
-                }
+            val maxReveal = dp(64)
+
+            time.apply {
+                gravity = Gravity.CENTER_VERTICAL
+                alpha = 0f
                 visibility = View.VISIBLE
-                alpha = 1f
-                translationY = 0f
-            }
-            if (!compactSingleLine) {
-                metaRow.addView(
-                    time,
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        dp(16)
-                    )
-                )
+                setPadding(dp(5), 0, dp(5), 0)
             }
 
+            val timeParams = android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            ).apply {
+                gravity = if (incoming) {
+                    Gravity.START or Gravity.CENTER_VERTICAL
+                } else {
+                    Gravity.END or Gravity.CENTER_VERTICAL
+                }
+            }
+            messageLayer.addView(time, timeParams)
 
-            if (!compactSingleLine) {
-                bubble.addView(
-                    metaRow,
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        dp(16)
-                    ).apply {
-                        gravity = Gravity.RIGHT
+            messageLayer.addView(
+                bubble,
+                android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    gravity = if (incoming) {
+                        Gravity.START or Gravity.CENTER_VERTICAL
+                    } else {
+                        Gravity.END or Gravity.CENTER_VERTICAL
                     }
-                )
+                }
+            )
+
+            var downX = 0f
+            var downY = 0f
+            var horizontalDrag = false
+
+            bubble.setOnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        downX = event.rawX
+                        downY = event.rawY
+                        horizontalDrag = false
+                        true
+                    }
+
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        val dx = event.rawX - downX
+                        val dy = event.rawY - downY
+
+                        if (!horizontalDrag &&
+                            kotlin.math.abs(dx) > dp(6) &&
+                            kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.2f
+                        ) {
+                            horizontalDrag = true
+                            view.parent?.requestDisallowInterceptTouchEvent(true)
+                        }
+
+                        if (horizontalDrag) {
+                            val revealDistance = if (incoming) {
+                                dx.coerceAtLeast(0f).coerceAtMost(maxReveal.toFloat())
+                            } else {
+                                (-dx).coerceAtLeast(0f).coerceAtMost(maxReveal.toFloat())
+                            }
+
+                            view.translationX = if (incoming) revealDistance else -revealDistance
+                            time.alpha = (revealDistance / maxReveal.toFloat()).coerceIn(0f, 1f)
+                            true
+                        } else {
+                            false
+                        }
+                    }
+
+                    android.view.MotionEvent.ACTION_UP,
+                    android.view.MotionEvent.ACTION_CANCEL -> {
+                        if (horizontalDrag) {
+                            view.animate()
+                                .translationX(0f)
+                                .setDuration(190L)
+                                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                                .start()
+
+                            time.animate()
+                                .alpha(0f)
+                                .setDuration(150L)
+                                .start()
+
+                            view.parent?.requestDisallowInterceptTouchEvent(false)
+                            horizontalDrag = false
+                            true
+                        } else {
+                            view.parent?.requestDisallowInterceptTouchEvent(false)
+                            false
+                        }
+                    }
+
+                    else -> false
+                }
             }
+
+            wrapper.addView(
+                messageLayer,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
 
             val bodyText = bubble.findViewWithTag<TextView>("message_body")
             bodyText?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
@@ -2300,7 +2337,14 @@ class ConversationActivity : Activity() {
                 }
             }
         } else {
-            // Keep the animated-emoji layout and its timestamp behavior unchanged.
+            // رفتار ساعت ایموجی‌های متحرک فعلاً حفظ می‌شود.
+            wrapper.addView(
+                bubble,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
             time.gravity = if (incoming) Gravity.END else Gravity.START
             time.setPadding(dp(4), dp(2), dp(4), 0)
             wrapper.addView(
