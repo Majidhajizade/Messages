@@ -2262,7 +2262,7 @@ class ConversationActivity : Activity() {
                 if (compactSingleLine) {
                     setPadding(0, 0, dp(8), 0)
                 } else {
-                    setPadding(dp(10), 0, dp(8), 0)
+                    setPadding(dp(10), 0, dp(12), 0)
                 }
                 visibility = View.VISIBLE
                 alpha = 1f
