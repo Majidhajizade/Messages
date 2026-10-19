@@ -2306,8 +2306,14 @@ class ConversationActivity : Activity() {
                     itemBubble.animate().cancel()
                     itemTime.animate().cancel()
                     itemBubble.translationX = resistedDx
-                    // ساعت در سمت بیرونی حباب باقی می‌ماند.
-                    itemTime.translationX = resistedDx
+
+                    // ساعت را بیرون حباب و در سمت مناسب پیام نمایش بده.
+                    val outsideOffset = if (incoming) {
+                        -dp(8).toFloat()
+                    } else {
+                        dp(8).toFloat()
+                    }
+                    itemTime.translationX = resistedDx + outsideOffset
                     itemTime.alpha = alpha
                     itemTime.bringToFront()
                 }
