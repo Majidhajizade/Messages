@@ -77,6 +77,7 @@ class MainActivity : Activity() {
         get() = if (isDarkMode) Color.rgb(175, 175, 185) else secondaryText
 
     private lateinit var messagesContainer: LinearLayout
+    private var smsSearchQuery: String = ""
     private lateinit var messagesScroll: android.widget.ScrollView
     private var showingArchivedChats = false
     private var archivedAvatarView: View? = null
@@ -323,6 +324,20 @@ companion object {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
             )
+        )
+
+        val searchButton = TextView(this).apply {
+            text = "⌕"
+            textSize = 32f
+            setTextColor(primaryText)
+            gravity = Gravity.CENTER
+            contentDescription = "Search messages"
+            setOnClickListener { showSmsSearchDialog() }
+        }
+
+        header.addView(
+            searchButton,
+            LinearLayout.LayoutParams(dp(42), dp(60))
         )
 
         val menuButton = TextView(this).apply {
@@ -876,12 +891,17 @@ companion object {
         val archivedAddresses = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getStringSet("archived_conversations", emptySet())
             .orEmpty()
+        val hiddenAddresses = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getStringSet("hidden_conversations", emptySet())
+            .orEmpty()
 
         cursor?.use {
             while (it.moveToNext()) {
                 val address = it.getString(
                     it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
                 ) ?: "Unknown"
+
+                if (smsSearchQuery.isBlank() && address in hiddenAddresses) continue
 
                 if (conversations.containsKey(address)) {
                     continue
@@ -924,6 +944,44 @@ companion object {
                     Telephony.Sms.MESSAGE_TYPE_SENT
                 }
             )
+        }
+
+        val searchQuery = smsSearchQuery.trim()
+        if (searchQuery.isNotEmpty()) {
+            val matchingAddresses = mutableSetOf<String>()
+            val searchProjection = arrayOf(
+                Telephony.Sms.ADDRESS,
+                Telephony.Sms.BODY
+            )
+            val searchCursor = contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                searchProjection,
+                null,
+                null,
+                "${Telephony.Sms.DATE} DESC"
+            )
+
+            searchCursor?.use { rows ->
+                while (rows.moveToNext()) {
+                    val address = rows.getString(
+                        rows.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
+                    ) ?: "Unknown"
+                    val body = rows.getString(
+                        rows.getColumnIndexOrThrow(Telephony.Sms.BODY)
+                    ) ?: ""
+                    val name = getContactName(address).orEmpty()
+
+                    if (
+                        address.contains(searchQuery, ignoreCase = true) ||
+                        name.contains(searchQuery, ignoreCase = true) ||
+                        body.contains(searchQuery, ignoreCase = true)
+                    ) {
+                        matchingAddresses.add(address)
+                    }
+                }
+            }
+
+            conversations.keys.retainAll(matchingAddresses)
         }
 
         val hasArchivedConversations =
@@ -1725,6 +1783,39 @@ companion object {
                 putExtra("mesh_id", target)
                 putExtra("offline_mesh", true)
             }
+        )
+    }
+
+    private fun showSmsSearchDialog() {
+        val input = EditText(this).apply {
+            hint = "Contact, number or message"
+            setSingleLine(true)
+            textSize = 16f
+            setText(smsSearchQuery)
+            setSelection(text.length)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+        }
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Search messages")
+            .setView(input)
+            .setPositiveButton("Done", null)
+            .setNeutralButton("Clear") { _, _ -> input.setText("") }
+            .create()
+
+        input.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(text: android.text.Editable?) {
+                smsSearchQuery = text?.toString().orEmpty()
+                loadMessages()
+            }
+        })
+
+        dialog.show()
+        input.requestFocus()
+        dialog.window?.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
         )
     }
 
@@ -3098,7 +3189,7 @@ companion object {
         }
     }
 
-    private fun createSelectionHeader(): LinearLayout {
+        private fun createSelectionHeader(): LinearLayout {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -3113,15 +3204,9 @@ companion object {
             setPadding(dp(12), dp(12), dp(12), dp(12))
             isClickable = true
             isFocusable = true
-            setOnClickListener {
-                exitSelectionMode()
-            }
+            setOnClickListener { exitSelectionMode() }
         }
-
-        header.addView(
-            cancel,
-            LinearLayout.LayoutParams(dp(48), dp(48))
-        )
+        header.addView(cancel, LinearLayout.LayoutParams(dp(48), dp(48)))
 
         selectionSelectedText = TextView(this).apply {
             text = "1 Selected"
@@ -3130,22 +3215,36 @@ companion object {
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER_VERTICAL
         }
-
         header.addView(
             selectionSelectedText,
-            LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                1f
-            ).apply {
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
                 leftMargin = dp(8)
             }
         )
 
+        val searchButton = TextView(this).apply {
+            text = "Search"
+            textSize = 12f
+            setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
+            gravity = Gravity.CENTER
+            contentDescription = "Search messages"
+            setOnClickListener { showSmsSearchDialog() }
+        }
+        header.addView(searchButton, LinearLayout.LayoutParams(dp(48), dp(48)))
+
+        val lockButton = TextView(this).apply {
+            text = "Lock"
+            textSize = 12f
+            setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
+            gravity = Gravity.CENTER
+            contentDescription = "Hide selected chats"
+            setOnClickListener { hideSelected() }
+        }
+        header.addView(lockButton, LinearLayout.LayoutParams(dp(48), dp(48)))
         return header
     }
 
-    private fun createSelectionActionBar(): LinearLayout {
+private fun createSelectionActionBar(): LinearLayout {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -3430,6 +3529,24 @@ companion object {
         }
 
         return find(messagesContainer)
+    }
+
+    private fun hideSelected() {
+        val smsAddresses = selectedAddresses.filterNot { it.startsWith("MJ-") }
+        if (smsAddresses.isEmpty()) {
+            Toast.makeText(this, "No SMS chats selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val hidden = prefs.getStringSet("hidden_conversations", emptySet())
+            ?.toMutableSet() ?: mutableSetOf()
+        hidden.addAll(smsAddresses)
+        prefs.edit().putStringSet("hidden_conversations", hidden).apply()
+
+        exitSelectionMode()
+        loadMessages()
+        Toast.makeText(this, "Chat hidden", Toast.LENGTH_SHORT).show()
     }
 
     private fun deleteSelected() {
