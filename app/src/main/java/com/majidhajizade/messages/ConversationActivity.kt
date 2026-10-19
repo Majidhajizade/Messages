@@ -2273,6 +2273,62 @@ class ConversationActivity : Activity() {
             var downY = 0f
             var horizontalDrag = false
 
+            val groupSwipeRows = mutableListOf<Pair<View, TextView>>()
+            val applyGroupSwipe: (Float) -> Unit = { rawDx ->
+                val resistedDx = (rawDx * 0.72f).coerceIn(
+                    -maxReveal.toFloat(),
+                    maxReveal.toFloat()
+                )
+                val alpha = (
+                    kotlin.math.abs(resistedDx) / maxReveal.toFloat()
+                ).coerceIn(0f, 1f)
+                val expectedSide = if (incoming) {
+                    "incoming_message_bubble"
+                } else {
+                    "outgoing_message_bubble"
+                }
+
+                for (i in 0 until messagesContainer.childCount) {
+                    val row = messagesContainer.getChildAt(i) as? LinearLayout ?: continue
+                    if (row.visibility != View.VISIBLE) continue
+                    val rect = android.graphics.Rect()
+                    if (!row.getGlobalVisibleRect(rect)) continue
+
+                    val itemBubble = row.findViewWithTag<LinearLayout>("message_bubble") ?: continue
+                    if (itemBubble.contentDescription != expectedSide) continue
+                    val layer = itemBubble.parent as? android.widget.FrameLayout ?: continue
+                    val itemTime = layer.findViewWithTag<TextView>("message_time") ?: continue
+
+                    if (groupSwipeRows.none { it.first === itemBubble }) {
+                        groupSwipeRows.add(itemBubble to itemTime)
+                    }
+
+                    itemBubble.animate().cancel()
+                    itemTime.animate().cancel()
+                    itemBubble.translationX = resistedDx
+                    itemTime.translationX = resistedDx
+                    itemTime.alpha = alpha
+                }
+            }
+
+            val resetGroupSwipe: () -> Unit = {
+                groupSwipeRows.forEach { pair ->
+                    pair.first.animate()
+                        .translationX(0f)
+                        .setDuration(280L)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator())
+                        .start()
+
+                    pair.second.animate()
+                        .translationX(0f)
+                        .alpha(0f)
+                        .setDuration(260L)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator())
+                        .start()
+                }
+                groupSwipeRows.clear()
+            }
+
             bubble.setOnTouchListener { view, event ->
                 when (event.actionMasked) {
                     android.view.MotionEvent.ACTION_DOWN -> {
@@ -2300,7 +2356,7 @@ class ConversationActivity : Activity() {
                         }
 
                         if (!horizontalDrag &&
-                            kotlin.math.abs(dx) > dp(8) &&
+                            kotlin.math.abs(dx) > dp(18) &&
                             kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.1f
                         ) {
                             horizontalDrag = true
@@ -2308,17 +2364,8 @@ class ConversationActivity : Activity() {
                         }
 
                         if (horizontalDrag) {
-                            val revealDistance = kotlin.math.abs(dx)
-                                .coerceAtMost(maxReveal.toFloat())
-
-                            // حباب در هر دو جهت، همراه حرکت انگشت کشیده می‌شود.
-                            view.translationX = dx.coerceIn(
-                                -maxReveal.toFloat(),
-                                maxReveal.toFloat()
-                            )
-                            time.alpha = (
-                                revealDistance / maxReveal.toFloat()
-                            ).coerceIn(0f, 1f)
+                            // حباب‌ها و ساعت‌های سمت انتخاب‌شده با مقاومت حرکت می‌کنند.
+                            applyGroupSwipe(dx)
                         }
 
                         // تا زمانی که والد اسکرول رویداد را نگیرد،
@@ -2329,17 +2376,7 @@ class ConversationActivity : Activity() {
                     android.view.MotionEvent.ACTION_UP,
                     android.view.MotionEvent.ACTION_CANCEL -> {
                         if (horizontalDrag) {
-                            view.animate()
-                                .translationX(0f)
-                                .setDuration(240L)
-                                .setInterpolator(android.view.animation.DecelerateInterpolator())
-                                .start()
-
-                            time.animate()
-                                .alpha(0f)
-                                .setDuration(220L)
-                                .setInterpolator(android.view.animation.DecelerateInterpolator())
-                                .start()
+                            resetGroupSwipe()
 
                             view.parent?.requestDisallowInterceptTouchEvent(false)
                             horizontalDrag = false
@@ -2384,7 +2421,7 @@ class ConversationActivity : Activity() {
                         val dy = event.rawY - bodyDownY
 
                         if (!bodyDragging &&
-                            kotlin.math.abs(dx) > dp(8) &&
+                            kotlin.math.abs(dx) > dp(18) &&
                             kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.1f
                         ) {
                             bodyDragging = true
@@ -2394,13 +2431,7 @@ class ConversationActivity : Activity() {
                         }
 
                         if (bodyDragging) {
-                            bubble.translationX = dx.coerceIn(
-                                -maxReveal.toFloat(),
-                                maxReveal.toFloat()
-                            )
-                            time.alpha = (
-                                kotlin.math.abs(dx) / maxReveal.toFloat()
-                            ).coerceIn(0f, 1f)
+                            applyGroupSwipe(dx)
                         }
 
                         bodyDragging
@@ -2410,21 +2441,7 @@ class ConversationActivity : Activity() {
                     android.view.MotionEvent.ACTION_CANCEL -> {
                         val wasDragging = bodyDragging
                         if (wasDragging) {
-                            bubble.animate()
-                                .translationX(0f)
-                                .setDuration(240L)
-                                .setInterpolator(
-                                    android.view.animation.DecelerateInterpolator()
-                                )
-                                .start()
-
-                            time.animate()
-                                .alpha(0f)
-                                .setDuration(220L)
-                                .setInterpolator(
-                                    android.view.animation.DecelerateInterpolator()
-                                )
-                                .start()
+                            resetGroupSwipe()
                             touchedView.parent?.requestDisallowInterceptTouchEvent(false)
                         }
                         bodyDragging = false
