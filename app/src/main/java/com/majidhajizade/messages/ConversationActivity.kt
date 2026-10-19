@@ -2121,6 +2121,8 @@ class ConversationActivity : Activity() {
                     else Color.BLACK
                 )
                 maxWidth = (resources.displayMetrics.widthPixels * 0.66f).toInt()
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                textAlignment = View.TEXT_ALIGNMENT_VIEW_START
                 autoLinkMask = Linkify.WEB_URLS or Linkify.PHONE_NUMBERS
                 movementMethod = LinkMovementMethod.getInstance()
                 if (compactSingleLine) {
