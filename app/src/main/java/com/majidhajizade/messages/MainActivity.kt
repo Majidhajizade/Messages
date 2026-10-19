@@ -1842,7 +1842,7 @@ companion object {
             textSize = 16f
             setTextColor(textColor)
             setHintTextColor(secondaryColor)
-            singleLine = true
+            setSingleLine(true)
             background = null
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
             setPadding(0, 0, 0, 0)
@@ -1877,9 +1877,9 @@ companion object {
             isFillViewport = true
             addView(
                 results,
-                android.widget.ScrollView.LayoutParams(
-                    android.widget.ScrollView.LayoutParams.MATCH_PARENT,
-                    android.widget.ScrollView.LayoutParams.WRAP_CONTENT
+                android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                 )
             )
         }
