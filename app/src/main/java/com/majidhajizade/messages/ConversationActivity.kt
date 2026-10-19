@@ -2253,8 +2253,7 @@ class ConversationActivity : Activity() {
                 marginStart = if (incoming) dp(8) else 0
                 marginEnd = if (incoming) 0 else dp(8)
             }
-            messageLayer.addView(time, timeParams)
-
+            // حباب در جای فعلی می‌ماند؛ ساعت بالاتر از آن رسم می‌شود.
             messageLayer.addView(
                 bubble,
                 android.widget.FrameLayout.LayoutParams(
@@ -2268,6 +2267,8 @@ class ConversationActivity : Activity() {
                     }
                 }
             )
+
+            messageLayer.addView(time, timeParams)
 
             var downX = 0f
             var downY = 0f
