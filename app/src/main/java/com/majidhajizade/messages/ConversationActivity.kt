@@ -1631,9 +1631,16 @@ class ConversationActivity : Activity() {
 
         profileCapsule.removeAllViews()
         profileCapsule.background = GradientDrawable().apply {
-            setColor(Color.WHITE)
+            setColor(
+                if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
+                else Color.rgb(250, 250, 250)
+            )
             cornerRadius = dp(24).toFloat()
-            setStroke(dp(1), Color.rgb(220, 220, 225))
+            setStroke(
+                dp(1),
+                if (isDarkThemeEnabled()) Color.rgb(67, 67, 75)
+                else Color.rgb(218, 218, 218)
+            )
         }
 
         val searchIcon = TextView(this).apply {
@@ -1692,9 +1699,16 @@ class ConversationActivity : Activity() {
                 searchQuery = ""
                 profileCapsule.removeAllViews()
                 profileCapsule.background = GradientDrawable().apply {
-                    setColor(Color.argb(230, 255, 255, 255))
+                    setColor(
+                        if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
+                        else Color.rgb(250, 250, 250)
+                    )
                     cornerRadius = dp(24).toFloat()
-                    setStroke(dp(1), Color.argb(242, 255, 255, 255))
+                    setStroke(
+                        dp(1),
+                        if (isDarkThemeEnabled()) Color.rgb(67, 67, 75)
+                        else Color.rgb(218, 218, 218)
+                    )
                 }
                 profileCapsule.addView(
                     profile,
@@ -2294,10 +2308,11 @@ class ConversationActivity : Activity() {
                             time.alpha = (
                                 revealDistance / maxReveal.toFloat()
                             ).coerceIn(0f, 1f)
-                            true
-                        } else {
-                            false
                         }
+
+                        // تا زمانی که والد اسکرول رویداد را نگیرد،
+                        // زنجیرهٔ لمس روی حباب حفظ می‌شود.
+                        true
                     }
 
                     android.view.MotionEvent.ACTION_UP,
