@@ -2188,7 +2188,7 @@ class ConversationActivity : Activity() {
                     )
                 }
 
-                inlineTime.setPadding(dp(3), 0, dp(8), 0)
+                inlineTime.setPadding(dp(3), 0, dp(12), 0)
 
                 bubble.addView(
                     inlineRow,
