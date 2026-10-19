@@ -2281,6 +2281,8 @@ class ConversationActivity : Activity() {
                         downX = event.rawX
                         downY = event.rawY
                         horizontalDrag = false
+                        // جلوگیری از ربوده‌شدن لمس توسط والد پیش از تشخیص جهت حرکت
+                        view.parent?.requestDisallowInterceptTouchEvent(true)
                         true
                     }
 
@@ -2288,8 +2290,17 @@ class ConversationActivity : Activity() {
                         val dx = event.rawX - downX
                         val dy = event.rawY - downY
 
+                        // اگر حرکت عمودی است، اجازهٔ اسکرول را به والد برگردان.
                         if (!horizontalDrag &&
-                            kotlin.math.abs(dx) > dp(4) &&
+                            kotlin.math.abs(dy) > dp(8) &&
+                            kotlin.math.abs(dy) > kotlin.math.abs(dx) * 1.1f
+                        ) {
+                            view.parent?.requestDisallowInterceptTouchEvent(false)
+                            return@setOnTouchListener false
+                        }
+
+                        if (!horizontalDrag &&
+                            kotlin.math.abs(dx) > dp(8) &&
                             kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.1f
                         ) {
                             horizontalDrag = true
@@ -2351,7 +2362,79 @@ class ConversationActivity : Activity() {
                 )
             )
 
-            val bodyText = bubble.findViewWithTag<TextView>("message_body")
+            val bodyText = bubble.findViewWithTag<View>("message_body")
+
+            // متن یا ایموجی ممکن است لمس را قبل از رسیدن به حباب دریافت کند.
+            // لمس را مصرف نمی‌کنیم تا لینک‌ها و کلیک ایموجی حفظ شوند.
+            var bodyDownX = 0f
+            var bodyDownY = 0f
+            var bodyDragging = false
+
+            bodyText?.setOnTouchListener { touchedView, event ->
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        bodyDownX = event.rawX
+                        bodyDownY = event.rawY
+                        bodyDragging = false
+                        false
+                    }
+
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        val dx = event.rawX - bodyDownX
+                        val dy = event.rawY - bodyDownY
+
+                        if (!bodyDragging &&
+                            kotlin.math.abs(dx) > dp(8) &&
+                            kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.1f
+                        ) {
+                            bodyDragging = true
+                            touchedView.parent?.requestDisallowInterceptTouchEvent(true)
+                            bubble.animate().cancel()
+                            time.animate().cancel()
+                        }
+
+                        if (bodyDragging) {
+                            bubble.translationX = dx.coerceIn(
+                                -maxReveal.toFloat(),
+                                maxReveal.toFloat()
+                            )
+                            time.alpha = (
+                                kotlin.math.abs(dx) / maxReveal.toFloat()
+                            ).coerceIn(0f, 1f)
+                        }
+
+                        bodyDragging
+                    }
+
+                    android.view.MotionEvent.ACTION_UP,
+                    android.view.MotionEvent.ACTION_CANCEL -> {
+                        val wasDragging = bodyDragging
+                        if (wasDragging) {
+                            bubble.animate()
+                                .translationX(0f)
+                                .setDuration(240L)
+                                .setInterpolator(
+                                    android.view.animation.DecelerateInterpolator()
+                                )
+                                .start()
+
+                            time.animate()
+                                .alpha(0f)
+                                .setDuration(220L)
+                                .setInterpolator(
+                                    android.view.animation.DecelerateInterpolator()
+                                )
+                                .start()
+                            touchedView.parent?.requestDisallowInterceptTouchEvent(false)
+                        }
+                        bodyDragging = false
+                        wasDragging
+                    }
+
+                    else -> bodyDragging
+                }
+            }
+
             bodyText?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
                 bubble.post {
                     val shape = bubble.background as? MessageBubbleDrawable
