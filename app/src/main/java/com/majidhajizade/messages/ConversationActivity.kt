@@ -2135,9 +2135,9 @@ class ConversationActivity : Activity() {
                 if (compactSingleLine) {
                     includeFontPadding = false
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding(dp(14), dp(5), dp(6), dp(5))
+                    setPadding(dp(12), dp(5), dp(12), dp(5))
                 } else {
-                    setPadding(dp(14), dp(8), dp(10), dp(2))
+                    setPadding(dp(12), dp(7), dp(12), dp(7))
                 }
             }
 
