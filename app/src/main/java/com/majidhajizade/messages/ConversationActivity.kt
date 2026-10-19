@@ -2275,7 +2275,7 @@ class ConversationActivity : Activity() {
 
             val groupSwipeRows = mutableListOf<Pair<View, TextView>>()
             val applyGroupSwipe: (Float) -> Unit = { rawDx ->
-                val resistedDx = (rawDx * 0.42f).coerceIn(
+                val resistedDx = (rawDx * 0.28f).coerceIn(
                     -maxReveal.toFloat(),
                     maxReveal.toFloat()
                 )
