@@ -2135,9 +2135,9 @@ class ConversationActivity : Activity() {
                 if (compactSingleLine) {
                     includeFontPadding = false
                     gravity = Gravity.CENTER_VERTICAL
-                    setPadding(dp(16), dp(7), dp(16), dp(7))
+                    setPadding(dp(18), dp(7), dp(18), dp(7))
                 } else {
-                    setPadding(dp(16), dp(9), dp(16), dp(9))
+                    setPadding(dp(18), dp(9), dp(18), dp(9))
                 }
             }
 
@@ -2275,8 +2275,8 @@ class ConversationActivity : Activity() {
                         val dy = event.rawY - downY
 
                         if (!horizontalDrag &&
-                            kotlin.math.abs(dx) > dp(6) &&
-                            kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.2f
+                            kotlin.math.abs(dx) > dp(4) &&
+                            kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.1f
                         ) {
                             horizontalDrag = true
                             view.parent?.requestDisallowInterceptTouchEvent(true)
