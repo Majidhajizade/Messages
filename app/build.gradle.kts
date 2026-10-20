@@ -22,6 +22,7 @@ kotlin {
 
 
 dependencies {
+    implementation("androidx.dynamicanimation:dynamicanimation:1.0.0")
     implementation("androidx.lifecycle:lifecycle-process:2.8.7")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.core:core-ktx:1.17.0")

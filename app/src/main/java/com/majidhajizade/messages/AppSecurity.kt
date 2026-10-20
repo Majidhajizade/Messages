@@ -1,10 +1,15 @@
 package com.majidhajizade.messages
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.widget.TextView
 import android.widget.LinearLayout
 import android.view.WindowManager
 import android.view.View
 import android.view.Gravity
+import android.view.animation.DecelerateInterpolator
+import com.airbnb.lottie.LottieAnimationView
+import com.airbnb.lottie.LottieDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.Color
@@ -32,6 +37,7 @@ object AppSecurity {
     private const val PIN_ENABLED = "pin_enabled"
     private const val AUTO_LOCK_PENDING = "auto_lock_pending"
     private const val AUTO_LOCK_ENABLED = "auto_lock_enabled"
+    private const val FINGERPRINT_ENABLED = "fingerprint_enabled"
     private const val CHAT_LOCK_PREFIX = "chat_locked_"
     private const val ITERATIONS = 160_000
     private const val FAILED_PIN_ATTEMPTS = "failed_pin_attempts"
@@ -45,6 +51,13 @@ object AppSecurity {
 
     fun isAutoLockEnabled(context: Context) =
         prefs(context).getBoolean(AUTO_LOCK_ENABLED, true)
+
+    fun isFingerprintEnabled(context: Context) =
+        prefs(context).getBoolean(FINGERPRINT_ENABLED, true)
+
+    fun setFingerprintEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(FINGERPRINT_ENABLED, enabled).apply()
+    }
 
     fun isAutoLockPending(context: Context) =
         isEnabled(context) && isAutoLockEnabled(context) &&
@@ -179,7 +192,23 @@ object AppSecurity {
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dp(24), dp(24), dp(24), dp(24))
             setBackgroundColor(backgroundColor)
+            alpha = 0f
+            translationY = dp(18).toFloat()
         }
+
+        var unlockInProgress = false
+        val lockAnimation = LottieAnimationView(activity).apply {
+            setAnimation(R.raw.passcode_lock)
+            repeatCount = LottieDrawable.INFINITE
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            contentDescription = "Lock"
+        }
+        root.addView(
+            lockAnimation,
+            LinearLayout.LayoutParams(dp(72), dp(72)).apply {
+                bottomMargin = dp(12)
+            }
+        )
 
         val title = TextView(activity).apply {
             text = "Messages"
@@ -188,12 +217,6 @@ object AppSecurity {
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
         }
-        root.addView(
-            title,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(42)
-            )
-        )
 
         val subtitle = TextView(activity).apply {
             text = "Enter your passcode"
@@ -201,10 +224,29 @@ object AppSecurity {
             setTextColor(secondaryColor)
             gravity = Gravity.CENTER
         }
+
+        val titleContainer = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            addView(
+                title,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(42)
+                )
+            )
+            addView(
+                subtitle,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(38)
+                )
+            )
+        }
+
         root.addView(
-            subtitle,
+            titleContainer,
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(38)
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
 
@@ -227,10 +269,59 @@ object AppSecurity {
         var unlockButton: TextView? = null
 
         fun refreshPin() {
+            pinDisplay.animate().cancel()
             pinDisplay.text = "• ".repeat(pin.length).trim()
+            pinDisplay.scaleX = 0.92f
+            pinDisplay.scaleY = 0.92f
+            pinDisplay.animate()
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(150L)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+
             val canUnlock = pin.length >= 4
             unlockButton?.isEnabled = canUnlock
             unlockButton?.alpha = if (canUnlock) 1f else 0.55f
+        }
+
+        var shakeDirection = -1f
+        var titleShakeAnimation:
+            androidx.dynamicanimation.animation.SpringAnimation? = null
+        var titleShakeBaseX: Float? = null
+
+        fun shakePasscodeTitle() {
+            titleShakeAnimation?.cancel()
+
+            val view = titleContainer
+            val baseX = titleShakeBaseX ?: view.translationX
+            titleShakeBaseX = baseX
+            view.translationX = baseX
+
+            val shift = dp(12).toFloat() * shakeDirection
+            shakeDirection = -shakeDirection
+
+            val spring = androidx.dynamicanimation.animation.SpringAnimation(
+                view,
+                androidx.dynamicanimation.animation.DynamicAnimation.TRANSLATION_X,
+                baseX
+            )
+
+            spring.spring = androidx.dynamicanimation.animation.SpringForce(
+                baseX
+            ).setStiffness(600f)
+
+            spring.setStartVelocity(-shift * 100f)
+            spring.addEndListener { animation, _, _, _ ->
+                if (titleShakeAnimation === animation) {
+                    view.translationX = baseX
+                    titleShakeAnimation = null
+                    titleShakeBaseX = null
+                }
+            }
+
+            titleShakeAnimation = spring
+            spring.start()
         }
 
         fun makeKey(label: String, action: () -> Unit): TextView {
@@ -287,6 +378,11 @@ object AppSecurity {
 
                 val params = LinearLayout.LayoutParams(0, dp(62), 1f)
                 params.setMargins(dp(6), dp(5), dp(6), dp(5))
+                if (key is TextView) {
+                    key.alpha = 0f
+                    key.scaleX = 0.7f
+                    key.scaleY = 0.7f
+                }
                 row.addView(key, params)
             }
 
@@ -319,9 +415,10 @@ object AppSecurity {
         actionParams.setMargins(dp(5), dp(14), dp(5), 0)
 
         val manager = BiometricManager.from(activity)
-        val biometricAvailable = manager.canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_WEAK
-        ) == BiometricManager.BIOMETRIC_SUCCESS
+        val biometricAvailable = isFingerprintEnabled(activity) &&
+            manager.canAuthenticate(
+                BiometricManager.Authenticators.BIOMETRIC_WEAK
+            ) == BiometricManager.BIOMETRIC_SUCCESS
 
         val biometricButton = TextView(activity).apply {
             text = "Fingerprint"
@@ -335,7 +432,41 @@ object AppSecurity {
                 setColor(keyColor)
             }
         }
+        biometricButton.visibility =
+            if (biometricAvailable) android.view.View.VISIBLE
+            else android.view.View.GONE
         actions.addView(biometricButton, actionParams)
+
+        var unlockFinished = false
+
+        fun completeUnlock() {
+            if (unlockFinished) return
+            unlockFinished = true
+            if (dialog.isShowing) dialog.dismiss()
+            onSuccess()
+        }
+
+        fun finishUnlock() {
+            if (unlockInProgress || unlockFinished) return
+            unlockInProgress = true
+            unlockButton?.isEnabled = false
+            biometricButton.isEnabled = false
+
+            lockAnimation.setAnimation(R.raw.passcode_lock_close)
+            lockAnimation.repeatCount = 0
+            lockAnimation.removeAllAnimatorListeners()
+            lockAnimation.addAnimatorListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    completeUnlock()
+                }
+            })
+            lockAnimation.playAnimation()
+
+            // Fallback if the close animation does not finish.
+            root.postDelayed({
+                completeUnlock()
+            }, 1200L)
+        }
 
         unlockButton = TextView(activity).apply {
             text = "Unlock"
@@ -359,8 +490,7 @@ object AppSecurity {
                     refreshPin()
                 } else if (verifyPin(activity, pin.toString())) {
                     clearAutoLockPending(activity)
-                    dialog.dismiss()
-                    onSuccess()
+                    finishUnlock()
                 } else {
                     val wait = remainingPinRetryMillis(activity)
                     subtitle.text = if (wait > 0L) {
@@ -371,6 +501,7 @@ object AppSecurity {
                     subtitle.setTextColor(Color.rgb(255, 117, 117))
                     pin.clear()
                     refreshPin()
+                    shakePasscodeTitle()
                 }
             }
         }
@@ -395,8 +526,7 @@ object AppSecurity {
                     ) {
                         resetPinFailures(activity)
                         clearAutoLockPending(activity)
-                        dialog.dismiss()
-                        onSuccess()
+                        finishUnlock()
                     }
 
                     override fun onAuthenticationError(
@@ -443,6 +573,58 @@ object AppSecurity {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT
         )
+
+        root.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(320L)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+
+        lockAnimation.post {
+            if (dialog.isShowing && !unlockInProgress) {
+                lockAnimation.playAnimation()
+            }
+        }
+
+        for (i in 1 until root.childCount) {
+            val child = root.getChildAt(i)
+            if (child === keypad) {
+                child.alpha = 1f
+                child.scaleX = 1f
+                child.scaleY = 1f
+                for (rowIndex in 0 until keypad.childCount) {
+                    val row = keypad.getChildAt(rowIndex) as? LinearLayout
+                        ?: continue
+                    for (keyIndex in 0 until row.childCount) {
+                        val key = row.getChildAt(keyIndex)
+                        if (key !is TextView) continue
+                        key.animate()
+                            .alpha(1f)
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setStartDelay(
+                                180L + rowIndex * 55L + keyIndex * 24L
+                            )
+                            .setDuration(220L)
+                            .setInterpolator(DecelerateInterpolator())
+                            .start()
+                    }
+                }
+            } else {
+                child.alpha = 0f
+                child.scaleX = 0.92f
+                child.scaleY = 0.92f
+                child.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setStartDelay(((i - 1) * 35L).coerceAtMost(210L))
+                    .setDuration(240L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+        }
     }
 
     private fun showPinSetup(activity: FragmentActivity) {
@@ -495,15 +677,22 @@ object AppSecurity {
     fun showSettings(activity: FragmentActivity) {
         val enabled = isEnabled(activity)
         val auto = isAutoLockEnabled(activity)
+        val fingerprint = isFingerprintEnabled(activity)
+
+        val fingerprintIndex = if (enabled) 2 else 1
+        val autoLockIndex = if (enabled) 3 else 2
+
         val items = if (enabled) {
             arrayOf(
                 "Change passcode",
                 "Turn off passcode",
+                "Fingerprint: " + if (fingerprint) "ON" else "OFF",
                 "Auto-lock in background: " + if (auto) "ON" else "OFF"
             )
         } else {
             arrayOf(
                 "Set passcode",
+                "Fingerprint: " + if (fingerprint) "ON" else "OFF",
                 "Auto-lock in background: " + if (auto) "ON" else "OFF"
             )
         }
@@ -511,27 +700,57 @@ object AppSecurity {
         AlertDialog.Builder(activity)
             .setTitle("Security")
             .setItems(items) { _, which ->
-                if (!enabled && which == 0) {
-                    showPinSetup(activity)
-                } else if (enabled && which == 0) {
-                    showUnlock(activity) { showPinSetup(activity) }
-                } else if (enabled && which == 1) {
-                    showUnlock(activity) {
-                        disable(activity)
+                when {
+                    !enabled && which == 0 -> {
+                        showPinSetup(activity)
+                    }
+
+                    enabled && which == 0 -> {
+                        showUnlock(activity) {
+                            showPinSetup(activity)
+                        }
+                    }
+
+                    enabled && which == 1 -> {
+                        showUnlock(activity) {
+                            disable(activity)
+                            Toast.makeText(
+                                activity,
+                                "Passcode disabled",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+
+                    which == fingerprintIndex -> {
+                        val newValue = !isFingerprintEnabled(activity)
+                        setFingerprintEnabled(activity, newValue)
                         Toast.makeText(
-                            activity, "Passcode disabled",
+                            activity,
+                            if (newValue) "Fingerprint enabled"
+                            else "Fingerprint disabled",
                             Toast.LENGTH_SHORT
                         ).show()
+                        activity.window?.decorView?.post {
+                            if (!activity.isFinishing) showSettings(activity)
+                        }
                     }
-                } else {
-                    val newValue = !isAutoLockEnabled(activity)
-                    prefs(activity).edit()
-                        .putBoolean(AUTO_LOCK_ENABLED, newValue).apply()
-                    Toast.makeText(
-                        activity,
-                        if (newValue) "Auto-lock enabled" else "Auto-lock disabled",
-                        Toast.LENGTH_SHORT
-                    ).show()
+
+                    which == autoLockIndex -> {
+                        val newValue = !isAutoLockEnabled(activity)
+                        prefs(activity).edit()
+                            .putBoolean(AUTO_LOCK_ENABLED, newValue)
+                            .apply()
+                        Toast.makeText(
+                            activity,
+                            if (newValue) "Auto-lock enabled"
+                            else "Auto-lock disabled",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        activity.window?.decorView?.post {
+                            if (!activity.isFinishing) showSettings(activity)
+                        }
+                    }
                 }
             }
             .setNegativeButton("Close", null)

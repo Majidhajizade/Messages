@@ -149,6 +149,10 @@ companion object {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_SECURE,
+            android.view.WindowManager.LayoutParams.FLAG_SECURE
+        )
         isDarkMode = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getBoolean("dark_mode", false)
         ensureNearbyPermissions()
