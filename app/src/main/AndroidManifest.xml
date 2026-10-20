@@ -22,6 +22,7 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 
     <application
+        android:name=".MessagesApplication"
         android:allowBackup="true"
         android:label="Messages"
         android:icon="@drawable/app_icon"

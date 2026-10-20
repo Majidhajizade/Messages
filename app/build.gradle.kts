@@ -22,6 +22,8 @@ kotlin {
 
 
 dependencies {
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
+    implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("com.airbnb.android:lottie:6.6.7")
     implementation("com.google.android.gms:play-services-nearby:19.5.1")

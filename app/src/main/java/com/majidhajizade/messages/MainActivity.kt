@@ -37,7 +37,9 @@ import java.util.Locale
 import org.json.JSONArray
 import kotlin.math.abs
 
-class MainActivity : Activity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {
+    private var securityGateShowing = false
+
 
     private val nearbyPermissions = if (android.os.Build.VERSION.SDK_INT >= 31) {
         arrayOf(
@@ -216,6 +218,38 @@ companion object {
     override fun onResume() {
         super.onResume()
         isMainActivityResumed = true
+
+        if (AppSecurity.isEnabled(this) &&
+            AppSecurity.isAutoLockPending(this) &&
+            !securityGateShowing
+        ) {
+            securityGateShowing = true
+            setContentView(android.widget.FrameLayout(this).apply {
+                setBackgroundColor(Color.WHITE)
+            })
+            AppSecurity.showUnlock(this) {
+                securityGateShowing = false
+                setContentView(createHomeScreen())
+                updateMeshStatus()
+                handleMeshRequestIntent(intent)
+                if (checkSelfPermission(Manifest.permission.READ_SMS) ==
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    loadMessages()
+                } else {
+                    requestPermissions(
+                        arrayOf(
+                            Manifest.permission.READ_SMS,
+                            Manifest.permission.RECEIVE_SMS,
+                            Manifest.permission.SEND_SMS,
+                            Manifest.permission.READ_CONTACTS
+                        ), SMS_PERMISSION_REQUEST
+                    )
+                }
+            }
+            return
+        }
+
         handleMeshRequestIntent(intent)
 
         if (checkSelfPermission(Manifest.permission.READ_SMS)
@@ -1991,20 +2025,21 @@ companion object {
                     )
                     val name = getContactName(address).orEmpty()
 
-                    if (
-                        !address.contains(query, ignoreCase = true) &&
-                        !name.contains(query, ignoreCase = true) &&
-                        !body.contains(query, ignoreCase = true)
-                    ) return@use
+                    val matchesQuery =
+                        address.contains(query, ignoreCase = true) ||
+                        name.contains(query, ignoreCase = true) ||
+                        body.contains(query, ignoreCase = true)
 
-                    val key = "$address|$body|$date"
-                    if (seen.add(key)) {
-                        addSearchResult(
-                            address,
-                            body,
-                            date,
-                            SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(date))
-                        )
+                    if (matchesQuery) {
+                        val key = "$address|$body|$date"
+                        if (seen.add(key)) {
+                            addSearchResult(
+                                address,
+                                body,
+                                date,
+                                SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(date))
+                            )
+                        }
                     }
                 }
             }
@@ -3459,14 +3494,29 @@ companion object {
             }
         )
 
-        val hideButton = android.widget.ImageView(this).apply {
-            setImageResource(R.drawable.ic_block)
-            imageTintList = android.content.res.ColorStateList.valueOf(
-                if (isDarkMode) Color.WHITE else Color.BLACK
-            )
-            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+        val hideButton = com.airbnb.lottie.LottieAnimationView(this).apply {
+            setAnimation(R.raw.passcode_lock)
+            repeatCount = 0
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
             contentDescription = "Hide selected chats"
-            setOnClickListener { hideSelected() }
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                if (!isAnimating) {
+                    setAnimation(R.raw.passcode_lock_close)
+                    repeatCount = 0
+                    progress = 0f
+                    removeAllAnimatorListeners()
+                    addAnimatorListener(object : android.animation.AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: android.animation.Animator) {
+                            removeAnimatorListener(this)
+                            hideSelected()
+                        }
+                    })
+                    playAnimation()
+                }
+            }
         }
         header.addView(hideButton, LinearLayout.LayoutParams(dp(48), dp(48)))
 
@@ -4063,6 +4113,32 @@ private fun createSelectionActionBar(): LinearLayout {
 
         page.addView(header)
 
+        val securityCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = solidDrawable(Color.WHITE, dp(22).toFloat())
+            setOnClickListener { AppSecurity.showSettings(this@MainActivity) }
+        }
+        securityCard.addView(TextView(this).apply {
+            text = "Security"
+            textSize = 17f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(25, 25, 30))
+        })
+        securityCard.addView(TextView(this).apply {
+            text = "Passcode Lock · Biometrics · Auto-lock"
+            textSize = 14f
+            setTextColor(secondaryText)
+            setPadding(0, dp(5), 0, 0)
+        })
+        page.addView(
+            securityCard,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(12) }
+        )
+
         val meshIdCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(16), dp(18), dp(16))
@@ -4512,6 +4588,7 @@ private fun createSelectionActionBar(): LinearLayout {
             cornerRadius = radius
         }
     }
+
 
 
     override fun onPause() {

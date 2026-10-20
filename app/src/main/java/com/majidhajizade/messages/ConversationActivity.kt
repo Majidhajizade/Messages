@@ -45,7 +45,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class ConversationActivity : Activity() {
+class ConversationActivity : androidx.fragment.app.FragmentActivity() {
+    private var securityGateShowing = false
+    private var conversationInitialized = false
+    private var chatUnlockedForCurrentVisit = false
+
 
     private lateinit var messagesContainer: LinearLayout
     private lateinit var messageInput: EditText
@@ -182,6 +186,23 @@ class ConversationActivity : Activity() {
                 .uppercase(Locale.US)
         }
 
+        val needsGlobalUnlock =
+            AppSecurity.isEnabled(this) && AppSecurity.isAutoLockPending(this)
+        val needsChatUnlock =
+            AppSecurity.isEnabled(this) && AppSecurity.isChatLocked(this, phone)
+
+        if (needsGlobalUnlock || needsChatUnlock) {
+            showConversationSecurityGate { initializeConversation() }
+        } else {
+            initializeConversation()
+        }
+
+    }
+
+
+    private fun initializeConversation() {
+        if (conversationInitialized || isFinishing) return
+        conversationInitialized = true
         setContentView(createScreen())
 
         val filter = IntentFilter("com.majidhajizade.messages.SMS_SENT")
@@ -208,7 +229,9 @@ class ConversationActivity : Activity() {
 
         loadConversation()
 
-        offlineMeshManager = MeshSession.manager
+        ensureSmsContentObserver()
+
+                offlineMeshManager = MeshSession.manager
             ?: run {
                 finish()
                 return
@@ -259,6 +282,19 @@ class ConversationActivity : Activity() {
             }
 
         ensureNearbyPermissions()
+    }
+
+    private fun showConversationSecurityGate(onUnlocked: () -> Unit) {
+        if (securityGateShowing || isFinishing) return
+        securityGateShowing = true
+        setContentView(android.widget.FrameLayout(this).apply {
+            setBackgroundColor(Color.WHITE)
+        })
+        AppSecurity.showUnlock(this) {
+            securityGateShowing = false
+            chatUnlockedForCurrentVisit = true
+            onUnlocked()
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -336,40 +372,70 @@ class ConversationActivity : Activity() {
         super.onDestroy()
     }
 
+    private fun ensureSmsContentObserver() {
+        if (!::phone.isInitialized ||
+            !::messagesContainer.isInitialized ||
+            smsContentObserver != null ||
+            checkSelfPermission(Manifest.permission.READ_SMS) !=
+                PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                super.onChange(selfChange)
+                if (::phone.isInitialized &&
+                    ::messagesContainer.isInitialized &&
+                    checkSelfPermission(Manifest.permission.READ_SMS) ==
+                        PackageManager.PERMISSION_GRANTED
+                ) {
+                    loadConversation()
+                }
+            }
+        }
+
+        smsContentObserver = observer
+        contentResolver.registerContentObserver(
+            Telephony.Sms.CONTENT_URI,
+            true,
+            observer
+        )
+    }
+
     override fun onResume() {
         super.onResume()
+
+        if (conversationInitialized &&
+            AppSecurity.isEnabled(this) &&
+            (
+                AppSecurity.isAutoLockPending(this) ||
+                (
+                    ::phone.isInitialized &&
+                    AppSecurity.isChatLocked(this, phone) &&
+                    !chatUnlockedForCurrentVisit
+                )
+            ) &&
+            !securityGateShowing
+        ) {
+            showConversationSecurityGate {
+                setContentView(createScreen())
+                loadConversation()
+                ensureSmsContentObserver()
+            }
+            return
+        }
 
         if (::phone.isInitialized) {
             activeConversationPhone = phone
         }
 
         if (::messagesContainer.isInitialized &&
-            checkSelfPermission(Manifest.permission.READ_SMS)
-                == PackageManager.PERMISSION_GRANTED
+            checkSelfPermission(Manifest.permission.READ_SMS) ==
+                PackageManager.PERMISSION_GRANTED
         ) {
             loadConversation()
-
-            if (smsContentObserver == null) {
-                smsContentObserver = object : ContentObserver(
-                    Handler(Looper.getMainLooper())
-                ) {
-                    override fun onChange(selfChange: Boolean) {
-                        super.onChange(selfChange)
-                        if (::phone.isInitialized &&
-                            ::messagesContainer.isInitialized &&
-                            checkSelfPermission(Manifest.permission.READ_SMS)
-                                == PackageManager.PERMISSION_GRANTED
-                        ) {
-                            loadConversation()
-                        }
-                    }
-                }
-                contentResolver.registerContentObserver(
-                    Telephony.Sms.CONTENT_URI,
-                    true,
-                    smsContentObserver!!
-                )
-            }
+            ensureSmsContentObserver()
         }
     }
 
@@ -386,6 +452,11 @@ class ConversationActivity : Activity() {
         smsContentObserver = null
 
         super.onPause()
+    }
+
+    override fun onUserLeaveHint() {
+        chatUnlockedForCurrentVisit = false
+        super.onUserLeaveHint()
     }
 
     private fun hasNearbyPermissions(): Boolean {
@@ -865,6 +936,29 @@ class ConversationActivity : Activity() {
             moreButton,
             LinearLayout.LayoutParams(dp(48), dp(48))
         )
+
+        moreButton.setOnClickListener { anchor ->
+            val menu = android.widget.PopupMenu(this, anchor)
+            val locked = AppSecurity.isChatLocked(this, phone)
+            menu.menu.add(if (locked) "Unlock chat" else "Lock chat")
+            menu.setOnMenuItemClickListener {
+                if (!AppSecurity.isEnabled(this)) {
+                    AppSecurity.showSettings(this)
+                } else if (locked) {
+                    AppSecurity.showUnlock(this) {
+                        AppSecurity.setChatLocked(this, phone, false)
+                        Toast.makeText(this, "Chat unlocked", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    AppSecurity.setChatLocked(this, phone, true)
+                    Toast.makeText(
+                        this, "Chat will lock when reopened", Toast.LENGTH_SHORT
+                    ).show()
+                }
+                true
+            }
+            menu.show()
+        }
 
         header.addView(
             moreCapsule,
