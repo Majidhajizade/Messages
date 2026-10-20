@@ -386,6 +386,7 @@ companion object {
             setOnClickListener { showSmsSearchPage() }
         }
 
+        searchButton.visibility = android.view.View.GONE
         header.addView(
             searchButton,
             LinearLayout.LayoutParams(dp(42), dp(60))
@@ -394,6 +395,9 @@ companion object {
         if (AppSecurity.isEnabled(this)) {
             val lockButton = ImageView(this).apply {
                 setImageResource(R.drawable.lock_custom)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setPadding(dp(10), dp(14), dp(10), dp(14))
+                imageAlpha = 255
                 setColorFilter(primaryText)
                 contentDescription = "Lock app"
                 isClickable = true
