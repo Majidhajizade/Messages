@@ -304,6 +304,15 @@ object AppSecurity {
         val pin = StringBuilder()
         var fingerprintKey: View? = null
 
+        val manager = BiometricManager.from(activity)
+        val biometricAvailable = isFingerprintEnabled(activity) &&
+            manager.canAuthenticate(
+                BiometricManager.Authenticators.BIOMETRIC_WEAK
+            ) == BiometricManager.BIOMETRIC_SUCCESS
+
+        var unlockFinished = false
+        var finishUnlock: () -> Unit = {}
+
         fun refreshPin() {
             while (pinDots.childCount > pin.length) {
                 pinDots.removeViewAt(pinDots.childCount - 1)
@@ -468,11 +477,6 @@ object AppSecurity {
             }
         }
 
-        val manager = BiometricManager.from(activity)
-        val biometricAvailable = isFingerprintEnabled(activity) &&
-            manager.canAuthenticate(
-                BiometricManager.Authenticators.BIOMETRIC_WEAK
-            ) == BiometricManager.BIOMETRIC_SUCCESS
         var startBiometricAuth: (() -> Unit)? = null
         var biometricPromptStarted = false
 
@@ -620,8 +624,6 @@ object AppSecurity {
             )
         )
 
-        var unlockFinished = false
-
         fun completeUnlock() {
             if (unlockFinished) return
             unlockFinished = true
@@ -629,21 +631,22 @@ object AppSecurity {
             onSuccess()
         }
 
-        fun finishUnlock() {
-            if (unlockInProgress || unlockFinished) return
-            unlockInProgress = true
-            fingerprintKey?.isEnabled = false
+        finishUnlock = {
+            if (!unlockInProgress && !unlockFinished) {
+                unlockInProgress = true
+                fingerprintKey?.isEnabled = false
 
-            lockAnimation.setAnimation(R.raw.passcode_lock_close)
-            lockAnimation.repeatCount = 0
-            lockAnimation.removeAllAnimatorListeners()
-            lockAnimation.addAnimatorListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    completeUnlock()
-                }
-            })
-            lockAnimation.playAnimation()
-            root.postDelayed({ completeUnlock() }, 1200L)
+                lockAnimation.setAnimation(R.raw.passcode_lock_close)
+                lockAnimation.repeatCount = 0
+                lockAnimation.removeAllAnimatorListeners()
+                lockAnimation.addAnimatorListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        completeUnlock()
+                    }
+                })
+                lockAnimation.playAnimation()
+                root.postDelayed({ completeUnlock() }, 1200L)
+            }
         }
 
         startBiometricAuth = {
