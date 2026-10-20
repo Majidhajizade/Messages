@@ -22,6 +22,9 @@ import android.app.AlertDialog
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentActivity
 import android.os.Build
 import java.security.MessageDigest
@@ -34,6 +37,7 @@ object AppSecurity {
     private const val PREFS = "messages_security"
     private const val PIN_SALT = "pin_salt"
     private const val PIN_HASH = "pin_hash"
+    private const val PIN_LENGTH = "pin_length"
     private const val PIN_ENABLED = "pin_enabled"
     private const val AUTO_LOCK_PENDING = "auto_lock_pending"
     private const val AUTO_LOCK_ENABLED = "auto_lock_enabled"
@@ -73,13 +77,22 @@ object AppSecurity {
         prefs(context).edit().putBoolean(AUTO_LOCK_PENDING, false).apply()
     }
 
+    fun requestManualLock(context: Context) {
+        if (isEnabled(context)) {
+            prefs(context).edit()
+                .putBoolean(AUTO_LOCK_PENDING, true)
+                .apply()
+        }
+    }
+
     fun savePin(context: Context, pin: String): Boolean {
-        if (pin.length < 4 || pin.any { !it.isDigit() }) return false
+        if (pin.length !in 4..8 || pin.any { !it.isDigit() }) return false
         val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }
         val hash = deriveHash(pin, salt)
         prefs(context).edit()
             .putString(PIN_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
             .putString(PIN_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
+            .putInt(PIN_LENGTH, pin.length)
             .putBoolean(PIN_ENABLED, true)
             .putBoolean(AUTO_LOCK_PENDING, false)
             .remove(FAILED_PIN_ATTEMPTS)
@@ -115,6 +128,24 @@ object AppSecurity {
         editor.apply()
     }
 
+    private fun verifyPinWithoutRecording(
+        context: Context,
+        pin: String
+    ): Boolean {
+        if (remainingPinRetryMillis(context) > 0L) return false
+
+        val p = prefs(context)
+        val saltValue = p.getString(PIN_SALT, null) ?: return false
+        val hashValue = p.getString(PIN_HASH, null) ?: return false
+
+        return runCatching {
+            MessageDigest.isEqual(
+                deriveHash(pin, Base64.decode(saltValue, Base64.NO_WRAP)),
+                Base64.decode(hashValue, Base64.NO_WRAP)
+            )
+        }.getOrDefault(false)
+    }
+
     fun verifyPin(context: Context, pin: String): Boolean {
         if (remainingPinRetryMillis(context) > 0L) return false
 
@@ -141,6 +172,7 @@ object AppSecurity {
         prefs(context).edit()
             .remove(PIN_SALT)
             .remove(PIN_HASH)
+            .remove(PIN_LENGTH)
             .remove(FAILED_PIN_ATTEMPTS)
             .remove(PIN_RETRY_UNTIL)
             .putBoolean(PIN_ENABLED, false)
@@ -194,6 +226,14 @@ object AppSecurity {
             setBackgroundColor(backgroundColor)
             alpha = 0f
             translationY = dp(18).toFloat()
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(
+                dp(24), bars.top + dp(24), dp(24), bars.bottom + dp(24)
+            )
+            insets
         }
 
         var unlockInProgress = false
@@ -262,7 +302,7 @@ object AppSecurity {
         root.addView(pinDots, pinDotsParams)
 
         val pin = StringBuilder()
-        var unlockButton: TextView? = null
+        var fingerprintKey: View? = null
 
         fun refreshPin() {
             while (pinDots.childCount > pin.length) {
@@ -293,9 +333,6 @@ object AppSecurity {
                     .start()
             }
 
-            val canUnlock = pin.length >= 4
-            unlockButton?.isEnabled = canUnlock
-            unlockButton?.alpha = if (canUnlock) 1f else 0.55f
         }
 
         var shakeDirection = -1f
@@ -350,7 +387,9 @@ object AppSecurity {
             )
 
             return TextView(activity).apply {
-                text = if (letters.containsKey(label)) {
+                text = if (label == "BACKSPACE" || label == "FINGERPRINT") {
+                    ""
+                } else if (letters.containsKey(label)) {
                     android.text.SpannableString("$label\n${letters[label]}").apply {
                         setSpan(
                             android.text.style.RelativeSizeSpan(0.42f),
@@ -362,9 +401,28 @@ object AppSecurity {
                 } else {
                     label
                 }
-                textSize = if (label == "⌫") 15f else 25f
+                textSize = if (label == "BACKSPACE" ||
+                    label == "FINGERPRINT") 15f else 25f
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
+
+                val iconDrawable = when (label) {
+                    "BACKSPACE" -> ContextCompat.getDrawable(
+                        activity, R.drawable.ic_passcode_backspace
+                    )
+                    "FINGERPRINT" -> ContextCompat.getDrawable(
+                        activity, R.drawable.ic_passcode_fingerprint
+                    )
+                    else -> null
+                }
+                if (iconDrawable != null) {
+                    iconDrawable.setBounds(0, 0, dp(27), dp(27))
+                    setCompoundDrawables(null, iconDrawable, null, null)
+                }
+                if (label == "FINGERPRINT" && !biometricAvailable) {
+                    isEnabled = false
+                    alpha = 0.4f
+                }
                 setLineSpacing(0f, 0.9f)
                 includeFontPadding = false
                 background = GradientDrawable().apply {
@@ -410,6 +468,14 @@ object AppSecurity {
             }
         }
 
+        val manager = BiometricManager.from(activity)
+        val biometricAvailable = isFingerprintEnabled(activity) &&
+            manager.canAuthenticate(
+                BiometricManager.Authenticators.BIOMETRIC_WEAK
+            ) == BiometricManager.BIOMETRIC_SUCCESS
+        var startBiometricAuth: (() -> Unit)? = null
+        var biometricPromptStarted = false
+
         val keypad = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -427,23 +493,101 @@ object AppSecurity {
                 } else {
                     makeKey(label) {
                         when (label) {
-                            "⌫" -> {
+                            "BACKSPACE" -> {
                                 if (pin.isNotEmpty()) {
                                     pin.deleteCharAt(pin.length - 1)
                                     refreshPin()
                                 }
                             }
+                            "FINGERPRINT" -> {
+                                startBiometricAuth?.invoke()
+                            }
                             else -> {
                                 if (label.length == 1 && label[0] in '0'..'9') {
-                                    if (pin.length < 32) {
+                                    val savedLength = prefs(activity)
+                                        .getInt(PIN_LENGTH, 0)
+                                    val inputLimit = if (savedLength > 0) {
+                                        savedLength
+                                    } else {
+                                        8
+                                    }
+
+                                    if (pin.length < inputLimit) {
                                         pin.append(label)
                                         refreshPin()
+
+                                        if (savedLength > 0 &&
+                                            pin.length == savedLength
+                                        ) {
+                                            val entered = pin.toString()
+                                            if (verifyPin(activity, entered)) {
+                                                clearAutoLockPending(activity)
+                                                finishUnlock()
+                                            } else {
+                                                val wait =
+                                                    remainingPinRetryMillis(activity)
+                                                subtitle.text = if (wait > 0L) {
+                                                    "Too many attempts. Try again in " +
+                                                        "${(wait + 999L) / 1000L} seconds."
+                                                } else {
+                                                    "Incorrect passcode. Try again."
+                                                }
+                                                subtitle.setTextColor(
+                                                    Color.rgb(255, 117, 117)
+                                                )
+                                                pin.clear()
+                                                refreshPin()
+                                                shakePasscodeTitle()
+                                            }
+                                        } else if (savedLength == 0 &&
+                                            pin.length in 4..8
+                                        ) {
+                                            val legacyPin = pin.toString()
+
+                                            if (verifyPinWithoutRecording(
+                                                    activity, legacyPin
+                                                )
+                                            ) {
+                                                prefs(activity).edit()
+                                                    .putInt(PIN_LENGTH, pin.length)
+                                                    .apply()
+                                                resetPinFailures(activity)
+                                                clearAutoLockPending(activity)
+                                                finishUnlock()
+                                            } else if (pin.length == 8) {
+                                                val valid = verifyPin(activity, legacyPin)
+                                                if (valid) {
+                                                    prefs(activity).edit()
+                                                        .putInt(PIN_LENGTH, pin.length)
+                                                        .apply()
+                                                    clearAutoLockPending(activity)
+                                                    finishUnlock()
+                                                } else {
+                                                    val wait =
+                                                        remainingPinRetryMillis(activity)
+                                                    subtitle.text = if (wait > 0L) {
+                                                        "Too many attempts. Try again in " +
+                                                            "${(wait + 999L) / 1000L} seconds."
+                                                    } else {
+                                                        "Incorrect passcode. Try again."
+                                                    }
+                                                    subtitle.setTextColor(
+                                                        Color.rgb(255, 117, 117)
+                                                    )
+                                                    pin.clear()
+                                                    refreshPin()
+                                                    shakePasscodeTitle()
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+
+                if (label == "FINGERPRINT") fingerprintKey = key
 
                 val params = LinearLayout.LayoutParams(dp(60), dp(60))
                 params.setMargins(dp(8), dp(8), dp(8), dp(8))
@@ -466,7 +610,7 @@ object AppSecurity {
         addKeyRow(listOf("1", "2", "3"))
         addKeyRow(listOf("4", "5", "6"))
         addKeyRow(listOf("7", "8", "9"))
-        addKeyRow(listOf("", "0", "⌫"))
+        addKeyRow(listOf("BACKSPACE", "0", "FINGERPRINT"))
 
         root.addView(
             keypad,
@@ -475,36 +619,6 @@ object AppSecurity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
-
-        val actions = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        val actionParams = LinearLayout.LayoutParams(0, dp(50), 1f)
-        actionParams.setMargins(dp(5), dp(14), dp(5), 0)
-
-        val manager = BiometricManager.from(activity)
-        val biometricAvailable = isFingerprintEnabled(activity) &&
-            manager.canAuthenticate(
-                BiometricManager.Authenticators.BIOMETRIC_WEAK
-            ) == BiometricManager.BIOMETRIC_SUCCESS
-
-        val biometricButton = TextView(activity).apply {
-            text = "Fingerprint"
-            textSize = 14f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            isEnabled = biometricAvailable
-            alpha = if (biometricAvailable) 1f else 0.4f
-            background = GradientDrawable().apply {
-                cornerRadius = dp(12).toFloat()
-                setColor(keyColor)
-            }
-        }
-        biometricButton.visibility =
-            if (biometricAvailable) android.view.View.VISIBLE
-            else android.view.View.GONE
-        actions.addView(biometricButton, actionParams)
 
         var unlockFinished = false
 
@@ -518,8 +632,7 @@ object AppSecurity {
         fun finishUnlock() {
             if (unlockInProgress || unlockFinished) return
             unlockInProgress = true
-            unlockButton?.isEnabled = false
-            biometricButton.isEnabled = false
+            fingerprintKey?.isEnabled = false
 
             lockAnimation.setAnimation(R.raw.passcode_lock_close)
             lockAnimation.repeatCount = 0
@@ -530,95 +643,56 @@ object AppSecurity {
                 }
             })
             lockAnimation.playAnimation()
-
-            // Fallback if the close animation does not finish.
-            root.postDelayed({
-                completeUnlock()
-            }, 1200L)
+            root.postDelayed({ completeUnlock() }, 1200L)
         }
 
-        unlockButton = TextView(activity).apply {
-            text = "Unlock"
-            textSize = 15f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            isEnabled = false
-            alpha = 0.55f
-            background = GradientDrawable().apply {
-                cornerRadius = dp(12).toFloat()
-                setColor(accentColor)
-            }
-            setOnClickListener {
-                val remaining = remainingPinRetryMillis(activity)
-                if (remaining > 0L) {
-                    val seconds = (remaining + 999L) / 1000L
-                    subtitle.text = "Try again in $seconds seconds."
-                    subtitle.setTextColor(Color.rgb(255, 117, 117))
-                    pin.clear()
-                    refreshPin()
-                } else if (verifyPin(activity, pin.toString())) {
-                    clearAutoLockPending(activity)
-                    finishUnlock()
-                } else {
-                    val wait = remainingPinRetryMillis(activity)
-                    subtitle.text = if (wait > 0L) {
-                        "Too many attempts. Try again in ${(wait + 999L) / 1000L} seconds."
-                    } else {
-                        "Incorrect passcode. Try again."
+        startBiometricAuth = {
+            if (biometricAvailable && !biometricPromptStarted &&
+                !unlockInProgress && !unlockFinished
+            ) {
+                biometricPromptStarted = true
+                val prompt = BiometricPrompt(
+                    activity,
+                    ContextCompat.getMainExecutor(activity),
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(
+                            result: BiometricPrompt.AuthenticationResult
+                        ) {
+                            biometricPromptStarted = false
+                            resetPinFailures(activity)
+                            clearAutoLockPending(activity)
+                            finishUnlock()
+                        }
+
+                        override fun onAuthenticationError(
+                            errorCode: Int,
+                            errString: CharSequence
+                        ) {
+                            biometricPromptStarted = false
+                            if (!unlockFinished && !unlockInProgress) {
+                                Toast.makeText(
+                                    activity, errString, Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
                     }
-                    subtitle.setTextColor(Color.rgb(255, 117, 117))
-                    pin.clear()
-                    refreshPin()
-                    shakePasscodeTitle()
-                }
-            }
-        }
-        actions.addView(unlockButton, actionParams)
-
-        root.addView(
-            actions,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(64)
-            )
-        )
-
-        biometricButton.setOnClickListener {
-            if (!biometricAvailable) return@setOnClickListener
-
-            val prompt = BiometricPrompt(
-                activity,
-                ContextCompat.getMainExecutor(activity),
-                object : BiometricPrompt.AuthenticationCallback() {
-                    override fun onAuthenticationSucceeded(
-                        result: BiometricPrompt.AuthenticationResult
-                    ) {
-                        resetPinFailures(activity)
-                        clearAutoLockPending(activity)
-                        finishUnlock()
-                    }
-
-                    override fun onAuthenticationError(
-                        errorCode: Int,
-                        errString: CharSequence
-                    ) {
-                        Toast.makeText(
-                            activity, errString, Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            )
-
-            val info = BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Unlock Messages")
-                .setSubtitle("Authenticate to continue")
-                .setAllowedAuthenticators(
-                    BiometricManager.Authenticators.BIOMETRIC_WEAK
                 )
-                .setNegativeButtonText("Use passcode")
-                .build()
 
-            prompt.authenticate(info)
+                val info = BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Unlock Messages")
+                    .setSubtitle("Authenticate to continue")
+                    .setAllowedAuthenticators(
+                        BiometricManager.Authenticators.BIOMETRIC_WEAK
+                    )
+                    .setNegativeButtonText("Use passcode")
+                    .build()
+
+                prompt.authenticate(info)
+            }
+        }
+
+        fingerprintKey?.setOnClickListener {
+            startBiometricAuth?.invoke()
         }
 
         dialog.setContentView(root)
@@ -631,11 +705,12 @@ object AppSecurity {
                 WindowManager.LayoutParams.MATCH_PARENT
             )
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            WindowCompat.setDecorFitsSystemWindows(this, false)
             attributes = attributes.apply { dimAmount = 0.12f }
             if (android.os.Build.VERSION.SDK_INT >= 21) {
-                statusBarColor = backgroundColor
-                navigationBarColor = backgroundColor
+                statusBarColor = Color.TRANSPARENT
+                navigationBarColor = Color.TRANSPARENT
             }
         }
         dialog.show()
@@ -643,6 +718,7 @@ object AppSecurity {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT
         )
+        ViewCompat.requestApplyInsets(root)
 
         root.animate()
             .alpha(1f)
@@ -654,6 +730,11 @@ object AppSecurity {
         lockAnimation.post {
             if (dialog.isShowing && !unlockInProgress) {
                 lockAnimation.playAnimation()
+            }
+        }
+        root.post {
+            if (dialog.isShowing && biometricAvailable) {
+                startBiometricAuth?.invoke()
             }
         }
 
@@ -701,7 +782,7 @@ object AppSecurity {
         val first = EditText(activity).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or
                 InputType.TYPE_NUMBER_VARIATION_PASSWORD
-            hint = "At least 4 digits"
+            hint = "4 to 8 digits"
         }
 
         AlertDialog.Builder(activity)
@@ -710,9 +791,9 @@ object AppSecurity {
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Continue") { _, _ ->
                 val pin = first.text.toString()
-                if (pin.length < 4 || pin.any { !it.isDigit() }) {
+                if (pin.length !in 4..8 || pin.any { !it.isDigit() }) {
                     Toast.makeText(
-                        activity, "Use at least 4 digits", Toast.LENGTH_LONG
+                        activity, "Use 4 to 8 digits", Toast.LENGTH_LONG
                     ).show()
                     return@setPositiveButton
                 }

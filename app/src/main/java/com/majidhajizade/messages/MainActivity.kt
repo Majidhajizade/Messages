@@ -219,6 +219,42 @@ companion object {
         }
     }
 
+    private fun showSecurityGate() {
+        if (!AppSecurity.isEnabled(this) || securityGateShowing) return
+
+        securityGateShowing = true
+        setContentView(FrameLayout(this).apply {
+            setBackgroundColor(Color.WHITE)
+        })
+
+        AppSecurity.showUnlock(this) {
+            securityGateShowing = false
+            setContentView(createHomeScreen())
+            updateMeshStatus()
+            handleMeshRequestIntent(intent)
+            if (checkSelfPermission(Manifest.permission.READ_SMS) ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                loadMessages()
+            } else {
+                requestPermissions(
+                    arrayOf(
+                        Manifest.permission.READ_SMS,
+                        Manifest.permission.RECEIVE_SMS,
+                        Manifest.permission.SEND_SMS,
+                        Manifest.permission.READ_CONTACTS
+                    ), SMS_PERMISSION_REQUEST
+                )
+            }
+        }
+    }
+
+    private fun lockNow() {
+        if (!AppSecurity.isEnabled(this) || securityGateShowing) return
+        AppSecurity.requestManualLock(this)
+        showSecurityGate()
+    }
+
     override fun onResume() {
         super.onResume()
         isMainActivityResumed = true
@@ -227,30 +263,7 @@ companion object {
             AppSecurity.isAutoLockPending(this) &&
             !securityGateShowing
         ) {
-            securityGateShowing = true
-            setContentView(android.widget.FrameLayout(this).apply {
-                setBackgroundColor(Color.WHITE)
-            })
-            AppSecurity.showUnlock(this) {
-                securityGateShowing = false
-                setContentView(createHomeScreen())
-                updateMeshStatus()
-                handleMeshRequestIntent(intent)
-                if (checkSelfPermission(Manifest.permission.READ_SMS) ==
-                    PackageManager.PERMISSION_GRANTED
-                ) {
-                    loadMessages()
-                } else {
-                    requestPermissions(
-                        arrayOf(
-                            Manifest.permission.READ_SMS,
-                            Manifest.permission.RECEIVE_SMS,
-                            Manifest.permission.SEND_SMS,
-                            Manifest.permission.READ_CONTACTS
-                        ), SMS_PERMISSION_REQUEST
-                    )
-                }
-            }
+            showSecurityGate()
             return
         }
 
@@ -377,6 +390,21 @@ companion object {
             searchButton,
             LinearLayout.LayoutParams(dp(42), dp(60))
         )
+
+        if (AppSecurity.isEnabled(this)) {
+            val lockButton = ImageView(this).apply {
+                setImageResource(R.drawable.ic_header_lock)
+                setColorFilter(primaryText)
+                contentDescription = "Lock app"
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { lockNow() }
+            }
+            header.addView(
+                lockButton,
+                LinearLayout.LayoutParams(dp(42), dp(60))
+            )
+        }
 
         val menuButton = TextView(this).apply {
             text = "⋮"
