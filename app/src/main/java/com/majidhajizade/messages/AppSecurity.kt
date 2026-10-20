@@ -250,35 +250,48 @@ object AppSecurity {
             )
         )
 
-        val pinDisplay = TextView(activity).apply {
-            text = ""
-            textSize = 30f
-            typeface = android.graphics.Typeface.DEFAULT
-            setTextColor(Color.WHITE)
+        val pinDots = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            letterSpacing = 0.18f
         }
-        val pinDisplayParams = LinearLayout.LayoutParams(
+        val pinDotsParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, dp(58)
         )
-        pinDisplayParams.topMargin = dp(12)
-        pinDisplayParams.bottomMargin = dp(14)
-        root.addView(pinDisplay, pinDisplayParams)
+        pinDotsParams.topMargin = dp(12)
+        pinDotsParams.bottomMargin = dp(14)
+        root.addView(pinDots, pinDotsParams)
 
         val pin = StringBuilder()
         var unlockButton: TextView? = null
 
         fun refreshPin() {
-            pinDisplay.animate().cancel()
-            pinDisplay.text = "• ".repeat(pin.length).trim()
-            pinDisplay.scaleX = 0.92f
-            pinDisplay.scaleY = 0.92f
-            pinDisplay.animate()
-                .scaleX(1f)
-                .scaleY(1f)
-                .setDuration(150L)
-                .setInterpolator(DecelerateInterpolator())
-                .start()
+            while (pinDots.childCount > pin.length) {
+                pinDots.removeViewAt(pinDots.childCount - 1)
+            }
+
+            while (pinDots.childCount < pin.length) {
+                val dot = TextView(activity).apply {
+                    text = "•"
+                    textSize = 30f
+                    typeface = android.graphics.Typeface.DEFAULT
+                    setTextColor(Color.WHITE)
+                    gravity = Gravity.CENTER
+                    alpha = 0f
+                    scaleX = 0.5f
+                    scaleY = 0.5f
+                }
+                pinDots.addView(
+                    dot,
+                    LinearLayout.LayoutParams(dp(24), dp(48))
+                )
+                dot.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(150L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
 
             val canUnlock = pin.length >= 4
             unlockButton?.isEnabled = canUnlock
@@ -325,11 +338,35 @@ object AppSecurity {
         }
 
         fun makeKey(label: String, action: () -> Unit): TextView {
+            val letters = mapOf(
+                "2" to "ABC",
+                "3" to "DEF",
+                "4" to "GHI",
+                "5" to "JKL",
+                "6" to "MNO",
+                "7" to "PQRS",
+                "8" to "TUV",
+                "9" to "WXYZ"
+            )
+
             return TextView(activity).apply {
-                text = label
-                textSize = if (label.length > 1) 15f else 25f
+                text = if (letters.containsKey(label)) {
+                    android.text.SpannableString("$label\n${letters[label]}").apply {
+                        setSpan(
+                            android.text.style.RelativeSizeSpan(0.42f),
+                            label.length + 1,
+                            length,
+                            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    }
+                } else {
+                    label
+                }
+                textSize = if (label == "⌫") 15f else 25f
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
+                setLineSpacing(0f, 0.9f)
+                includeFontPadding = false
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(keyColor)
@@ -337,7 +374,39 @@ object AppSecurity {
                 }
                 isClickable = true
                 isFocusable = true
-                setOnClickListener { action() }
+                isHapticFeedbackEnabled = true
+
+                setOnTouchListener { view, event ->
+                    when (event.actionMasked) {
+                        android.view.MotionEvent.ACTION_DOWN -> {
+                            view.animate().cancel()
+                            view.animate()
+                                .scaleX(0.92f)
+                                .scaleY(0.92f)
+                                .setDuration(80L)
+                                .setInterpolator(DecelerateInterpolator())
+                                .start()
+                        }
+                        android.view.MotionEvent.ACTION_UP,
+                        android.view.MotionEvent.ACTION_CANCEL -> {
+                            view.animate().cancel()
+                            view.animate()
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(120L)
+                                .setInterpolator(DecelerateInterpolator())
+                                .start()
+                        }
+                    }
+                    false
+                }
+
+                setOnClickListener {
+                    performHapticFeedback(
+                        android.view.HapticFeedbackConstants.KEYBOARD_TAP
+                    )
+                    action()
+                }
             }
         }
 
@@ -376,8 +445,8 @@ object AppSecurity {
                     }
                 }
 
-                val params = LinearLayout.LayoutParams(0, dp(62), 1f)
-                params.setMargins(dp(6), dp(5), dp(6), dp(5))
+                val params = LinearLayout.LayoutParams(dp(60), dp(60))
+                params.setMargins(dp(8), dp(8), dp(8), dp(8))
                 if (key is TextView) {
                     key.alpha = 0f
                     key.scaleX = 0.7f
@@ -389,7 +458,7 @@ object AppSecurity {
             keypad.addView(
                 row,
                 LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, dp(72)
+                    dp(236), dp(76)
                 )
             )
         }
@@ -402,7 +471,7 @@ object AppSecurity {
         root.addView(
             keypad,
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(236),
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
@@ -562,6 +631,7 @@ object AppSecurity {
                 WindowManager.LayoutParams.MATCH_PARENT
             )
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
             attributes = attributes.apply { dimAmount = 0.12f }
             if (android.os.Build.VERSION.SDK_INT >= 21) {
                 statusBarColor = backgroundColor
@@ -676,84 +746,278 @@ object AppSecurity {
 
     fun showSettings(activity: FragmentActivity) {
         val enabled = isEnabled(activity)
-        val auto = isAutoLockEnabled(activity)
-        val fingerprint = isFingerprintEnabled(activity)
+        val density = activity.resources.displayMetrics.density
+        fun dp(value: Int): Int = (value * density + 0.5f).toInt()
 
-        val fingerprintIndex = if (enabled) 2 else 1
-        val autoLockIndex = if (enabled) 3 else 2
-
-        val items = if (enabled) {
-            arrayOf(
-                "Change passcode",
-                "Turn off passcode",
-                "Fingerprint: " + if (fingerprint) "ON" else "OFF",
-                "Auto-lock in background: " + if (auto) "ON" else "OFF"
-            )
-        } else {
-            arrayOf(
-                "Set passcode",
-                "Fingerprint: " + if (fingerprint) "ON" else "OFF",
-                "Auto-lock in background: " + if (auto) "ON" else "OFF"
-            )
+        val dialog = Dialog(activity)
+        val root = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
         }
 
-        AlertDialog.Builder(activity)
-            .setTitle("Security")
-            .setItems(items) { _, which ->
-                when {
-                    !enabled && which == 0 -> {
-                        showPinSetup(activity)
-                    }
+        val toolbar = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(8), 0, dp(16), 0)
+            setBackgroundColor(Color.WHITE)
+        }
 
-                    enabled && which == 0 -> {
-                        showUnlock(activity) {
-                            showPinSetup(activity)
-                        }
-                    }
+        val back = TextView(activity).apply {
+            text = "‹"
+            textSize = 36f
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(51, 144, 236))
+        }
+        toolbar.addView(back, LinearLayout.LayoutParams(dp(48), dp(56)))
 
-                    enabled && which == 1 -> {
-                        showUnlock(activity) {
-                            disable(activity)
-                            Toast.makeText(
-                                activity,
-                                "Passcode disabled",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
+        val title = TextView(activity).apply {
+            text = "Passcode"
+            textSize = 20f
+            setTextColor(Color.rgb(33, 33, 33))
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        toolbar.addView(
+            title,
+            LinearLayout.LayoutParams(0, dp(56), 1f)
+        )
+        root.addView(
+            toolbar,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(56)
+            )
+        )
 
-                    which == fingerprintIndex -> {
-                        val newValue = !isFingerprintEnabled(activity)
-                        setFingerprintEnabled(activity, newValue)
-                        Toast.makeText(
-                            activity,
-                            if (newValue) "Fingerprint enabled"
-                            else "Fingerprint disabled",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        activity.window?.decorView?.post {
-                            if (!activity.isFinishing) showSettings(activity)
-                        }
-                    }
+        val dividerColor = Color.rgb(230, 230, 230)
+        root.addView(View(activity).apply {
+            setBackgroundColor(dividerColor)
+        }, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
+        ))
 
-                    which == autoLockIndex -> {
-                        val newValue = !isAutoLockEnabled(activity)
-                        prefs(activity).edit()
-                            .putBoolean(AUTO_LOCK_ENABLED, newValue)
-                            .apply()
-                        Toast.makeText(
-                            activity,
-                            if (newValue) "Auto-lock enabled"
-                            else "Auto-lock disabled",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        activity.window?.decorView?.post {
-                            if (!activity.isFinishing) showSettings(activity)
-                        }
-                    }
+        val scroll = android.widget.ScrollView(activity)
+        val list = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(8), 0, dp(24))
+        }
+        scroll.addView(list)
+        root.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+            )
+        )
+
+        fun addSection(label: String) {
+            val heading = TextView(activity).apply {
+                text = label.uppercase()
+                textSize = 12f
+                setTextColor(Color.rgb(51, 144, 236))
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(20), dp(12), dp(16), dp(8))
+            }
+            list.addView(heading, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(44)
+            ))
+        }
+
+        fun addDivider() {
+            val line = View(activity).apply {
+                setBackgroundColor(dividerColor)
+            }
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
+            )
+            params.leftMargin = dp(20)
+            list.addView(line, params)
+        }
+
+        fun addActionRow(
+            label: String,
+            detail: String? = null,
+            action: () -> Unit
+        ) {
+            val row = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(20), dp(12), dp(20), dp(12))
+                isClickable = true
+                isFocusable = true
+                setBackgroundResource(
+                    android.R.drawable.list_selector_background
+                )
+            }
+
+            val textColumn = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+
+            textColumn.addView(TextView(activity).apply {
+                text = label
+                textSize = 16f
+                setTextColor(Color.rgb(33, 33, 33))
+            })
+
+            if (detail != null) {
+                val description = TextView(activity).apply {
+                    text = detail
+                    textSize = 13f
+                    setTextColor(Color.rgb(117, 117, 117))
+                    setPadding(0, dp(4), 0, 0)
+                }
+                textColumn.addView(description)
+            }
+
+            row.addView(textColumn, LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            ))
+            row.setOnClickListener { action() }
+
+            list.addView(row, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ))
+            addDivider()
+        }
+
+        fun addToggleRow(
+            label: String,
+            detail: String,
+            initialValue: Boolean,
+            enabled: Boolean = true,
+            onChanged: (Boolean) -> Unit
+        ) {
+            val row = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(20), dp(10), dp(16), dp(10))
+                isClickable = true
+                isFocusable = true
+                setBackgroundResource(
+                    android.R.drawable.list_selector_background
+                )
+            }
+
+            val textColumn = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+
+            textColumn.addView(TextView(activity).apply {
+                text = label
+                textSize = 16f
+                setTextColor(Color.rgb(33, 33, 33))
+            })
+            textColumn.addView(TextView(activity).apply {
+                text = detail
+                textSize = 13f
+                setTextColor(Color.rgb(117, 117, 117))
+                setPadding(0, dp(4), 0, 0)
+            })
+
+            val toggle = android.widget.Switch(activity).apply {
+                isChecked = initialValue
+                isEnabled = enabled
+                contentDescription = label
+            }
+            if (!enabled) {
+                row.alpha = 0.55f
+            }
+
+            row.addView(textColumn, LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+            ))
+            row.addView(toggle, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, dp(48)
+            ))
+
+            toggle.setOnCheckedChangeListener { _, checked ->
+                onChanged(checked)
+            }
+            row.setOnClickListener {
+                if (enabled) {
+                    toggle.isChecked = !toggle.isChecked
                 }
             }
-            .setNegativeButton("Close", null)
-            .show()
+
+            list.addView(row, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ))
+            addDivider()
+        }
+
+        back.setOnClickListener { dialog.dismiss() }
+
+        addSection("Passcode")
+        if (enabled) {
+            addActionRow("Change passcode", "Change your current passcode") {
+                dialog.dismiss()
+                showUnlock(activity) {
+                    showPinSetup(activity)
+                }
+            }
+            addActionRow("Turn off passcode", "Disable the app passcode") {
+                dialog.dismiss()
+                showUnlock(activity) {
+                    disable(activity)
+                    Toast.makeText(
+                        activity, "Passcode disabled",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        } else {
+            addActionRow("Set passcode", "Protect the app with a numeric code") {
+                dialog.dismiss()
+                showPinSetup(activity)
+            }
+        }
+
+        addSection("Security")
+        addToggleRow(
+            "Fingerprint",
+            "Unlock with biometric authentication",
+            isFingerprintEnabled(activity),
+            enabled = enabled
+        ) { value ->
+            setFingerprintEnabled(activity, value)
+            Toast.makeText(
+                activity,
+                if (value) "Fingerprint enabled" else "Fingerprint disabled",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        addToggleRow(
+            "Auto-lock in background",
+            "Lock automatically when the app goes to the background",
+            isAutoLockEnabled(activity)
+        ) { value ->
+            prefs(activity).edit()
+                .putBoolean(AUTO_LOCK_ENABLED, value)
+                .apply()
+            Toast.makeText(
+                activity,
+                if (value) "Auto-lock enabled" else "Auto-lock disabled",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        dialog.setContentView(root)
+        dialog.setOnShowListener {
+            dialog.window?.apply {
+                setBackgroundDrawable(ColorDrawable(Color.WHITE))
+                setLayout(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT
+                )
+            }
+        }
+        dialog.show()
+        dialog.window?.setLayout(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT
+        )
     }
 }
