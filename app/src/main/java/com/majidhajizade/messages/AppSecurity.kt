@@ -701,6 +701,7 @@ object AppSecurity {
         dialog.setContentView(root)
         dialog.setCancelable(false)
         dialog.setCanceledOnTouchOutside(false)
+        dialog.show()
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(backgroundColor))
             setLayout(
@@ -708,15 +709,18 @@ object AppSecurity {
                 WindowManager.LayoutParams.MATCH_PARENT
             )
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-            clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
             WindowCompat.setDecorFitsSystemWindows(this, false)
             attributes = attributes.apply { dimAmount = 0.12f }
-            if (android.os.Build.VERSION.SDK_INT >= 21) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 statusBarColor = Color.TRANSPARENT
                 navigationBarColor = Color.TRANSPARENT
+                decorView.systemUiVisibility =
+                    decorView.systemUiVisibility or
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
             }
         }
-        dialog.show()
         dialog.window?.setLayout(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT
@@ -837,6 +841,15 @@ object AppSecurity {
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
+            clipToPadding = false
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars()
+            )
+            view.setPadding(0, bars.top, 0, bars.bottom)
+            insets
         }
 
         val toolbar = LinearLayout(activity).apply {
@@ -1096,12 +1109,28 @@ object AppSecurity {
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT
                 )
+                WindowCompat.setDecorFitsSystemWindows(this, false)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    statusBarColor = Color.TRANSPARENT
+                    navigationBarColor = Color.TRANSPARENT
+                    decorView.systemUiVisibility =
+                        decorView.systemUiVisibility or
+                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                        View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                }
             }
         }
         dialog.show()
-        dialog.window?.setLayout(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT
-        )
+        dialog.window?.apply {
+            setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT
+            )
+            WindowCompat.setDecorFitsSystemWindows(this, false)
+        }
+        ViewCompat.requestApplyInsets(root)
     }
 }
