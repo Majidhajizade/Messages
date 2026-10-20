@@ -393,7 +393,7 @@ companion object {
 
         if (AppSecurity.isEnabled(this)) {
             val lockButton = ImageView(this).apply {
-                setImageResource(R.drawable.ic_header_lock)
+                setImageResource(R.drawable.lock_custom)
                 setColorFilter(primaryText)
                 contentDescription = "Lock app"
                 isClickable = true
