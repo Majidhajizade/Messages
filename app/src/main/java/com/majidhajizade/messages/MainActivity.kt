@@ -36,8 +36,20 @@ import java.util.Date
 import java.util.Locale
 import org.json.JSONArray
 import kotlin.math.abs
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
+    private fun hideMainSystemBars() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView)?.apply {
+            systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
     private var securityGateShowing = false
 
 
@@ -163,6 +175,7 @@ companion object {
             if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 
         setContentView(createHomeScreen())
+        hideMainSystemBars()
         setupMeshNotificationChannel()
         MeshSession.logHandler = { message ->
             logMesh(message)
@@ -255,8 +268,14 @@ companion object {
         showSecurityGate()
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideMainSystemBars()
+    }
+
     override fun onResume() {
         super.onResume()
+        hideMainSystemBars()
         isMainActivityResumed = true
 
         if (AppSecurity.isEnabled(this) &&

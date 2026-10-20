@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
 import android.os.Build
 import java.security.MessageDigest
@@ -237,18 +238,25 @@ object AppSecurity {
         }
 
         var unlockInProgress = false
-        val lockAnimation = LottieAnimationView(activity).apply {
-            setAnimation(R.raw.passcode_lock)
-            repeatCount = LottieDrawable.INFINITE
+        val lockIcon = android.widget.ImageView(activity).apply {
+            setImageResource(R.drawable.lock_custom)
             scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
             contentDescription = "Lock"
         }
         root.addView(
-            lockAnimation,
+            lockIcon,
             LinearLayout.LayoutParams(dp(72), dp(72)).apply {
                 bottomMargin = dp(12)
             }
         )
+
+        val lockAnimation = LottieAnimationView(activity).apply {
+            setAnimation(R.raw.passcode_lock_close)
+            repeatCount = 0
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            contentDescription = "Lock animation"
+            visibility = android.view.View.GONE
+        }
 
         val title = TextView(activity).apply {
             text = "Messages"
@@ -420,7 +428,7 @@ object AppSecurity {
                         activity, R.drawable.ic_passcode_backspace
                     )
                     "FINGERPRINT" -> ContextCompat.getDrawable(
-                        activity, R.drawable.ic_passcode_fingerprint
+                        activity, R.drawable.fingerprint_custom
                     )
                     else -> null
                 }
@@ -710,6 +718,11 @@ object AppSecurity {
             )
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             WindowCompat.setDecorFitsSystemWindows(this, false)
+            WindowInsetsControllerCompat(this, decorView).apply {
+                systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                hide(WindowInsetsCompat.Type.systemBars())
+            }
             attributes = attributes.apply { dimAmount = 0.12f }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 statusBarColor = Color.TRANSPARENT
@@ -734,11 +747,6 @@ object AppSecurity {
             .setInterpolator(DecelerateInterpolator())
             .start()
 
-        lockAnimation.post {
-            if (dialog.isShowing && !unlockInProgress) {
-                lockAnimation.playAnimation()
-            }
-        }
         root.post {
             if (dialog.isShowing && biometricAvailable) {
                 startBiometricAuth?.invoke()
@@ -1110,6 +1118,11 @@ object AppSecurity {
                     WindowManager.LayoutParams.MATCH_PARENT
                 )
                 WindowCompat.setDecorFitsSystemWindows(this, false)
+                WindowInsetsControllerCompat(this, decorView).apply {
+                    systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    hide(WindowInsetsCompat.Type.systemBars())
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     statusBarColor = Color.TRANSPARENT
                     navigationBarColor = Color.TRANSPARENT
