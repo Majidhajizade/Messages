@@ -728,6 +728,7 @@ object AppSecurity {
         dialog.show()
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(backgroundColor))
+            decorView.setBackgroundColor(backgroundColor)
             setLayout(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT
