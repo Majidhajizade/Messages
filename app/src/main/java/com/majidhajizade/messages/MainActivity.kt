@@ -393,7 +393,7 @@ companion object {
         selectionHeader = createSelectionHeader().apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(84)
+                dp(72)
             )
         }
         selectionHeader.visibility = View.GONE
@@ -414,7 +414,6 @@ companion object {
             textSize = 28f
             setTextColor(primaryText)
             typeface = Typeface.DEFAULT_BOLD
-            translationY = dp(5).toFloat()
         }
 
         homeTitle = title
@@ -445,7 +444,7 @@ companion object {
 
         if (AppSecurity.isEnabled(this)) {
             val lockButton = ImageView(this).apply {
-                setImageResource(R.drawable.lock_custom)
+                setImageResource(R.drawable.lock_keyhole)
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 setPadding(dp(10), dp(14), dp(10), dp(14))
                 imageAlpha = 255
@@ -467,7 +466,6 @@ companion object {
             setTextColor(primaryText)
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
-            translationY = dp(5).toFloat()
             contentDescription = "More"
             translationX = dp(5).toFloat()
             setPadding(dp(8), 0, dp(2), 0)
@@ -496,7 +494,7 @@ companion object {
             header,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(84)
+                dp(72)
             )
         )
 
@@ -504,7 +502,7 @@ companion object {
             selectionHeader,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(84)
+                dp(72)
             )
         )
 
@@ -512,7 +510,7 @@ companion object {
             headerLayer,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(84)
+                dp(72)
             )
         )
 
