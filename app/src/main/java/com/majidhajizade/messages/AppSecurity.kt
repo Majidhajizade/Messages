@@ -231,8 +231,9 @@ object AppSecurity {
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            // Draw the lock screen background behind the status bar.
             view.setPadding(
-                dp(24), bars.top + dp(24), dp(24), bars.bottom + dp(24)
+                dp(24), dp(24), dp(24), bars.bottom + dp(24)
             )
             insets
         }
@@ -433,8 +434,11 @@ object AppSecurity {
                     else -> null
                 }
                 if (iconDrawable != null) {
-                    iconDrawable.setBounds(0, 0, dp(27), dp(27))
+                    val iconSize = if (label == "FINGERPRINT") dp(34) else dp(32)
+                    iconDrawable.setBounds(0, 0, iconSize, iconSize)
+                    compoundDrawablePadding = dp(2)
                     setCompoundDrawables(null, iconDrawable, null, null)
+                    translationY = dp(4).toFloat()
                 }
                 if (label == "FINGERPRINT" && !biometricAvailable) {
                     isEnabled = false
@@ -442,10 +446,14 @@ object AppSecurity {
                 }
                 setLineSpacing(0f, 0.9f)
                 includeFontPadding = false
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(keyColor)
-                    setStroke(dp(1), Color.rgb(57, 73, 87))
+                background = if (label == "FINGERPRINT") {
+                    null
+                } else {
+                    GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(keyColor)
+                        setStroke(dp(1), Color.rgb(57, 73, 87))
+                    }
                 }
                 isClickable = true
                 isFocusable = true
@@ -721,7 +729,8 @@ object AppSecurity {
             WindowInsetsControllerCompat(this, decorView).apply {
                 systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                hide(WindowInsetsCompat.Type.systemBars())
+                isAppearanceLightStatusBars = false
+                hide(WindowInsetsCompat.Type.navigationBars())
             }
             attributes = attributes.apply { dimAmount = 0.12f }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
