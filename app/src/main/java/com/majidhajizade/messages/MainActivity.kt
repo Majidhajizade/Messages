@@ -123,6 +123,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     private var floatingComposeButton: View? = null
     private var meshManager: OfflineMeshManager? = null
     private var meshPopup: PopupWindow? = null
+    private var headerMenuButton: View? = null
     private var meshStatusText: TextView? = null
     private var meshDevicesContainer: LinearLayout? = null
     private var meshLogText: TextView? = null
@@ -467,6 +468,7 @@ companion object {
             }
         }
 
+        headerMenuButton = menuButton
         header.addView(
             menuButton,
             LinearLayout.LayoutParams(
@@ -2187,7 +2189,8 @@ companion object {
 
         val settings = createMenuItem(
             title = "Settings",
-            subtitle = ""
+            subtitle = "",
+            iconRes = R.drawable.ic_settings
         )
 
         settings.setOnClickListener {
@@ -2224,9 +2227,10 @@ companion object {
         }
 
         meshPopup?.showAsDropDown(
-            homeHeader,
+            headerMenuButton ?: homeHeader,
             0,
-            -dp(4)
+            -dp(4),
+            Gravity.END
         )
     }
 
