@@ -891,7 +891,10 @@ object AppSecurity {
         val density = activity.resources.displayMetrics.density
         fun dp(value: Int): Int = (value * density + 0.5f).toInt()
 
-        val dialog = Dialog(activity)
+        val dialog = Dialog(
+            activity,
+            android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen
+        )
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
@@ -899,10 +902,11 @@ object AppSecurity {
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
-            val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars()
+            val safe = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or
+                    WindowInsetsCompat.Type.displayCutout()
             )
-            view.setPadding(0, bars.top, 0, bars.bottom)
+            view.setPadding(safe.left, safe.top, safe.right, safe.bottom)
             insets
         }
 
@@ -1156,39 +1160,46 @@ object AppSecurity {
         }
 
         dialog.setContentView(root)
-        dialog.setOnShowListener {
-            dialog.window?.apply {
-                setBackgroundDrawable(ColorDrawable(Color.WHITE))
-                setLayout(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT
-                )
-                WindowCompat.setDecorFitsSystemWindows(this, false)
-                WindowInsetsControllerCompat(this, decorView).apply {
-                    systemBarsBehavior =
-                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                    hide(WindowInsetsCompat.Type.systemBars())
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    statusBarColor = Color.TRANSPARENT
-                    navigationBarColor = Color.TRANSPARENT
-                    decorView.systemUiVisibility =
-                        decorView.systemUiVisibility or
-                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
-                        View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-                }
-            }
-        }
         dialog.show()
         dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.WHITE))
+            decorView.setBackgroundColor(Color.WHITE)
             setLayout(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT
             )
             WindowCompat.setDecorFitsSystemWindows(this, false)
+
+            // Keep system bars visible while drawing edge-to-edge.
+            statusBarColor = Color.TRANSPARENT
+            navigationBarColor = Color.TRANSPARENT
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                isStatusBarContrastEnforced = false
+                isNavigationBarContrastEnforced = false
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                attributes = attributes.apply {
+                    layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams
+                            .LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+
+            decorView.systemUiVisibility =
+                decorView.systemUiVisibility or
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                    View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+
+            WindowInsetsControllerCompat(this, decorView).apply {
+                isAppearanceLightStatusBars = true
+                isAppearanceLightNavigationBars = true
+                show(WindowInsetsCompat.Type.systemBars())
+            }
         }
         ViewCompat.requestApplyInsets(root)
     }

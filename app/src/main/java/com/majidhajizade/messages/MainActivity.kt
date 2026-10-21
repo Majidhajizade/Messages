@@ -39,14 +39,31 @@ import kotlin.math.abs
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.ViewCompat
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
-    private fun hideMainSystemBars() {
+    private fun configureMainSystemBars() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowCompat.getInsetsController(window, window.decorView)?.apply {
-            systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            hide(WindowInsetsCompat.Type.systemBars())
+
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+
+        if (android.os.Build.VERSION.SDK_INT >=
+            android.os.Build.VERSION_CODES.Q
+        ) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
+
+        window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !isDarkMode
+            isAppearanceLightNavigationBars = !isDarkMode
+            show(WindowInsetsCompat.Type.systemBars())
         }
     }
 
@@ -175,7 +192,7 @@ companion object {
             if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 
         setContentView(createHomeScreen())
-        hideMainSystemBars()
+        configureMainSystemBars()
         setupMeshNotificationChannel()
         MeshSession.logHandler = { message ->
             logMesh(message)
@@ -270,12 +287,12 @@ companion object {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) hideMainSystemBars()
+        if (hasFocus) configureMainSystemBars()
     }
 
     override fun onResume() {
         super.onResume()
-        hideMainSystemBars()
+        configureMainSystemBars()
         isMainActivityResumed = true
 
         if (AppSecurity.isEnabled(this) &&
@@ -321,6 +338,7 @@ companion object {
 
         val newRoot = createHomeScreen()
         setContentView(newRoot)
+        configureMainSystemBars()
         loadMessages()
 
         newRoot.post {
@@ -356,6 +374,20 @@ companion object {
             setPadding(0, 0, 0, dp(12))
             clipChildren = false
             clipToPadding = false
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val safe = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or
+                    WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(
+                safe.left,
+                safe.top,
+                safe.right,
+                safe.bottom + dp(12)
+            )
+            insets
         }
 
         selectionHeader = createSelectionHeader().apply {
