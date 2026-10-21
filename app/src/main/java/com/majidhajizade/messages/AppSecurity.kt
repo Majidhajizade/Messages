@@ -211,7 +211,10 @@ object AppSecurity {
             return
         }
 
-        val dialog = Dialog(activity)
+        val dialog = Dialog(
+            activity,
+            android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen
+        )
         val density = activity.resources.displayMetrics.density
         fun dp(value: Int): Int = (value * density + 0.5f).toInt()
 
@@ -230,10 +233,17 @@ object AppSecurity {
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            // Draw the lock screen background behind the status bar.
+            val safeInsets = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or
+                    WindowInsetsCompat.Type.displayCutout()
+            )
+            // Keep the background edge-to-edge while content avoids system bars
+            // and display cutouts.
             view.setPadding(
-                dp(24), dp(24), dp(24), bars.bottom + dp(24)
+                safeInsets.left + dp(24),
+                safeInsets.top + dp(24),
+                safeInsets.right + dp(24),
+                safeInsets.bottom + dp(24)
             )
             insets
         }
@@ -727,30 +737,48 @@ object AppSecurity {
         dialog.setCanceledOnTouchOutside(false)
         dialog.show()
         dialog.window?.apply {
-            setBackgroundDrawable(ColorDrawable(backgroundColor))
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             decorView.setBackgroundColor(backgroundColor)
             setLayout(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT
             )
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+
             WindowCompat.setDecorFitsSystemWindows(this, false)
-            WindowInsetsControllerCompat(this, decorView).apply {
-                systemBarsBehavior =
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                isAppearanceLightStatusBars = false
-                hide(WindowInsetsCompat.Type.systemBars())
+
+            // Keep status and navigation bars visible, but draw behind them.
+            statusBarColor = Color.TRANSPARENT
+            navigationBarColor = Color.TRANSPARENT
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                isStatusBarContrastEnforced = false
+                isNavigationBarContrastEnforced = false
             }
-            attributes = attributes.apply { dimAmount = 0.12f }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                statusBarColor = Color.TRANSPARENT
-                navigationBarColor = Color.TRANSPARENT
-                decorView.systemUiVisibility =
-                    decorView.systemUiVisibility or
+
+            // Permit edge-to-edge drawing into short-edge display cutouts.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                attributes = attributes.apply {
+                    layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams
+                            .LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+
+            decorView.systemUiVisibility =
+                decorView.systemUiVisibility or
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
                     View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
                     View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+
+            WindowInsetsControllerCompat(this, decorView).apply {
+                // Dark lock-screen background: use light system-bar icons.
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
+                show(WindowInsetsCompat.Type.systemBars())
             }
+
+            attributes = attributes.apply { dimAmount = 0.12f }
         }
         dialog.window?.setLayout(
             WindowManager.LayoutParams.MATCH_PARENT,
