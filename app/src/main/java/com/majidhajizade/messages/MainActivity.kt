@@ -385,7 +385,7 @@ companion object {
                 safe.left,
                 safe.top,
                 safe.right,
-                safe.bottom + dp(12)
+                safe.bottom
             )
             insets
         }
