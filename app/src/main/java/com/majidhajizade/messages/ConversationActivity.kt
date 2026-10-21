@@ -184,11 +184,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             return
         }
 
-        if (intent.getBooleanExtra("offline_mesh", false)) {
-            activeMeshId = phone
-                .trim()
-                .uppercase(Locale.US)
-        }
+        // گفت‌وگوهای Mesh موقتاً غیرفعال‌اند؛ پیامک عادی بدون تغییر می‌ماند.
 
         val needsGlobalUnlock =
             AppSecurity.isEnabled(this) && AppSecurity.isAutoLockPending(this)
@@ -235,57 +231,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         ensureSmsContentObserver()
 
-                offlineMeshManager = MeshSession.manager
-            ?: run {
-                finish()
-                return
-            }
-
-        MeshSession.activeChatId = phone
-            .trim()
-            .uppercase(Locale.US)
-
-        MeshSession.activeMessageHandler = { senderId, message ->
-            if (
-                senderId.equals(
-                    phone.trim().uppercase(Locale.US),
-                    ignoreCase = true
-                ) && !isContactBlocked()
-            ) {
-                runOnUiThread {
-                    val receivedDate = System.currentTimeMillis()
-
-                    addMessage(
-                        body = message,
-                        date = receivedDate,
-                        incoming = true
-                    )
-
-                    MeshMessageStore.saveMessage(
-                        this@ConversationActivity,
-                        phone,
-                        StoredMeshMessage(
-                            body = message,
-                            date = receivedDate,
-                            incoming = true
-                        )
-                    )
-
-                    scrollView.post {
-                        scrollView.fullScroll(View.FOCUS_DOWN)
-                    }
-                }
-            }
-        }
-
-        intent.getStringExtra("mesh_id")
-            ?.trim()
-            ?.uppercase(Locale.US)
-            ?.let { targetMeshId ->
-                offlineMeshManager.setTargetMeshId(targetMeshId)
-            }
-
-        ensureNearbyPermissions()
+        // راه‌اندازی Mesh و درخواست مجوزهای نزدیک‌برد موقتاً متوقف است.
     }
 
     private fun showConversationSecurityGate(onUnlocked: () -> Unit) {
@@ -308,45 +254,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (requestCode == NEARBY_PERMISSION) {
-            if (hasNearbyPermissions()) {
-                offlineMeshManager.start()
-            } else {
-                Toast.makeText(
-                    this,
-                    "Nearby permission is required for offline messaging",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
+        // Mesh موقتاً غیرفعال است؛ مجوزهای نزدیک‌برد باعث شروع آن نمی‌شوند.
     }
 
     private fun ensureNearbyPermissions() {
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_ADVERTISE,
-                Manifest.permission.NEARBY_WIFI_DEVICES
-            )
-        } else {
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-        }
-
-        val missing = permissions.filter {
-            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
-        }
-
-        if (missing.isNotEmpty()) {
-            requestPermissions(
-                missing.toTypedArray(),
-                NEARBY_PERMISSION
-            )
-        } else {
-            offlineMeshManager.start()
-        }
+        // Mesh موقتاً غیرفعال است؛ مجوزی درخواست نمی‌شود و مدیر Mesh شروع نمی‌شود.
     }
 
     override fun onDestroy() {
@@ -1908,7 +1820,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         lastBubbleDate = null
         lastBubbleDayKey = null
 
-        if (activeMeshId != null) {
+        if (MainActivity.MESH_ENABLED && activeMeshId != null) {
             MeshMessageStore.loadMessages(
                 this,
                 activeMeshId!!
@@ -2736,7 +2648,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             return
         }
 
-        if (activeMeshId != null) {
+        if (MainActivity.MESH_ENABLED && activeMeshId != null) {
             if (!offlineMeshManager.isTargetConnected()) {
                 MeshSession.log(
                     "ERROR | Target device is not connected"

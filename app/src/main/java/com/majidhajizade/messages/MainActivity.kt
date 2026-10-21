@@ -84,6 +84,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     }
 
     private fun ensureNearbyPermissions() {
+        if (!MESH_ENABLED) return
         val missing = nearbyPermissions.filter {
             checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
         }
@@ -167,6 +168,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
 private lateinit var selectionPinIcon: android.widget.ImageView
 private lateinit var selectionNotificationIcon: android.widget.ImageView
 companion object {
+        const val MESH_ENABLED = false
         private const val SMS_PERMISSION_REQUEST = 2001
         private const val PREFS = "messages_settings"
         private const val MESH_ID = "mesh_id"
@@ -184,7 +186,7 @@ companion object {
         )
         isDarkMode = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getBoolean("dark_mode", false)
-        ensureNearbyPermissions()
+        // Mesh موقتاً غیرفعال است؛ مجوزهای نزدیک‌برد درخواست نمی‌شوند.
 
         window.statusBarColor = screenBackground
         window.navigationBarColor = screenBackground
@@ -193,11 +195,7 @@ companion object {
 
         setContentView(createHomeScreen())
         configureMainSystemBars()
-        setupMeshNotificationChannel()
-        MeshSession.logHandler = { message ->
-            logMesh(message)
-        }
-        setupMeshManager()
+        // راه‌اندازی Mesh تا اطلاع ثانوی متوقف است.
 
         requestDefaultSmsRole()
         requestContactsPermission()
@@ -211,9 +209,7 @@ companion object {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (requestCode == 9001 && hasNearbyPermissions()) {
-            meshManager?.start()
-        }
+        // درخواست مجوز Mesh موقتاً غیرفعال است.
     }
 
     private fun requestDefaultSmsRole() {
@@ -260,8 +256,6 @@ companion object {
         AppSecurity.showUnlock(this) {
             securityGateShowing = false
             setContentView(createHomeScreen())
-            updateMeshStatus()
-            handleMeshRequestIntent(intent)
             if (checkSelfPermission(Manifest.permission.READ_SMS) ==
                 PackageManager.PERMISSION_GRANTED
             ) {
@@ -302,8 +296,6 @@ companion object {
             showSecurityGate()
             return
         }
-
-        handleMeshRequestIntent(intent)
 
         if (checkSelfPermission(Manifest.permission.READ_SMS)
             == PackageManager.PERMISSION_GRANTED
@@ -1047,23 +1039,7 @@ companion object {
             }
         }
 
-        MeshMessageStore.loadConversations(this).forEach { meshId ->
-            val latest = MeshMessageStore.loadLatestMessage(
-                this,
-                meshId
-            ) ?: return@forEach
-
-            conversations[meshId] = ConversationData(
-                meshId,
-                latest.body,
-                latest.date,
-                if (latest.incoming) {
-                    Telephony.Sms.MESSAGE_TYPE_INBOX
-                } else {
-                    Telephony.Sms.MESSAGE_TYPE_SENT
-                }
-            )
-        }
+        // گفتگوهای Mesh تا زمان فعال‌سازی مجدد نمایش داده نمی‌شوند.
 
         val searchQuery = smsSearchQuery.trim()
         if (searchQuery.isNotEmpty()) {
@@ -1344,6 +1320,7 @@ companion object {
     }
 
     private fun setupMeshManager() {
+        if (!MESH_ENABLED) return
         val meshId = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getString(MESH_ID, null)
             ?: run {
@@ -2206,14 +2183,7 @@ companion object {
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
         )
 
-        val mesh = createMenuItem(
-            title = "Mesh",
-            subtitle = ""
-        )
-
-        mesh.setOnClickListener {
-            showMeshPanel()
-        }
+        // گزینهٔ Mesh موقتاً از منو مخفی است.
 
         val settings = createMenuItem(
             title = "Settings",
@@ -2224,11 +2194,6 @@ companion object {
             meshPopup?.dismiss()
             showMeshIdSettings()
         }
-
-        card.addView(
-            mesh,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
-        )
 
         card.addView(
             settings,
@@ -2323,6 +2288,8 @@ companion object {
     }
 
     private fun showMeshPanel() {
+        if (!MESH_ENABLED) return
+
         meshPopup?.dismiss()
         isMeshPanelVisible = true
 
@@ -4107,18 +4074,7 @@ private fun createSelectionActionBar(): LinearLayout {
             ConversationActivity::class.java
         )
 
-        val normalized = address.trim().uppercase(Locale.US)
-        val isMeshConversation = normalized.matches(
-            Regex("MJ-[A-Z0-9]{6}")
-        )
-
         intent.putExtra("phone", address)
-
-        if (isMeshConversation) {
-            intent.putExtra("mesh_id", normalized)
-            intent.putExtra("offline_mesh", true)
-        }
-
         startActivity(intent)
     }
 
@@ -4139,22 +4095,9 @@ private fun createSelectionActionBar(): LinearLayout {
         isSettingsPageVisible = true
         isMeshLogPageVisible = false
 
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        var meshId = prefs.getString(MESH_ID, null)
-
-        if (meshId.isNullOrBlank()) {
-            meshId = "MJ-" + java.util.UUID.randomUUID()
-                .toString()
-                .replace("-", "")
-                .take(6)
-                .uppercase(Locale.US)
-
-            prefs.edit().putString(MESH_ID, meshId).apply()
-        }
-
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(245, 245, 248))
+            setBackgroundColor(screenBackground)
             setPadding(dp(18), dp(18), dp(18), dp(16))
         }
 
@@ -4163,36 +4106,28 @@ private fun createSelectionActionBar(): LinearLayout {
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        val title = TextView(this).apply {
-            text = "Settings"
-            textSize = 26f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(20, 20, 24))
-        }
-
         header.addView(
-            title,
+            TextView(this).apply {
+                text = "Settings"
+                textSize = 26f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(primaryText)
+            },
             LinearLayout.LayoutParams(0, dp(52), 1f)
         )
 
-        val close = TextView(this).apply {
-            text = "×"
-            textSize = 28f
-            gravity = Gravity.CENTER
-            setTextColor(Color.rgb(90, 90, 96))
-            background = solidDrawable(
-                Color.WHITE,
-                dp(18).toFloat()
-            )
-
-            setOnClickListener {
-                setContentView(createHomeScreen())
-                updateMeshStatus()
-            }
-        }
-
         header.addView(
-            close,
+            TextView(this).apply {
+                text = "×"
+                textSize = 28f
+                gravity = Gravity.CENTER
+                setTextColor(primaryText)
+                setOnClickListener {
+                    isSettingsPageVisible = false
+                    setContentView(createHomeScreen())
+                    loadMessages()
+                }
+            },
             LinearLayout.LayoutParams(dp(42), dp(42))
         )
 
@@ -4201,161 +4136,35 @@ private fun createSelectionActionBar(): LinearLayout {
         val securityCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(14), dp(16), dp(14))
-            background = solidDrawable(Color.WHITE, dp(22).toFloat())
-            setOnClickListener { AppSecurity.showSettings(this@MainActivity) }
+            background = solidDrawable(
+                if (isDarkMode) Color.rgb(35, 35, 40) else Color.WHITE,
+                dp(22).toFloat()
+            )
+            setOnClickListener {
+                AppSecurity.showSettings(this@MainActivity)
+            }
         }
+
         securityCard.addView(TextView(this).apply {
             text = "Security"
             textSize = 17f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(25, 25, 30))
+            setTextColor(primaryText)
         })
+
         securityCard.addView(TextView(this).apply {
             text = "Passcode Lock · Biometrics · Auto-lock"
             textSize = 14f
-            setTextColor(secondaryText)
+            setTextColor(secondaryThemeText)
             setPadding(0, dp(5), 0, 0)
         })
+
         page.addView(
             securityCard,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = dp(12) }
-        )
-
-        val meshIdCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(16))
-            background = solidDrawable(
-                Color.WHITE,
-                dp(22).toFloat()
-            )
-        }
-
-        meshIdCard.addView(
-            TextView(this).apply {
-                text = "Mesh ID"
-                textSize = 17f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(25, 25, 30))
-            }
-        )
-
-        meshIdCard.addView(
-            TextView(this).apply {
-                text = meshId
-                textSize = 15f
-                setTextColor(secondaryText)
-                setPadding(0, dp(5), 0, 0)
-            }
-        )
-
-        val editMeshId = TextView(this).apply {
-            text = "Edit"
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setTextColor(Color.rgb(35, 35, 40))
-            background = solidDrawable(
-                Color.rgb(245, 245, 248),
-                dp(14).toFloat()
-            )
-            setPadding(dp(14), dp(9), dp(14), dp(9))
-
-            setOnClickListener {
-                showMeshIdEditDialog(meshId ?: "")
-            }
-        }
-
-        meshIdCard.addView(
-            editMeshId,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                dp(42)
-            ).apply {
-                topMargin = dp(12)
-            }
-        )
-
-        page.addView(
-            meshIdCard,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp(12)
-            }
-        )
-
-        val logCard = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(12))
-            background = solidDrawable(
-                Color.WHITE,
-                dp(22).toFloat()
-            )
-
-            setOnClickListener {
-                showMeshLog()
-            }
-        }
-
-        val logIcon = TextView(this).apply {
-            text = "{ }"
-            textSize = 18f
-            gravity = Gravity.CENTER
-            typeface = Typeface.MONOSPACE
-            setTextColor(Color.rgb(35, 35, 40))
-            background = solidDrawable(
-                Color.rgb(245, 245, 248),
-                dp(18).toFloat()
-            )
-        }
-
-        logCard.addView(
-            logIcon,
-            LinearLayout.LayoutParams(dp(32), dp(32))
-        )
-
-        val logTitle = TextView(this).apply {
-            text = "Log"
-            textSize = 17f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(25, 25, 30))
-            setPadding(dp(14), 0, 0, 0)
-        }
-
-        logCard.addView(
-            logTitle,
-            LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                1f
-            )
-        )
-
-        val arrow = TextView(this).apply {
-            text = "›"
-            textSize = 28f
-            setTextColor(secondaryText)
-            gravity = Gravity.CENTER
-        }
-
-        logCard.addView(
-            arrow,
-            LinearLayout.LayoutParams(dp(28), dp(48))
-        )
-
-        page.addView(
-            logCard,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(72)
-            ).apply {
-                topMargin = dp(10)
-            }
         )
 
         setContentView(page)
@@ -4684,7 +4493,7 @@ private fun createSelectionActionBar(): LinearLayout {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleMeshRequestIntent(intent)
+        // درخواست‌های Mesh تا اطلاع ثانوی نادیده گرفته می‌شوند.
     }
 
     override fun onDestroy() {
