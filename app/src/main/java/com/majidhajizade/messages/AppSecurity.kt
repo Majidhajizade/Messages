@@ -434,11 +434,19 @@ object AppSecurity {
                     else -> null
                 }
                 if (iconDrawable != null) {
-                    val iconSize = if (label == "FINGERPRINT") dp(34) else dp(32)
+                    val iconSize = when (label) {
+                        "BACKSPACE" -> dp(40)
+                        "FINGERPRINT" -> dp(34)
+                        else -> dp(32)
+                    }
                     iconDrawable.setBounds(0, 0, iconSize, iconSize)
                     compoundDrawablePadding = dp(2)
                     setCompoundDrawables(null, iconDrawable, null, null)
-                    translationY = dp(4).toFloat()
+                    translationY = when (label) {
+                        "BACKSPACE" -> dp(12).toFloat()
+                        "FINGERPRINT" -> dp(17).toFloat()
+                        else -> dp(4).toFloat()
+                    }
                 }
                 if (label == "FINGERPRINT" && !biometricAvailable) {
                     isEnabled = false
@@ -446,7 +454,7 @@ object AppSecurity {
                 }
                 setLineSpacing(0f, 0.9f)
                 includeFontPadding = false
-                background = if (label == "FINGERPRINT") {
+                background = if (label == "FINGERPRINT" || label == "BACKSPACE") {
                     null
                 } else {
                     GradientDrawable().apply {
@@ -730,7 +738,7 @@ object AppSecurity {
                 systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 isAppearanceLightStatusBars = false
-                hide(WindowInsetsCompat.Type.navigationBars())
+                hide(WindowInsetsCompat.Type.systemBars())
             }
             attributes = attributes.apply { dimAmount = 0.12f }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
