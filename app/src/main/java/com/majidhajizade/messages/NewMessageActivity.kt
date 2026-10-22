@@ -61,6 +61,7 @@ class NewMessageActivity : Activity() {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(10), 0, 0)
         }
 
         val back = ImageView(this).apply {
@@ -97,7 +98,7 @@ class NewMessageActivity : Activity() {
             header,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(56)
+                dp(76)
             )
         )
 
@@ -434,14 +435,23 @@ class NewMessageActivity : Activity() {
         number: String,
         photoUri: String?
     ): View {
-        val avatarSize = dp(46)
-        val avatarBackground = roundedBackground(avatarColor(name), 100)
+        val avatarSize = dp(52)
+
+        val avatarContainer = android.widget.FrameLayout(this).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                avatarGradientColors(name)
+            ).apply {
+                shape = GradientDrawable.OVAL
+            }
+            clipChildren = true
+            clipToPadding = true
+        }
 
         val avatar = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
-            background = avatarBackground
-            clipToOutline = true
             contentDescription = name
+            clipToOutline = true
 
             if (!photoUri.isNullOrBlank()) {
                 try {
@@ -450,63 +460,68 @@ class NewMessageActivity : Activity() {
                         if (bitmap != null) setImageBitmap(bitmap)
                     }
                 } catch (_: Exception) {
-                    // Initials remain visible if the photo cannot be loaded.
+                    // Use the initial when the photo cannot be loaded.
                 }
             }
         }
 
-        val avatarContainer = android.widget.FrameLayout(this).apply {
-            background = roundedBackground(avatarColor(name), 100)
-            clipChildren = true
-            clipToPadding = true
-
-            addView(
+        if (avatar.drawable != null) {
+            avatar.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+            }
+            avatarContainer.addView(
                 avatar,
                 android.widget.FrameLayout.LayoutParams(
                     avatarSize,
                     avatarSize
                 )
             )
-
-            if (avatar.drawable == null) {
-                addView(
-                    TextView(this@NewMessageActivity).apply {
-                        text = initials(name)
-                        textSize = 14f
-                        setTextColor(Color.WHITE)
-                        typeface = Typeface.DEFAULT_BOLD
-                        gravity = Gravity.CENTER
-                        background = roundedBackground(avatarColor(name), 100)
-                        isClickable = false
-                    },
-                    android.widget.FrameLayout.LayoutParams(
-                        avatarSize,
-                        avatarSize
-                    )
+        } else {
+            avatarContainer.addView(
+                TextView(this).apply {
+                    text = name.trim().firstOrNull()
+                        ?.uppercaseChar()?.toString() ?: "U"
+                    textSize = 21f
+                    setTextColor(Color.WHITE)
+                    typeface = Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                    background = GradientDrawable(
+                        GradientDrawable.Orientation.TL_BR,
+                        avatarGradientColors(name)
+                    ).apply {
+                        shape = GradientDrawable.OVAL
+                    }
+                    contentDescription = name
+                },
+                android.widget.FrameLayout.LayoutParams(
+                    avatarSize,
+                    avatarSize
                 )
-            }
+            )
         }
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(4), dp(16), dp(4))
             isClickable = true
             isFocusable = true
             setOnClickListener { openConversation(number) }
 
             addView(
                 avatarContainer,
-                LinearLayout.LayoutParams(dp(48), dp(48))
+                LinearLayout.LayoutParams(avatarSize, avatarSize)
             )
 
-            val labels = LinearLayout(this@NewMessageActivity).apply {
+            val details = LinearLayout(this@NewMessageActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(12), 0, 0, 0)
 
                 addView(
                     TextView(this@NewMessageActivity).apply {
                         text = name
-                        textSize = 15f
+                        textSize = 16f
                         setTextColor(TEXT_COLOR)
                         maxLines = 1
                         ellipsize = android.text.TextUtils.TruncateAt.END
@@ -516,28 +531,21 @@ class NewMessageActivity : Activity() {
                 addView(
                     TextView(this@NewMessageActivity).apply {
                         text = number
-                        textSize = 13f
+                        textSize = 14f
                         setTextColor(MUTED_COLOR)
                         maxLines = 1
-                    },
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        topMargin = dp(2)
+                        ellipsize = android.text.TextUtils.TruncateAt.END
                     }
                 )
             }
 
             addView(
-                labels,
+                details,
                 LinearLayout.LayoutParams(
                     0,
-                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
                     1f
-                ).apply {
-                    leftMargin = dp(12)
-                }
+                )
             )
         }
     }
@@ -599,18 +607,55 @@ class NewMessageActivity : Activity() {
         }
     }
 
+    private fun avatarGradientColors(name: String): IntArray {
+        val base = avatarColor(name)
+
+        fun mix(value: Int, target: Int, amount: Float): Int =
+            (value + (target - value) * amount).toInt()
+
+        val light = Color.rgb(
+            mix(Color.red(base), 255, 0.28f),
+            mix(Color.green(base), 255, 0.28f),
+            mix(Color.blue(base), 255, 0.28f)
+        )
+
+        val dark = Color.rgb(
+            mix(Color.red(base), 0, 0.22f),
+            mix(Color.green(base), 0, 0.22f),
+            mix(Color.blue(base), 0, 0.22f)
+        )
+
+        return intArrayOf(light, base, dark)
+    }
+
     private fun avatarColor(name: String): Int {
         val colors = intArrayOf(
-            Color.rgb(0, 145, 210),
-            Color.rgb(34, 155, 126),
-            Color.rgb(121, 103, 205),
-            Color.rgb(210, 137, 49),
-            Color.rgb(207, 83, 111),
-            Color.rgb(58, 132, 191),
-            Color.rgb(40, 145, 103),
-            Color.rgb(166, 100, 191)
+            Color.rgb(0, 166, 255),
+            Color.rgb(38, 185, 154),
+            Color.rgb(139, 120, 230),
+            Color.rgb(245, 159, 66),
+            Color.rgb(232, 93, 117),
+            Color.rgb(50, 150, 216),
+            Color.rgb(25, 169, 116),
+            Color.rgb(193, 125, 223)
         )
-        return colors[(name.hashCode() and Int.MAX_VALUE) % colors.size]
+
+        val first = name.trim().firstOrNull()?.uppercaseChar()
+            ?: return colors[0]
+
+        val index = when (first) {
+            in 'A'..'C', in 'ا'..'ث' -> 0
+            in 'D'..'F', in 'ج'..'خ' -> 1
+            in 'G'..'I', in 'د'..'ز' -> 2
+            in 'J'..'L', in 'س'..'ض' -> 3
+            in 'M'..'O', in 'ط'..'ف' -> 4
+            in 'P'..'R', in 'ق'..'م' -> 5
+            in 'S'..'U', in 'ن'..'ی' -> 6
+            in 'V'..'Z' -> 7
+            else -> 0
+        }
+
+        return colors[index]
     }
 
     private fun roundedBackground(color: Int, radius: Int): GradientDrawable {
