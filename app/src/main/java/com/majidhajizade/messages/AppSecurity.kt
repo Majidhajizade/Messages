@@ -19,8 +19,8 @@ import android.text.InputType
 import android.widget.EditText
 import android.widget.Toast
 import android.app.AlertDialog
-import androidx.biometric.BiometricManager
-import androidx.biometric.BiometricPrompt
+import androidx.core.hardware.fingerprint.FingerprintManagerCompat
+import android.os.CancellationSignal
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -323,11 +323,10 @@ object AppSecurity {
         val pin = StringBuilder()
         var fingerprintKey: View? = null
 
-        val manager = BiometricManager.from(activity)
+        val fingerprintManager = FingerprintManagerCompat.from(activity)
         val biometricAvailable = isFingerprintEnabled(activity) &&
-            manager.canAuthenticate(
-                BiometricManager.Authenticators.BIOMETRIC_WEAK
-            ) == BiometricManager.BIOMETRIC_SUCCESS
+            fingerprintManager.isHardwareDetected &&
+            fingerprintManager.hasEnrolledFingerprints()
 
         var unlockFinished = false
         var finishUnlock: () -> Unit = {}
@@ -513,6 +512,7 @@ object AppSecurity {
 
         var startBiometricAuth: (() -> Unit)? = null
         var biometricPromptStarted = false
+        var fingerprintCancellationSignal: CancellationSignal? = null
 
         val keypad = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -530,6 +530,11 @@ object AppSecurity {
                     View(activity)
                 } else {
                     makeKey(label) {
+                        if (label != "FINGERPRINT") {
+                            fingerprintCancellationSignal?.cancel()
+                            fingerprintCancellationSignal = null
+                            biometricPromptStarted = false
+                        }
                         when (label) {
                             "BACKSPACE" -> {
                                 if (pin.isNotEmpty()) {
@@ -688,43 +693,56 @@ object AppSecurity {
                 !unlockInProgress && !unlockFinished
             ) {
                 biometricPromptStarted = true
-                val prompt = BiometricPrompt(
-                    activity,
-                    ContextCompat.getMainExecutor(activity),
-                    object : BiometricPrompt.AuthenticationCallback() {
-                        override fun onAuthenticationSucceeded(
-                            result: BiometricPrompt.AuthenticationResult
-                        ) {
-                            biometricPromptStarted = false
-                            resetPinFailures(activity)
-                            clearAutoLockPending(activity)
-                            finishUnlock()
-                        }
-
-                        override fun onAuthenticationError(
-                            errorCode: Int,
-                            errString: CharSequence
-                        ) {
-                            biometricPromptStarted = false
-                            if (!unlockFinished && !unlockInProgress) {
-                                Toast.makeText(
-                                    activity, errString, Toast.LENGTH_SHORT
-                                ).show()
+                val signal = CancellationSignal()
+                fingerprintCancellationSignal = signal
+                try {
+                    fingerprintManager.authenticate(
+                        null,
+                        0,
+                        signal,
+                        object : FingerprintManagerCompat.AuthenticationCallback() {
+                            override fun onAuthenticationSucceeded(
+                                result: FingerprintManagerCompat.AuthenticationResult
+                            ) {
+                                biometricPromptStarted = false
+                                fingerprintCancellationSignal = null
+                                resetPinFailures(activity)
+                                clearAutoLockPending(activity)
+                                finishUnlock()
                             }
-                        }
-                    }
-                )
 
-                val info = BiometricPrompt.PromptInfo.Builder()
-                    .setTitle("Unlock Messages")
-                    .setSubtitle("Authenticate to continue")
-                    .setAllowedAuthenticators(
-                        BiometricManager.Authenticators.BIOMETRIC_WEAK
+                            override fun onAuthenticationFailed() {
+                                // اثر انگشت شناسایی نشد؛ امکان تلاش دوباره وجود دارد.
+                            }
+
+                            override fun onAuthenticationError(
+                                errorCode: Int,
+                                errString: CharSequence
+                            ) {
+                                val cancelledByPin =
+                                    fingerprintCancellationSignal == null
+                                biometricPromptStarted = false
+                                fingerprintCancellationSignal = null
+                                if (!cancelledByPin && !unlockFinished &&
+                                    !unlockInProgress && !activity.isFinishing
+                                ) {
+                                    Toast.makeText(
+                                        activity, errString, Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        },
+                        null
                     )
-                    .setNegativeButtonText("Use passcode")
-                    .build()
-
-                prompt.authenticate(info)
+                } catch (e: SecurityException) {
+                    biometricPromptStarted = false
+                    fingerprintCancellationSignal = null
+                    Toast.makeText(
+                        activity,
+                        "Fingerprint authentication is unavailable",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
 
@@ -1132,7 +1150,7 @@ object AppSecurity {
         addSection("Security")
         addToggleRow(
             "Fingerprint",
-            "Unlock with biometric authentication",
+            "Unlock with fingerprint",
             isFingerprintEnabled(activity),
             enabled = enabled
         ) { value ->

@@ -185,8 +185,23 @@ companion object {
             android.view.WindowManager.LayoutParams.FLAG_SECURE,
             android.view.WindowManager.LayoutParams.FLAG_SECURE
         )
-        isDarkMode = getSharedPreferences(PREFS, MODE_PRIVATE)
-            .getBoolean("dark_mode", false)
+        val themePrefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val themeMode = themePrefs.getString("theme_mode", null)
+            ?: if (themePrefs.contains("dark_mode")) {
+                if (themePrefs.getBoolean("dark_mode", false)) "night" else "day"
+            } else {
+                "system"
+            }
+        if (!themePrefs.contains("theme_mode")) {
+            themePrefs.edit().putString("theme_mode", themeMode).apply()
+        }
+        isDarkMode = when (themeMode) {
+            "day" -> false
+            "night" -> true
+            else -> (resources.configuration.uiMode and
+                android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
+        }
         // Mesh موقتاً غیرفعال است؛ مجوزهای نزدیک‌برد درخواست نمی‌شوند.
 
         window.statusBarColor = screenBackground
@@ -251,12 +266,14 @@ companion object {
 
         securityGateShowing = true
         setContentView(FrameLayout(this).apply {
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(screenBackground)
         })
+        configureMainSystemBars()
 
         AppSecurity.showUnlock(this) {
             securityGateShowing = false
             setContentView(createHomeScreen())
+            configureMainSystemBars()
             if (checkSelfPermission(Manifest.permission.READ_SMS) ==
                 PackageManager.PERMISSION_GRANTED
             ) {
@@ -287,13 +304,35 @@ companion object {
 
     override fun onResume() {
         super.onResume()
-        configureMainSystemBars()
         isMainActivityResumed = true
 
-        if (AppSecurity.isEnabled(this) &&
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val savedThemeMode = prefs.getString("theme_mode", null)
+        val useSystemTheme = savedThemeMode == "system" ||
+            (savedThemeMode == null && !prefs.contains("dark_mode"))
+
+        val shouldShowSecurityGate = AppSecurity.isEnabled(this) &&
             AppSecurity.isAutoLockPending(this) &&
             !securityGateShowing
-        ) {
+
+        if (useSystemTheme) {
+            val systemDark = (resources.configuration.uiMode and
+                android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+            if (systemDark != isDarkMode) {
+                if (securityGateShowing || shouldShowSecurityGate) {
+                    // صفحه را هنگام نمایش یا آماده‌سازی قفل بازسازی نکن.
+                    isDarkMode = systemDark
+                } else {
+                    applyThemeModeWithAnimation("system")
+                }
+            }
+        }
+
+        configureMainSystemBars()
+
+        if (shouldShowSecurityGate) {
             showSecurityGate()
             return
         }
@@ -316,11 +355,22 @@ companion object {
     }
 
     private fun toggleThemeWithAnimation() {
+        applyThemeModeWithAnimation(if (isDarkMode) "day" else "night")
+    }
+
+    private fun applyThemeModeWithAnimation(mode: String) {
         val oldScrollY = if (::messagesScroll.isInitialized) messagesScroll.scrollY else 0
-        isDarkMode = !isDarkMode
+        isDarkMode = when (mode) {
+            "day" -> false
+            "night" -> true
+            else -> (resources.configuration.uiMode and
+                android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
+        }
 
         getSharedPreferences(PREFS, MODE_PRIVATE)
             .edit()
+            .putString("theme_mode", mode)
             .putBoolean("dark_mode", isDarkMode)
             .apply()
 
@@ -2182,6 +2232,20 @@ companion object {
         }
         card.addView(
             themeItem,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
+        )
+
+        val systemThemeItem = createMenuItem(
+            title = "System Default",
+            subtitle = "Follow device appearance",
+            iconRes = R.drawable.ic_settings
+        )
+        systemThemeItem.setOnClickListener {
+            meshPopup?.dismiss()
+            applyThemeModeWithAnimation("system")
+        }
+        card.addView(
+            systemThemeItem,
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
         )
 

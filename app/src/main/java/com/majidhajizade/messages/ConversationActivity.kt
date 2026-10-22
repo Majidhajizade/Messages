@@ -422,9 +422,22 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }.getOrDefault(address)
     }
 
-    private fun isDarkThemeEnabled(): Boolean =
-        getSharedPreferences("messages_settings", MODE_PRIVATE)
-            .getBoolean("dark_mode", false)
+    private fun isDarkThemeEnabled(): Boolean {
+        val prefs = getSharedPreferences("messages_settings", MODE_PRIVATE)
+        val systemDark = (resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        return when (prefs.getString("theme_mode", null)) {
+            "day" -> false
+            "night" -> true
+            "system" -> systemDark
+            else -> if (prefs.contains("dark_mode")) {
+                prefs.getBoolean("dark_mode", false)
+            } else {
+                systemDark
+            }
+        }
+    }
 
     private fun createChatWallpaper(darkTheme: Boolean): android.graphics.drawable.Drawable {
         return android.graphics.drawable.ColorDrawable(
