@@ -261,7 +261,7 @@ companion object {
         }
     }
 
-    private fun showSecurityGate() {
+    private fun showSecurityGate(sourceX: Int? = null, sourceY: Int? = null) {
         if (!AppSecurity.isEnabled(this) || securityGateShowing) return
 
         securityGateShowing = true
@@ -270,7 +270,7 @@ companion object {
         })
         configureMainSystemBars()
 
-        AppSecurity.showUnlock(this) {
+        AppSecurity.showUnlock(this, sourceX, sourceY) {
             securityGateShowing = false
             setContentView(createHomeScreen())
             configureMainSystemBars()
@@ -291,10 +291,21 @@ companion object {
         }
     }
 
-    private fun lockNow() {
+    private fun lockNow(sourceView: android.view.View? = null) {
         if (!AppSecurity.isEnabled(this) || securityGateShowing) return
         AppSecurity.requestManualLock(this)
-        showSecurityGate()
+
+        val location = IntArray(2)
+        val sourceX = sourceView?.let {
+            it.getLocationInWindow(location)
+            location[0] + it.width / 2
+        }
+        val sourceY = sourceView?.let {
+            it.getLocationInWindow(location)
+            location[1] + it.height / 2
+        }
+
+        showSecurityGate(sourceX, sourceY)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -495,7 +506,7 @@ companion object {
                 contentDescription = "Lock app"
                 isClickable = true
                 isFocusable = true
-                setOnClickListener { lockNow() }
+                setOnClickListener { clickedView -> lockNow(clickedView) }
             }
             header.addView(
                 lockButton,

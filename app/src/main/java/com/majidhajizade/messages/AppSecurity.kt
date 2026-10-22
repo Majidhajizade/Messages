@@ -205,7 +205,7 @@ object AppSecurity {
         }
     }
 
-    fun showUnlock(activity: FragmentActivity, onSuccess: () -> Unit) {
+    fun showUnlock(activity: FragmentActivity, sourceX: Int? = null, sourceY: Int? = null, onSuccess: () -> Unit) {
         if (!isEnabled(activity)) {
             onSuccess()
             return
@@ -249,25 +249,18 @@ object AppSecurity {
         }
 
         var unlockInProgress = false
-        val lockIcon = android.widget.ImageView(activity).apply {
-            setImageResource(R.drawable.lock_custom)
+        val lockAnimation = LottieAnimationView(activity).apply {
+            setAnimation(R.raw.passcode_lock)
+            repeatCount = 0
             scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-            contentDescription = "Lock"
+            contentDescription = "Telegram-style lock animation"
         }
         root.addView(
-            lockIcon,
+            lockAnimation,
             LinearLayout.LayoutParams(dp(72), dp(72)).apply {
                 bottomMargin = dp(12)
             }
         )
-
-        val lockAnimation = LottieAnimationView(activity).apply {
-            setAnimation(R.raw.passcode_lock_close)
-            repeatCount = 0
-            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-            contentDescription = "Lock animation"
-            visibility = android.view.View.GONE
-        }
 
         val title = TextView(activity).apply {
             text = "Messages"
@@ -804,44 +797,76 @@ object AppSecurity {
         )
         ViewCompat.requestApplyInsets(root)
 
-        root.animate()
-            .alpha(1f)
-            .translationY(0f)
-            .setDuration(320L)
-            .setInterpolator(DecelerateInterpolator())
-            .start()
-
         root.post {
-            if (dialog.isShowing && biometricAvailable) {
-                startBiometricAuth?.invoke()
-            }
-        }
+            if (!dialog.isShowing) return@post
 
-        for (i in 1 until root.childCount) {
-            val child = root.getChildAt(i)
-            if (child === keypad) {
-                child.alpha = 1f
-                child.scaleX = 1f
-                child.scaleY = 1f
-                for (rowIndex in 0 until keypad.childCount) {
-                    val row = keypad.getChildAt(rowIndex) as? LinearLayout
-                        ?: continue
-                    for (keyIndex in 0 until row.childCount) {
-                        val key = row.getChildAt(keyIndex)
-                        if (key !is TextView) continue
-                        key.animate()
-                            .alpha(1f)
-                            .scaleX(1f)
-                            .scaleY(1f)
-                            .setStartDelay(
-                                180L + rowIndex * 55L + keyIndex * 24L
-                            )
-                            .setDuration(220L)
-                            .setInterpolator(DecelerateInterpolator())
-                            .start()
-                    }
+            root.animate().cancel()
+            root.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(320L)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+
+            // Play Telegram's original lock animation on the visible icon.
+            lockAnimation.translationX = 0f
+            lockAnimation.translationY = 0f
+
+            val iconLocation = IntArray(2)
+            lockAnimation.getLocationInWindow(iconLocation)
+            val iconCenterX = iconLocation[0] + lockAnimation.width / 2f
+            val iconCenterY = iconLocation[1] + lockAnimation.height / 2f
+
+            val animationOriginX = sourceX?.toFloat() ?: iconCenterX
+            val animationOriginY = sourceY?.toFloat() ?: iconCenterY
+
+            if (sourceX != null && sourceY != null) {
+                lockAnimation.translationX = animationOriginX - iconCenterX
+                lockAnimation.translationY = animationOriginY - iconCenterY
+            }
+
+            lockAnimation.progress = 0f
+            lockAnimation.playAnimation()
+
+            if (sourceX != null && sourceY != null) {
+                lockAnimation.animate()
+                    .translationX(0f)
+                    .translationY(0f)
+                    .setDuration(420L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+
+            val keyDistances = ArrayList<Pair<View, Float>>()
+            for (rowIndex in 0 until keypad.childCount) {
+                val row = keypad.getChildAt(rowIndex) as? LinearLayout
+                    ?: continue
+                for (keyIndex in 0 until row.childCount) {
+                    val key = row.getChildAt(keyIndex)
+                    if (key !is TextView) continue
+
+                    val location = IntArray(2)
+                    key.getLocationInWindow(location)
+                    val dx = location[0] + key.width / 2f - animationOriginX
+                    val dy = location[1] + key.height / 2f - animationOriginY
+                    val distance = kotlin.math.sqrt(dx * dx + dy * dy)
+                    keyDistances.add(key to distance)
                 }
-            } else {
+            }
+
+            val maxDistance = keyDistances.maxOfOrNull { it.second }
+                ?.coerceAtLeast(1f) ?: 1f
+
+            for (i in 1 until root.childCount) {
+                val child = root.getChildAt(i)
+                if (child === keypad) {
+                    child.alpha = 1f
+                    child.scaleX = 1f
+                    child.scaleY = 1f
+                    continue
+                }
+
+                child.animate().cancel()
                 child.alpha = 0f
                 child.scaleX = 0.92f
                 child.scaleY = 0.92f
@@ -854,7 +879,34 @@ object AppSecurity {
                     .setInterpolator(DecelerateInterpolator())
                     .start()
             }
+
+            // Keys farther from the lock icon start later, like Telegram.
+            for ((key, distance) in keyDistances) {
+                val targetAlpha =
+                    if (key === fingerprintKey && !biometricAvailable) 0.4f
+                    else 1f
+
+                key.animate().cancel()
+                key.alpha = 0f
+                key.scaleX = 0.7f
+                key.scaleY = 0.7f
+                key.animate()
+                    .alpha(targetAlpha)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setStartDelay(
+                        (distance / maxDistance * 360f).toLong()
+                    )
+                    .setDuration(232L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+
+            if (biometricAvailable) {
+                startBiometricAuth?.invoke()
+            }
         }
+
     }
 
     private fun showPinSetup(activity: FragmentActivity) {
