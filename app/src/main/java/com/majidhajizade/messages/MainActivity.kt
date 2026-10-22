@@ -4151,19 +4151,6 @@ private fun createSelectionActionBar(): LinearLayout {
 
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(screenBackground)
-            setPadding(dp(18), dp(18), dp(18), dp(16))
-        }
-
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout    private fun showMeshIdSettings() {
-        meshPopup?.dismiss()
-        isMeshPanelVisible = false
-        isSettingsPageVisible = true
-        isMeshLogPageVisible = false
-
-        val page = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(245, 245, 247))
             setPadding(dp(18), dp(8), dp(18), dp(16))
         }
@@ -4325,7 +4312,6 @@ private fun createSelectionActionBar(): LinearLayout {
 
         themeRow.setOnClickListener {
             applyThemeModeWithAnimation("system")
-            showMeshIdSettings()
 
             Toast.makeText(
                 this,
@@ -4346,95 +4332,6 @@ private fun createSelectionActionBar(): LinearLayout {
 
         setContentView(page)
         androidx.core.view.ViewCompat.requestApplyInsets(page)
-    }
-
-ULT_BOLD
-            setTextColor(Color.rgb(25, 25, 30))
-        }
-
-        val description = TextView(this).apply {
-            text = "Your ID is used to identify this device for nearby offline messaging."
-            textSize = 14f
-            setTextColor(secondaryText)
-            setPadding(0, dp(8), 0, dp(14))
-        }
-
-        val input = EditText(this).apply {
-            setText(currentMeshId)
-            textSize = 18f
-            setSingleLine(true)
-            hint = "MJ-XXXXXX"
-            setSelectAllOnFocus(true)
-        }
-
-        val save = TextView(this).apply {
-            text = "Save"
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = solidDrawable(
-                Color.rgb(35, 35, 40),
-                dp(12).toFloat()
-            )
-            setPadding(dp(18), dp(12), dp(18), dp(12))
-        }
-
-        val popup = PopupWindow(
-            card,
-            dp(310),
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
-        ).apply {
-            setBackgroundDrawable(ColorDrawableCompat.white())
-            isOutsideTouchable = true
-            elevation = dp(18).toFloat()
-        }
-
-        save.setOnClickListener {
-            val value = input.text.toString().trim().uppercase(Locale.US)
-
-            if (!value.matches(Regex("MJ-[A-Z0-9]{6}"))) {
-                logMesh("ERROR | Invalid Mesh ID format")
-                popup.dismiss()
-                return@setOnClickListener
-            }
-
-            getSharedPreferences(PREFS, MODE_PRIVATE)
-                .edit()
-                .putString(MESH_ID, value)
-                .apply()
-
-            logMesh("Mesh ID saved | $value")
-            popup.dismiss()
-            showMeshIdSettings()
-        }
-
-        card.addView(title)
-        card.addView(description)
-        card.addView(
-            input,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(56)
-            ).apply {
-                bottomMargin = dp(14)
-            }
-        )
-        card.addView(
-            save,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(50)
-            )
-        )
-
-        popup.showAtLocation(
-            window.decorView,
-            Gravity.CENTER,
-            0,
-            0
-        )
     }
 
     private fun showMeshLog() {
