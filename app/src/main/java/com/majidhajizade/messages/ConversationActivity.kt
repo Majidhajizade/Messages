@@ -57,6 +57,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private lateinit var profileCapsule: android.widget.FrameLayout
     private lateinit var profile: TextView
     private lateinit var contactTitle: TextView
+    private lateinit var contactAvatarView: View
+    private lateinit var contactNameRow: LinearLayout
     private var searchMode = false
     private var searchQuery = ""
 
@@ -675,7 +677,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val header = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
             elevation = 0f
-            setPadding(dp(8), dp(40), dp(8), dp(8))
+            setPadding(dp(8), dp(24), dp(8), dp(8))
         }
 
         val backCapsule = LinearLayout(this).apply {
@@ -699,7 +701,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         val backCircle = ImageButton(this).apply {
-            setImageResource(R.drawable.ic_back_arrow)
+            setImageResource(R.drawable.ic_back_custom)
             contentDescription = "Back"
             scaleType = android.widget.ImageView.ScaleType.CENTER
             setPadding(dp(4), dp(4), dp(4), dp(4))
@@ -725,19 +727,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val contactName = getContactDisplayName(phone)
 
         profileCapsule = android.widget.FrameLayout(this).apply {
-            background = GradientDrawable().apply {
-                setColor(
-                    if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
-                    else Color.rgb(250, 250, 250)
-                )
-                cornerRadius = dp(24).toFloat()
-                setStroke(
-                    dp(1),
-                    if (isDarkThemeEnabled()) Color.rgb(67, 67, 75)
-                    else Color.rgb(218, 218, 218)
-                )
-            }
-            elevation = dp(1).toFloat()
+            setBackgroundColor(Color.TRANSPARENT)
+            elevation = 0f
         }
 
         val isUnsavedNumber = !phone.matches(Regex("MJ-[A-Z0-9]{6}")) &&
@@ -754,7 +745,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         } else {
             TextView(this).apply {
                 text = contactName.firstOrNull()?.uppercase() ?: "?"
-                textSize = 17f
+                textSize = 25f
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
                 typeface = Typeface.DEFAULT_BOLD
@@ -766,49 +757,82 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
         }
 
-        if (isUnsavedNumber) {
-            val unsavedIcon = android.widget.ImageView(this).apply {
+        contactAvatarView = if (isUnsavedNumber) {
+            android.widget.ImageView(this).apply {
                 setImageResource(R.drawable.ic_profile_unsaved)
                 scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-                setPadding(dp(8), dp(8), dp(8), dp(8))
+                setPadding(dp(10), dp(10), dp(10), dp(10))
                 contentDescription = "Unknown contact"
             }
-            profileCapsule.addView(
-                unsavedIcon,
-                android.widget.FrameLayout.LayoutParams(dp(34), dp(34)).apply {
-                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                    leftMargin = dp(6)
-                }
-            )
-        }
-
-        if (!isUnsavedNumber) {
-            profileCapsule.addView(
-                profile,
-                android.widget.FrameLayout.LayoutParams(dp(34), dp(34)).apply {
-                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                    leftMargin = dp(6)
-                }
-            )
+        } else {
+            profile
         }
 
         profileCapsule.addView(
-            TextView(this).apply {
-                text = contactName
-                tag = "contact_title"
-                textSize = 16f
-                setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
-                typeface = Typeface.DEFAULT_BOLD
-                gravity = Gravity.CENTER
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-            },
+            contactAvatarView,
+            android.widget.FrameLayout.LayoutParams(dp(51), dp(51)).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            }
+        )
+
+        contactTitle = TextView(this).apply {
+            text = contactName
+            tag = "contact_title"
+            textSize = 14f
+            setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            contentDescription = "Open contact details"
+            setOnClickListener {
+                if (!searchMode) showContactDetails(contactName)
+            }
+        }
+
+        val contactDetailsIcon = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_contact_details)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            contentDescription = "Contact details"
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                if (!searchMode) showContactDetails(contactName)
+            }
+        }
+
+        contactNameRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Open contact details"
+            setOnClickListener {
+                if (!searchMode) showContactDetails(contactName)
+            }
+        }
+
+        contactNameRow.addView(
+            contactDetailsIcon,
+            LinearLayout.LayoutParams(dp(22), dp(28)).apply {
+                rightMargin = dp(5)
+            }
+        )
+        contactNameRow.addView(
+            contactTitle,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(28)
+            )
+        )
+
+        profileCapsule.addView(
+            contactNameRow,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
+                dp(30)
             ).apply {
-                leftMargin = dp(46)
-                rightMargin = dp(46)
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             }
         )
 
@@ -816,7 +840,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             profileCapsule,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
+                dp(104)
             ).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 leftMargin = dp(56)
@@ -824,7 +848,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
         )
 
-        contactTitle = profileCapsule.findViewWithTag("contact_title")
         profileCapsule.isClickable = true
         profileCapsule.isFocusable = true
         profileCapsule.setOnClickListener {
@@ -910,7 +933,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             clipToPadding = false
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.TRANSPARENT)
-            setPadding(dp(16), dp(94), dp(16), dp(12))
+            setPadding(dp(16), dp(148), dp(16), dp(12))
         }
 
         scrollView.addView(messagesContainer)
@@ -927,7 +950,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             header,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(96)
+                dp(150)
             ).apply {
                 gravity = Gravity.TOP
             }
@@ -1252,7 +1275,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         val back = ImageButton(this).apply {
-            setImageResource(R.drawable.ic_back_arrow)
+            setImageResource(R.drawable.ic_back_custom)
             if (isDarkThemeEnabled()) setColorFilter(Color.WHITE)
             contentDescription = "Back"
             background = null
@@ -1721,33 +1744,20 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 searchMode = false
                 searchQuery = ""
                 profileCapsule.removeAllViews()
-                profileCapsule.background = GradientDrawable().apply {
-                    setColor(
-                        if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
-                        else Color.rgb(250, 250, 250)
-                    )
-                    cornerRadius = dp(24).toFloat()
-                    setStroke(
-                        dp(1),
-                        if (isDarkThemeEnabled()) Color.rgb(67, 67, 75)
-                        else Color.rgb(218, 218, 218)
-                    )
-                }
+                profileCapsule.setBackgroundColor(Color.TRANSPARENT)
                 profileCapsule.addView(
-                    profile,
-                    android.widget.FrameLayout.LayoutParams(dp(34), dp(34)).apply {
-                        gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                        leftMargin = dp(6)
+                    contactAvatarView,
+                    android.widget.FrameLayout.LayoutParams(dp(51), dp(51)).apply {
+                        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
                     }
                 )
                 profileCapsule.addView(
-                    contactTitle,
+                    contactNameRow,
                     android.widget.FrameLayout.LayoutParams(
                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                        dp(48)
+                        dp(30)
                     ).apply {
-                        leftMargin = dp(46)
-                        rightMargin = dp(46)
+                        gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
                     }
                 )
                 filterVisibleMessages()

@@ -1971,7 +1971,7 @@ companion object {
         }
 
         val backButton = android.widget.ImageView(this).apply {
-            setImageResource(R.drawable.ic_back_arrow)
+            setImageResource(R.drawable.ic_back_custom)
             imageTintList = android.content.res.ColorStateList.valueOf(textColor)
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             contentDescription = "Back"
@@ -4183,7 +4183,7 @@ private fun createSelectionActionBar(): LinearLayout {
         val header = android.widget.FrameLayout(this)
 
         val back = ImageView(this).apply {
-            setImageResource(R.drawable.ic_back_arrow)
+            setImageResource(R.drawable.ic_back_custom)
             contentDescription = "Back"
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(7), dp(7), dp(7), dp(7))
