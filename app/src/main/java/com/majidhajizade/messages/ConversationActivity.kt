@@ -701,7 +701,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         val backCircle = ImageButton(this).apply {
-            setImageResource(R.drawable.ic_back_custom)
+            setImageResource(R.drawable.ic_back_arrow)
             contentDescription = "Back"
             scaleType = android.widget.ImageView.ScaleType.CENTER
             setPadding(dp(4), dp(4), dp(4), dp(4))
@@ -770,8 +770,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         profileCapsule.addView(
             contactAvatarView,
-            android.widget.FrameLayout.LayoutParams(dp(51), dp(51)).apply {
+            android.widget.FrameLayout.LayoutParams(dp(56), dp(56)).apply {
                 gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                topMargin = dp(5)
             }
         )
 
@@ -830,7 +831,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             contactNameRow,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(30)
+                dp(26)
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             }
@@ -840,7 +841,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             profileCapsule,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(104)
+                dp(92)
             ).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 leftMargin = dp(56)
@@ -977,7 +978,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                topMargin = dp(104)
+                topMargin = dp(160)
             }
         )
 
@@ -1275,7 +1276,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         val back = ImageButton(this).apply {
-            setImageResource(R.drawable.ic_back_custom)
+            setImageResource(R.drawable.ic_back_arrow)
             if (isDarkThemeEnabled()) setColorFilter(Color.WHITE)
             contentDescription = "Back"
             background = null
@@ -1747,15 +1748,16 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 profileCapsule.setBackgroundColor(Color.TRANSPARENT)
                 profileCapsule.addView(
                     contactAvatarView,
-                    android.widget.FrameLayout.LayoutParams(dp(51), dp(51)).apply {
+                    android.widget.FrameLayout.LayoutParams(dp(56), dp(56)).apply {
                         gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                        topMargin = dp(5)
                     }
                 )
                 profileCapsule.addView(
                     contactNameRow,
                     android.widget.FrameLayout.LayoutParams(
                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                        dp(30)
+                        dp(26)
                     ).apply {
                         gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
                     }

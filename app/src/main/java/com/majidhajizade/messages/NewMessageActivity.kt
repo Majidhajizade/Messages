@@ -65,7 +65,7 @@ class NewMessageActivity : Activity() {
         }
 
         val back = ImageView(this).apply {
-            setImageResource(R.drawable.ic_back_custom)
+            setImageResource(R.drawable.ic_back_arrow)
             contentDescription = "Back"
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(8), dp(8), dp(8), dp(8))
