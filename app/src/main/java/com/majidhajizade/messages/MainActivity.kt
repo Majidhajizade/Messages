@@ -2235,20 +2235,6 @@ companion object {
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
         )
 
-        val systemThemeItem = createMenuItem(
-            title = "System Default",
-            subtitle = "Follow device appearance",
-            iconRes = R.drawable.ic_settings
-        )
-        systemThemeItem.setOnClickListener {
-            meshPopup?.dismiss()
-            applyThemeModeWithAnimation("system")
-        }
-        card.addView(
-            systemThemeItem,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48))
-        )
-
         // گزینهٔ Mesh موقتاً از منو مخفی است.
 
         val settings = createMenuItem(
@@ -4170,88 +4156,199 @@ private fun createSelectionActionBar(): LinearLayout {
         }
 
         val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout    private fun showMeshIdSettings() {
+        meshPopup?.dismiss()
+        isMeshPanelVisible = false
+        isSettingsPageVisible = true
+        isMeshLogPageVisible = false
+
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.rgb(245, 245, 247))
+            setPadding(dp(18), dp(8), dp(18), dp(16))
         }
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(page) { view, insets ->
+            val safe = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(
+                safe.left + dp(18),
+                safe.top + dp(8),
+                safe.right + dp(18),
+                safe.bottom + dp(16)
+            )
+            insets
+        }
+
+        val header = android.widget.FrameLayout(this)
+
+        val back = ImageView(this).apply {
+            setImageResource(R.drawable.ic_back_arrow)
+            contentDescription = "Back"
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(7), dp(7), dp(7), dp(7))
+            background = null
+            setOnClickListener {
+                isSettingsPageVisible = false
+                setContentView(createHomeScreen())
+                updateMeshStatus()
+                loadMessages()
+            }
+        }
+
+        header.addView(
+            back,
+            android.widget.FrameLayout.LayoutParams(dp(44), dp(44)).apply {
+                gravity = Gravity.TOP or Gravity.START
+            }
+        )
 
         header.addView(
             TextView(this).apply {
                 text = "Settings"
                 textSize = 26f
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(primaryText)
-            },
-            LinearLayout.LayoutParams(0, dp(52), 1f)
-        )
-
-        header.addView(
-            TextView(this).apply {
-                text = "×"
-                textSize = 28f
+                setTextColor(Color.rgb(33, 33, 33))
                 gravity = Gravity.CENTER
-                setTextColor(primaryText)
-                setOnClickListener {
-                    isSettingsPageVisible = false
-                    setContentView(createHomeScreen())
-                    loadMessages()
-                }
             },
-            LinearLayout.LayoutParams(dp(42), dp(42))
+            android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(44),
+                Gravity.TOP
+            ).apply {
+                topMargin = dp(48)
+            }
         )
 
-        page.addView(header)
-
-        val securityCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            background = solidDrawable(
-                if (isDarkMode) Color.rgb(35, 35, 40) else Color.WHITE,
-                dp(22).toFloat()
+        page.addView(
+            header,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(100)
             )
+        )
+
+        fun createSettingsCard(): LinearLayout {
+            return LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(16), dp(16), dp(16), dp(16))
+                background = solidDrawable(Color.WHITE, dp(20).toFloat())
+            }
+        }
+
+        fun addCardTitle(card: LinearLayout, label: String) {
+            card.addView(TextView(this).apply {
+                text = label
+                textSize = 17f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(33, 33, 33))
+            })
+        }
+
+        fun addCardSubtitle(card: LinearLayout, label: String) {
+            card.addView(TextView(this).apply {
+                text = label
+                textSize = 14f
+                setTextColor(Color.rgb(110, 110, 115))
+                setPadding(0, dp(5), 0, 0)
+            })
+        }
+
+        val securityCard = createSettingsCard().apply {
+            isClickable = true
+            isFocusable = true
             setOnClickListener {
                 AppSecurity.showSettings(this@MainActivity)
             }
         }
-
-        securityCard.addView(TextView(this).apply {
-            text = "Security"
-            textSize = 17f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(primaryText)
-        })
-
-        securityCard.addView(TextView(this).apply {
-            text = "Passcode Lock · Biometrics · Auto-lock"
-            textSize = 14f
-            setTextColor(secondaryThemeText)
-            setPadding(0, dp(5), 0, 0)
-        })
+        addCardTitle(securityCard, "Security")
+        addCardSubtitle(
+            securityCard,
+            "Passcode Lock · Fingerprint · Auto-lock"
+        )
 
         page.addView(
             securityCard,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(12) }
+            ).apply {
+                bottomMargin = dp(12)
+            }
+        )
+
+        val chatSettingsCard = createSettingsCard()
+        addCardTitle(chatSettingsCard, "Chat Settings")
+
+        val themeRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(16), 0, 0)
+            isClickable = true
+            isFocusable = true
+        }
+
+        val themeLabels = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        themeLabels.addView(TextView(this).apply {
+            text = "System Default"
+            textSize = 16f
+            setTextColor(Color.rgb(33, 33, 33))
+        })
+
+        themeLabels.addView(TextView(this).apply {
+            text = "Follow device appearance"
+            textSize = 13f
+            setTextColor(Color.rgb(110, 110, 115))
+            setPadding(0, dp(4), 0, 0)
+        })
+
+        themeRow.addView(
+            themeLabels,
+            LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        )
+
+        themeRow.addView(TextView(this).apply {
+            text = "›"
+            textSize = 26f
+            setTextColor(Color.rgb(110, 110, 115))
+            gravity = Gravity.CENTER
+        })
+
+        themeRow.setOnClickListener {
+            applyThemeModeWithAnimation("system")
+            showMeshIdSettings()
+
+            Toast.makeText(
+                this,
+                "Theme follows device appearance",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        chatSettingsCard.addView(themeRow)
+
+        page.addView(
+            chatSettingsCard,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
         )
 
         setContentView(page)
+        androidx.core.view.ViewCompat.requestApplyInsets(page)
     }
 
-    private fun showMeshIdEditDialog(currentMeshId: String) {
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(20), dp(24), dp(20))
-            background = solidDrawable(
-                Color.WHITE,
-                dp(20).toFloat()
-            )
-        }
-
-        val title = TextView(this).apply {
-            text = "Mesh ID"
-            textSize = 20f
-            typeface = Typeface.DEFAULT_BOLD
+ULT_BOLD
             setTextColor(Color.rgb(25, 25, 30))
         }
 
