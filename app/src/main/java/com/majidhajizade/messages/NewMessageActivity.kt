@@ -136,7 +136,7 @@ class NewMessageActivity : Activity() {
             textSize = 16f
             setTextColor(TEXT_COLOR)
             setHintTextColor(MUTED_COLOR)
-            singleLine = true
+            setSingleLine(true)
             background = null
             setPadding(dp(6), 0, dp(4), 0)
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
@@ -249,9 +249,9 @@ class NewMessageActivity : Activity() {
 
         contentScroll.addView(
             content,
-            ScrollView.LayoutParams(
-                ScrollView.LayoutParams.MATCH_PARENT,
-                ScrollView.LayoutParams.WRAP_CONTENT
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
             )
         )
 
