@@ -2,50 +2,60 @@ package com.majidhajizade.messages
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
-import android.telephony.SmsManager
-import android.text.InputType
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import android.graphics.drawable.GradientDrawable
 
 class NewMessageActivity : Activity() {
 
-    private lateinit var phoneEditText: EditText
-    private lateinit var messageEditText: EditText
     private lateinit var contactsContainer: LinearLayout
-    private lateinit var recipientInputContainer: LinearLayout
-    private lateinit var recipientSearch: EditText
-    private lateinit var contactsScroll: ScrollView
-    private lateinit var plusButton: TextView
-
-    private var selectedContact: String? = null
+    private lateinit var searchInput: EditText
 
     companion object {
-        private const val SMS_PERMISSION_REQUEST = 1001
         private const val CONTACTS_PERMISSION_REQUEST = 1002
+        private val PAGE_BG = Color.rgb(239, 239, 242)
+        private val TEXT_COLOR = Color.rgb(28, 28, 30)
+        private val MUTED_COLOR = Color.rgb(125, 125, 130)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        window.statusBarColor = PAGE_BG
+        window.navigationBarColor = PAGE_BG
+        window.decorView.systemUiVisibility =
+            window.decorView.systemUiVisibility or
+                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+
         val existingPhone = intent.getStringExtra("phone")
+        if (!existingPhone.isNullOrBlank()) {
+            openConversation(existingPhone)
+            finish()
+            return
+        }
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
-            setPadding(dp(16), dp(36), dp(16), dp(16))
+            setBackgroundColor(PAGE_BG)
+            setPadding(dp(16), dp(8), dp(16), dp(12))
         }
 
         val header = LinearLayout(this).apply {
@@ -53,395 +63,565 @@ class NewMessageActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        val back = TextView(this).apply {
-            text = "‹  Back"
-            textSize = 17f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER_VERTICAL
+        val back = ImageView(this).apply {
+            setImageResource(R.drawable.ic_back_arrow)
+            contentDescription = "Back"
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(8), dp(8), dp(8), dp(8))
             setOnClickListener { finish() }
-        }
-
-        val title = TextView(this).apply {
-            text = "New Message"
-            textSize = 18f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
         }
 
         header.addView(
             back,
-            android.widget.LinearLayout.LayoutParams(dp(85), dp(48))
+            LinearLayout.LayoutParams(dp(44), dp(52))
         )
 
         header.addView(
-            title,
-            android.widget.LinearLayout.LayoutParams(0, dp(48), 1f)
-        )
-
-        header.addView(
-            TextView(this),
-            android.widget.LinearLayout.LayoutParams(dp(85), dp(48))
+            TextView(this).apply {
+                text = "New message"
+                textSize = 20f
+                setTextColor(TEXT_COLOR)
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER_VERTICAL
+            },
+            LinearLayout.LayoutParams(
+                0,
+                dp(52),
+                1f
+            ).apply {
+                leftMargin = dp(8)
+            }
         )
 
         root.addView(
             header,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(56)
             )
         )
 
-        val recipientBox = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = roundedBackground(Color.rgb(247, 247, 249), 18)
-            setPadding(dp(12), dp(4), dp(8), dp(4))
+        val contentScroll = ScrollView(this).apply {
+            isFillViewport = false
+            clipToPadding = false
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
         }
 
-        val recipientRow = LinearLayout(this).apply {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(10), 0, dp(12))
+        }
+
+        val searchBox = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            background = roundedBackground(Color.WHITE, 32)
+            setPadding(dp(16), 0, dp(16), 0)
         }
 
-        val recipientLabel = TextView(this).apply {
-            text = "Recipient"
-            textSize = 17f
-            setTextColor(Color.BLACK)
-            typeface = Typeface.DEFAULT_BOLD
-        }
-
-        plusButton = TextView(this).apply {
-            text = "+"
-            textSize = 28f
-            setTextColor(Color.BLACK)
+        val searchIcon = TextView(this).apply {
+            text = "⌕"
+            textSize = 27f
+            setTextColor(MUTED_COLOR)
             gravity = Gravity.CENTER
         }
 
-        recipientRow.addView(
-            recipientLabel,
-            android.widget.LinearLayout.LayoutParams(
+        searchBox.addView(
+            searchIcon,
+            LinearLayout.LayoutParams(dp(30), dp(52))
+        )
+
+        searchInput = EditText(this).apply {
+            hint = "Search Contacts"
+            textSize = 16f
+            setTextColor(TEXT_COLOR)
+            setHintTextColor(MUTED_COLOR)
+            singleLine = true
+            background = null
+            setPadding(dp(6), 0, dp(4), 0)
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+        }
+
+        searchBox.addView(
+            searchInput,
+            LinearLayout.LayoutParams(
                 0,
                 dp(52),
                 1f
             )
         )
 
-        recipientRow.addView(
-            plusButton,
-            android.widget.LinearLayout.LayoutParams(dp(48), dp(52))
-        )
-
-        recipientBox.addView(
-            recipientRow,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(52)
-            )
-        )
-
-        phoneEditText = EditText(this).apply {
-            hint = "Phone number or contact name"
-            textSize = 16f
-            setSingleLine(true)
-            inputType = InputType.TYPE_CLASS_TEXT
-            setPadding(dp(4), 0, dp(4), 0)
-
-            if (!existingPhone.isNullOrBlank()) {
-                setText(existingPhone)
-                isEnabled = false
+        content.addView(
+            searchBox,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(54)
+            ).apply {
+                bottomMargin = dp(14)
             }
+        )
+
+        val actionsCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = roundedBackground(Color.WHITE, 20)
+            setPadding(dp(14), dp(4), dp(14), dp(4))
         }
 
-        recipientBox.addView(
-            phoneEditText,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
+        actionsCard.addView(
+            actionRow("Enter Number", "＋") {
+                showEnterNumberDialog()
+            },
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(58)
             )
+        )
+
+        actionsCard.addView(
+            divider(),
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(1)
+            ).apply {
+                leftMargin = dp(48)
+            }
+        )
+
+        actionsCard.addView(
+            actionRow("New Group", "♧") {
+                Toast.makeText(
+                    this,
+                    "Group messaging is not available yet",
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(58)
+            )
+        )
+
+        content.addView(
+            actionsCard,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(16)
+            }
+        )
+
+        val contactsCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = roundedBackground(Color.WHITE, 20)
+            setPadding(dp(14), dp(12), dp(14), dp(8))
+        }
+
+        contactsCard.addView(
+            TextView(this).apply {
+                text = "All contacts"
+                textSize = 16f
+                setTextColor(TEXT_COLOR)
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(dp(2), dp(2), dp(2), dp(10))
+            }
         )
 
         contactsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(4), dp(4), dp(4), dp(4))
-            background = roundedBackground(Color.WHITE, 18)
-            elevation = dp(3).toFloat()
-            visibility = View.GONE
         }
 
-        contactsScroll = ScrollView(this).apply {
-            visibility = View.GONE
-            isFillViewport = true
-        }
-
-        contactsScroll.addView(
+        contactsCard.addView(
             contactsContainer,
-            android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
 
-        recipientBox.addView(
-            contactsScroll,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+        content.addView(
+            contactsCard,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        contentScroll.addView(
+            content,
+            ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        root.addView(
+            contentScroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
-            ).apply {
-                topMargin = dp(6)
-            }
-        )
-
-        plusButton.setOnClickListener {
-            if (contactsScroll.visibility == View.VISIBLE) {
-                contactsScroll.visibility = View.GONE
-                contactsContainer.visibility = View.GONE
-                plusButton.text = "+"
-            } else {
-                showContacts(contactsScroll, plusButton)
-            }
-        }
-
-        root.addView(
-            recipientBox,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(280)
-            ).apply {
-                topMargin = dp(12)
-            }
-        )
-
-        messageEditText = EditText(this).apply {
-            hint = "Message"
-            textSize = 17f
-            gravity = Gravity.TOP
-            minLines = 4
-            inputType =
-                InputType.TYPE_CLASS_TEXT or
-                InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            setPadding(dp(4), dp(8), dp(4), dp(8))
-        }
-
-        root.addView(
-            messageEditText,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(130)
-            ).apply {
-                topMargin = dp(8)
-            }
-        )
-
-        val sendButton = TextView(this).apply {
-            text = "Send"
-            textSize = 17f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setBackground(
-                GradientDrawable().apply {
-                    setColor(Color.rgb(0, 122, 255))
-                    cornerRadius = dp(28).toFloat()
-                    setStroke(dp(1), Color.rgb(218, 218, 223))
-                }
             )
-            setPadding(dp(20), dp(10), dp(20), dp(10))
-            setOnClickListener { sendSms() }
-        }
-
-        root.addView(
-            sendButton,
-            android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(50)
-            ).apply {
-                topMargin = dp(16)
-            }
         )
 
         setContentView(root)
 
-        if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
-            != PackageManager.PERMISSION_GRANTED
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(
+                s: CharSequence?,
+                start: Int,
+                count: Int,
+                after: Int
+            ) = Unit
+
+            override fun onTextChanged(
+                s: CharSequence?,
+                start: Int,
+                before: Int,
+                count: Int
+            ) {
+                loadContacts(s?.toString().orEmpty())
+            }
+
+            override fun afterTextChanged(s: Editable?) = Unit
+        })
+
+        if (
+            checkSelfPermission(Manifest.permission.READ_CONTACTS) !=
+            PackageManager.PERMISSION_GRANTED
         ) {
             requestPermissions(
                 arrayOf(Manifest.permission.READ_CONTACTS),
                 CONTACTS_PERMISSION_REQUEST
             )
+        } else {
+            loadContacts()
         }
     }
 
-    private fun showContacts(
-        scroll: ScrollView,
-        plusButton: TextView
-    ) {
-        if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(
-                arrayOf(Manifest.permission.READ_CONTACTS),
-                CONTACTS_PERMISSION_REQUEST
+    private fun actionRow(
+        label: String,
+        symbol: String,
+        action: () -> Unit
+    ): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { action() }
+
+            val icon = TextView(this@NewMessageActivity).apply {
+                text = symbol
+                textSize = 24f
+                setTextColor(TEXT_COLOR)
+                gravity = Gravity.CENTER
+            }
+
+            addView(
+                icon,
+                LinearLayout.LayoutParams(dp(42), dp(48))
             )
-            return
+
+            addView(
+                TextView(this@NewMessageActivity).apply {
+                    text = label
+                    textSize = 16f
+                    setTextColor(TEXT_COLOR)
+                    gravity = Gravity.CENTER_VERTICAL
+                },
+                LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    1f
+                ).apply {
+                    leftMargin = dp(6)
+                }
+            )
         }
-
-        scroll.visibility = View.VISIBLE
-        contactsContainer.visibility = View.VISIBLE
-        plusButton.text = "×"
-
-        filterContacts(phoneEditText.text.toString(), scroll, plusButton)
     }
 
-    private fun filterContacts(
-        query: String,
-        scroll: ScrollView,
-        plusButton: TextView
-    ) {
-        if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
-            != PackageManager.PERMISSION_GRANTED
+    private fun divider(): View {
+        return View(this).apply {
+            setBackgroundColor(Color.rgb(235, 235, 238))
+        }
+    }
+
+    private fun loadContacts(query: String = "") {
+        if (
+            checkSelfPermission(Manifest.permission.READ_CONTACTS) !=
+            PackageManager.PERMISSION_GRANTED
         ) return
 
         contactsContainer.removeAllViews()
 
-        val q = query.trim().lowercase()
-
+        val normalizedQuery = query.trim().lowercase()
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-            ContactsContract.CommonDataKinds.Phone.NUMBER
+            ContactsContract.CommonDataKinds.Phone.NUMBER,
+            ContactsContract.CommonDataKinds.Phone.PHOTO_URI
         )
 
-        contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            projection,
-            null,
-            null,
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
-        )?.use { cursor ->
+        val seen = mutableSetOf<String>()
 
-            val seen = mutableSetOf<String>()
-            val nameIndex = cursor.getColumnIndex(
-                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
-            )
-            val numberIndex = cursor.getColumnIndex(
-                ContactsContract.CommonDataKinds.Phone.NUMBER
-            )
+        try {
+            contentResolver.query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                projection,
+                null,
+                null,
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
+            )?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(
+                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+                )
+                val numberIndex = cursor.getColumnIndex(
+                    ContactsContract.CommonDataKinds.Phone.NUMBER
+                )
+                val photoIndex = cursor.getColumnIndex(
+                    ContactsContract.CommonDataKinds.Phone.PHOTO_URI
+                )
 
-            while (cursor.moveToNext()) {
-                val name = cursor.getString(nameIndex) ?: continue
-                val number = cursor.getString(numberIndex) ?: continue
-
-                if (!seen.add(number)) continue
-
-                if (
-                    q.isNotEmpty() &&
-                    !name.lowercase().contains(q) &&
-                    !number.contains(q)
-                ) continue
-
-                val row = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(dp(12), dp(6), dp(12), dp(6))
-
-                    setOnClickListener {
-                        phoneEditText.setText(number)
-                        phoneEditText.setSelection(phoneEditText.length())
-                        contactsContainer.visibility = View.GONE
-                        plusButtonAfterSelection(contactsScroll, plusButton)
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(nameIndex) ?: continue
+                    val number = cursor.getString(numberIndex) ?: continue
+                    val photoUri = if (photoIndex >= 0) {
+                        cursor.getString(photoIndex)
+                    } else {
+                        null
                     }
+
+                    if (!seen.add(number)) continue
+
+                    if (
+                        normalizedQuery.isNotEmpty() &&
+                        !name.lowercase().contains(normalizedQuery) &&
+                        !number.lowercase().contains(normalizedQuery)
+                    ) continue
+
+                    contactsContainer.addView(
+                        contactRow(name, number, photoUri),
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            dp(68)
+                        )
+                    )
                 }
+            }
+        } catch (_: Exception) {
+            // Keep the screen usable if the contacts provider is unavailable.
+        }
 
-                row.addView(
-                    TextView(this).apply {
-                        text = name
-                        textSize = 16f
-                        setTextColor(Color.BLACK)
-                        typeface = Typeface.DEFAULT_BOLD
-                    },
-                    android.widget.LinearLayout.LayoutParams(
-                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                        dp(27)
-                    )
+        if (contactsContainer.childCount == 0) {
+            contactsContainer.addView(
+                TextView(this).apply {
+                    text = if (normalizedQuery.isEmpty()) {
+                        "No contacts found"
+                    } else {
+                        "No matching contacts"
+                    }
+                    textSize = 14f
+                    setTextColor(MUTED_COLOR)
+                    gravity = Gravity.CENTER
+                    setPadding(0, dp(24), 0, dp(24))
+                }
+            )
+        }
+    }
+
+    private fun contactRow(
+        name: String,
+        number: String,
+        photoUri: String?
+    ): View {
+        val avatarSize = dp(46)
+        val avatarBackground = roundedBackground(avatarColor(name), 100)
+
+        val avatar = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            background = avatarBackground
+            clipToOutline = true
+            contentDescription = name
+
+            if (!photoUri.isNullOrBlank()) {
+                try {
+                    contentResolver.openInputStream(Uri.parse(photoUri))?.use { stream ->
+                        val bitmap = BitmapFactory.decodeStream(stream)
+                        if (bitmap != null) setImageBitmap(bitmap)
+                    }
+                } catch (_: Exception) {
+                    // Initials remain visible if the photo cannot be loaded.
+                }
+            }
+        }
+
+        val avatarContainer = android.widget.FrameLayout(this).apply {
+            background = roundedBackground(avatarColor(name), 100)
+            clipChildren = true
+            clipToPadding = true
+
+            addView(
+                avatar,
+                android.widget.FrameLayout.LayoutParams(
+                    avatarSize,
+                    avatarSize
                 )
+            )
 
-                row.addView(
-                    TextView(this).apply {
-                        text = number
+            if (avatar.drawable == null) {
+                addView(
+                    TextView(this@NewMessageActivity).apply {
+                        text = initials(name)
                         textSize = 14f
-                        setTextColor(Color.GRAY)
+                        setTextColor(Color.WHITE)
+                        typeface = Typeface.DEFAULT_BOLD
+                        gravity = Gravity.CENTER
+                        background = roundedBackground(avatarColor(name), 100)
+                        isClickable = false
                     },
-                    android.widget.LinearLayout.LayoutParams(
-                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                        dp(23)
-                    )
-                )
-
-                contactsContainer.addView(
-                    row,
-                    android.widget.LinearLayout.LayoutParams(
-                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                        dp(54)
+                    android.widget.FrameLayout.LayoutParams(
+                        avatarSize,
+                        avatarSize
                     )
                 )
             }
         }
-    }
 
-    private fun plusButtonAfterSelection(
-        scroll: ScrollView,
-        plusButton: TextView
-    ) {
-        scroll.visibility = View.GONE
-        contactsContainer.visibility = View.GONE
-        plusButton.text = "+"
-    }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { openConversation(number) }
 
-    private fun sendSms() {
-        val phone = phoneEditText.text.toString().trim()
-        val message = messageEditText.text.toString().trim()
-
-        if (phone.isEmpty() || message.isEmpty()) {
-            Toast.makeText(
-                this,
-                "Recipient and message are required",
-                Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
-
-        if (checkSelfPermission(Manifest.permission.SEND_SMS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(
-                arrayOf(Manifest.permission.SEND_SMS),
-                SMS_PERMISSION_REQUEST
+            addView(
+                avatarContainer,
+                LinearLayout.LayoutParams(dp(48), dp(48))
             )
-            return
-        }
 
-        try {
-            SmsManager.getDefault().sendTextMessage(
-                phone,
-                null,
-                message,
-                null,
-                null
+            val labels = LinearLayout(this@NewMessageActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_VERTICAL
+
+                addView(
+                    TextView(this@NewMessageActivity).apply {
+                        text = name
+                        textSize = 15f
+                        setTextColor(TEXT_COLOR)
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    }
+                )
+
+                addView(
+                    TextView(this@NewMessageActivity).apply {
+                        text = number
+                        textSize = 13f
+                        setTextColor(MUTED_COLOR)
+                        maxLines = 1
+                    },
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        topMargin = dp(2)
+                    }
+                )
+            }
+
+            addView(
+                labels,
+                LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    1f
+                ).apply {
+                    leftMargin = dp(12)
+                }
             )
-            Toast.makeText(
-                this,
-                "Message sent",
-                Toast.LENGTH_SHORT
-            ).show()
-            finish()
-        } catch (e: Exception) {
-            Toast.makeText(
-                this,
-                "Failed to send message",
-                Toast.LENGTH_LONG
-            ).show()
         }
     }
+
+    private fun showEnterNumberDialog() {
+        val input = EditText(this).apply {
+            hint = "Phone number"
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
+            setSingleLine(true)
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+        }
+
+        val container = LinearLayout(this).apply {
+            setPadding(dp(20), dp(8), dp(20), 0)
+            addView(
+                input,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(54)
+                )
+            )
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Enter Number")
+            .setView(container)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Continue", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val phone = input.text.toString().trim()
+                if (phone.isBlank()) {
+                    input.error = "Enter a phone number"
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                openConversation(phone)
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun openConversation(phone: String) {
+        startActivity(
+            Intent(this, ConversationActivity::class.java)
+                .putExtra("phone", phone.trim())
+        )
+    }
+
+    private fun initials(name: String): String {
+        val parts = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        return when {
+            parts.isEmpty() -> "?"
+            parts.size == 1 -> parts[0].take(1).uppercase()
+            else -> (parts.first().take(1) + parts.last().take(1)).uppercase()
+        }
+    }
+
+    private fun avatarColor(name: String): Int {
+        val colors = intArrayOf(
+            Color.rgb(0, 145, 210),
+            Color.rgb(34, 155, 126),
+            Color.rgb(121, 103, 205),
+            Color.rgb(210, 137, 49),
+            Color.rgb(207, 83, 111),
+            Color.rgb(58, 132, 191),
+            Color.rgb(40, 145, 103),
+            Color.rgb(166, 100, 191)
+        )
+        return colors[(name.hashCode() and Int.MAX_VALUE) % colors.size]
+    }
+
+    private fun roundedBackground(color: Int, radius: Int): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = dp(radius).toFloat()
+        }
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -450,38 +630,19 @@ class NewMessageActivity : Activity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        val granted = grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED
-
-        when (requestCode) {
-            CONTACTS_PERMISSION_REQUEST -> {
-                if (granted) {
-                    showContacts(contactsScroll, plusButton)
-                } else {
-                    Toast.makeText(this, "Contacts permission denied", Toast.LENGTH_LONG).show()
-                }
-            }
-            SMS_PERMISSION_REQUEST -> {
-                if (granted) {
-                    sendSms()
-                } else {
-                    Toast.makeText(this, "SMS permission denied", Toast.LENGTH_LONG).show()
-                }
+        if (requestCode == CONTACTS_PERMISSION_REQUEST) {
+            if (
+                grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+            ) {
+                loadContacts(searchInput.text.toString())
+            } else {
+                Toast.makeText(
+                    this,
+                    "Contacts permission denied",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
-    }
-
-    private fun roundedBackground(
-        color: Int,
-        radius: Int
-    ): GradientDrawable {
-        return GradientDrawable().apply {
-            setColor(color)
-            cornerRadius = dp(radius).toFloat()
-        }
-    }
-
-    private fun dp(value: Int): Int {
-        return (value * resources.displayMetrics.density).toInt()
     }
 }
