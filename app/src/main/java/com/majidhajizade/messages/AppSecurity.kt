@@ -673,22 +673,29 @@ object AppSecurity {
                 lockAnimation.repeatCount = 0
                 lockAnimation.removeAllAnimatorListeners()
                 lockAnimation.progress = 0f
+
                 lockAnimation.addAnimatorListener(object : AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: Animator) {
+                        // Keep the fully closed frame visible before dismissing.
                         lockAnimation.progress = 1f
-                        completeUnlock()
+                        root.postDelayed({
+                            completeUnlock()
+                        }, 180L)
                     }
                 })
+
                 lockAnimation.playAnimation()
 
-                // Fallback: keep the lock on its closed final frame.
+                // Safety fallback, after the close animation has had time to finish.
                 root.postDelayed({
                     if (!unlockFinished) {
                         lockAnimation.cancelAnimation()
                         lockAnimation.progress = 1f
-                        completeUnlock()
+                        root.postDelayed({
+                            completeUnlock()
+                        }, 180L)
                     }
-                }, 1000L)
+                }, 1400L)
             }
         }
 
