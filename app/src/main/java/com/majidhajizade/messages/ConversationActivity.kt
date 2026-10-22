@@ -59,8 +59,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private lateinit var contactTitle: TextView
     private lateinit var contactAvatarView: View
     private lateinit var contactNameRow: LinearLayout
-    private var searchMode = false
-    private var searchQuery = ""
 
     private val blue = Color.rgb(0, 122, 255)
     private val secondaryText = Color.rgb(110, 110, 115)
@@ -681,6 +679,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         val backCapsule = LinearLayout(this).apply {
+            translationY = -dp(8).toFloat()
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 setColor(
@@ -787,7 +786,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             ellipsize = android.text.TextUtils.TruncateAt.END
             contentDescription = "Open contact details"
             setOnClickListener {
-                if (!searchMode) showContactDetails(contactName)
+                showContactDetails(contactName)
             }
         }
 
@@ -798,18 +797,19 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             isClickable = true
             isFocusable = true
             setOnClickListener {
-                if (!searchMode) showContactDetails(contactName)
+                showContactDetails(contactName)
             }
         }
 
         contactNameRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
+            translationX = -dp(13).toFloat()
             gravity = Gravity.CENTER
             isClickable = true
             isFocusable = true
             contentDescription = "Open contact details"
             setOnClickListener {
-                if (!searchMode) showContactDetails(contactName)
+                showContactDetails(contactName)
             }
         }
 
@@ -834,6 +834,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 dp(26)
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(4)
             }
         )
 
@@ -852,14 +853,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         profileCapsule.isClickable = true
         profileCapsule.isFocusable = true
         profileCapsule.setOnClickListener {
-            if (!searchMode) showContactDetails(contactName)
-        }
-        profileCapsule.setOnLongClickListener {
-            enterSearchMode()
-            true
+            showContactDetails(contactName)
         }
 
         val moreCapsule = LinearLayout(this).apply {
+            translationY = -dp(8).toFloat()
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 setColor(
@@ -1671,167 +1669,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         // تأیید تحویل حفظ می‌شود؛ آیکون تیک نمایش داده نمی‌شود.
     }
 
-    private fun enterSearchMode() {
-        if (searchMode) return
-        searchMode = true
-        searchQuery = ""
-
-        profileCapsule.removeAllViews()
-        profileCapsule.background = GradientDrawable().apply {
-            setColor(
-                if (isDarkThemeEnabled()) Color.rgb(48, 48, 55)
-                else Color.rgb(250, 250, 250)
-            )
-            cornerRadius = dp(24).toFloat()
-            setStroke(
-                dp(1),
-                if (isDarkThemeEnabled()) Color.rgb(67, 67, 75)
-                else Color.rgb(218, 218, 218)
-            )
-        }
-
-        val searchIcon = TextView(this).apply {
-            text = "⌕"
-            textSize = 28f
-            gravity = Gravity.CENTER
-            setTextColor(Color.DKGRAY)
-            contentDescription = "Search"
-        }
-        profileCapsule.addView(
-            searchIcon,
-            android.widget.FrameLayout.LayoutParams(dp(40), dp(48)).apply {
-                gravity = Gravity.START or Gravity.CENTER_VERTICAL
-            }
-        )
-
-        val searchInput = EditText(this).apply {
-            tag = "chat_search_input"
-            hint = "Search"
-            textSize = 16f
-            setSingleLine(true)
-            setTextColor(Color.BLACK)
-            setHintTextColor(Color.GRAY)
-            background = null
-            setPadding(dp(2), 0, dp(2), 0)
-            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
-            addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                    searchQuery = s?.toString().orEmpty()
-                    filterVisibleMessages()
-                }
-                override fun afterTextChanged(s: Editable?) = Unit
-            })
-        }
-        profileCapsule.addView(
-            searchInput,
-            android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(48)
-            ).apply {
-                leftMargin = dp(40)
-                rightMargin = dp(44)
-                gravity = Gravity.CENTER_VERTICAL
-            }
-        )
-
-        val close = TextView(this).apply {
-            text = "×"
-            textSize = 28f
-            gravity = Gravity.CENTER
-            setTextColor(Color.DKGRAY)
-            contentDescription = "Close search"
-            setOnClickListener {
-                searchMode = false
-                searchQuery = ""
-                profileCapsule.removeAllViews()
-                profileCapsule.setBackgroundColor(Color.TRANSPARENT)
-                profileCapsule.addView(
-                    contactAvatarView,
-                    android.widget.FrameLayout.LayoutParams(dp(56), dp(56)).apply {
-                        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                        topMargin = dp(5)
-                    }
-                )
-                profileCapsule.addView(
-                    contactNameRow,
-                    android.widget.FrameLayout.LayoutParams(
-                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                        dp(26)
-                    ).apply {
-                        gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                    }
-                )
-                filterVisibleMessages()
-            }
-        }
-        profileCapsule.addView(
-            close,
-            android.widget.FrameLayout.LayoutParams(dp(44), dp(48)).apply {
-                gravity = Gravity.END or Gravity.CENTER_VERTICAL
-            }
-        )
-
-        searchInput.requestFocus()
-        searchInput.post {
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            imm.showSoftInput(searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-        }
-    }
-
-    private fun filterVisibleMessages() {
-        if (!::messagesContainer.isInitialized) return
-
-        val query = searchQuery.trim()
-        val count = messagesContainer.childCount
-
-        if (query.isEmpty()) {
-            for (i in 0 until count) {
-                messagesContainer.getChildAt(i).visibility = View.VISIBLE
-            }
-            return
-        }
-
-        // Filter message rows by their message body.
-        for (i in 0 until count) {
-            val child = messagesContainer.getChildAt(i)
-            val bodyText = messageBodyText(
-                child.findViewWithTag<View>("message_body")
-            )
-
-            if (bodyText != null) {
-                child.visibility = if (
-                    bodyText.contains(query, ignoreCase = true)
-                ) View.VISIBLE else View.GONE
-            }
-        }
-
-        // Only toggle explicitly tagged date separators.
-        for (i in 0 until count) {
-            val child = messagesContainer.getChildAt(i)
-            if (child.tag != "date_header_row") continue
-
-            var hasMatch = false
-            var j = i + 1
-
-            while (j < count) {
-                val next = messagesContainer.getChildAt(j)
-                if (next.tag == "date_header_row") break
-
-                val bodyText = messageBodyText(
-                    next.findViewWithTag<View>("message_body")
-                )
-                if (bodyText != null && next.visibility == View.VISIBLE) {
-                    hasMatch = true
-                    break
-                }
-                j++
-            }
-
-            child.visibility = if (hasMatch) View.VISIBLE else View.GONE
-        }
-    }
-
     private var isPopulatingConversation = false
 
     private fun loadConversation() {
@@ -1859,7 +1696,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
             isPopulatingConversation = false
             playAllLargeEmojiAnimations()
-            filterVisibleMessages()
             scrollView.post {
                 scrollView.fullScroll(View.FOCUS_DOWN)
             }
@@ -1924,7 +1760,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         isPopulatingConversation = false
         playAllLargeEmojiAnimations()
-        filterVisibleMessages()
         scrollView.post {
             scrollView.fullScroll(View.FOCUS_DOWN)
         }
