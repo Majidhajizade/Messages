@@ -668,16 +668,27 @@ object AppSecurity {
                 unlockInProgress = true
                 fingerprintKey?.isEnabled = false
 
+                lockAnimation.cancelAnimation()
                 lockAnimation.setAnimation(R.raw.passcode_lock_close)
                 lockAnimation.repeatCount = 0
                 lockAnimation.removeAllAnimatorListeners()
+                lockAnimation.progress = 0f
                 lockAnimation.addAnimatorListener(object : AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: Animator) {
+                        lockAnimation.progress = 1f
                         completeUnlock()
                     }
                 })
                 lockAnimation.playAnimation()
-                root.postDelayed({ completeUnlock() }, 1200L)
+
+                // Fallback: keep the lock on its closed final frame.
+                root.postDelayed({
+                    if (!unlockFinished) {
+                        lockAnimation.cancelAnimation()
+                        lockAnimation.progress = 1f
+                        completeUnlock()
+                    }
+                }, 1000L)
             }
         }
 
