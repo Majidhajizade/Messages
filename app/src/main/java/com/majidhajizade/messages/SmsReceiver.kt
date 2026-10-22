@@ -52,6 +52,40 @@ class SmsReceiver : BroadcastReceiver() {
             }
         }
 
+        // Optional promotional SMS filtering must happen before either
+        // app-level persistence, provider insertion, or notification.
+        val settingsPrefs = context.getSharedPreferences(
+            "messages_settings",
+            Context.MODE_PRIVATE
+        )
+        if (
+            settingsPrefs.getBoolean("auto_filter_promotional_sms", false) &&
+            SmsSpamFilter.isPromotional(sender, body)
+        ) {
+            val quarantinePrefs = context.getSharedPreferences(
+                "messages",
+                Context.MODE_PRIVATE
+            )
+            val filtered = quarantinePrefs.getStringSet(
+                "filtered_promotional_sms",
+                emptySet()
+            )?.toMutableSet() ?: mutableSetOf()
+
+            filtered.add("$timestamp|$sender|$body")
+
+            // Keep the quarantine bounded.
+            while (filtered.size > 200) {
+                filtered.remove(filtered.first())
+            }
+
+            quarantinePrefs.edit()
+                .putStringSet("filtered_promotional_sms", filtered)
+                .apply()
+
+            Log.i("MessagesSms", "Promotional SMS filtered and quarantined")
+            return
+        }
+
         // SMS_DELIVER is sent to the default SMS app, which must store
         // the incoming message in Android's SMS provider.
         if (

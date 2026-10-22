@@ -4331,6 +4331,61 @@ private fun createSelectionActionBar(): LinearLayout {
             ).show()
         }
 
+        // Promotional SMS filtering is opt-in and disabled by default.
+        val spamFilterRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(18), 0, 0)
+        }
+
+        val spamFilterLabels = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        spamFilterLabels.addView(TextView(this).apply {
+            text = "Filter promotional SMS"
+            textSize = 16f
+            setTextColor(Color.rgb(33, 33, 33))
+        })
+
+        spamFilterLabels.addView(TextView(this).apply {
+            text = "Automatically filter likely carrier ads; security and banking messages are exempt"
+            textSize = 13f
+            setTextColor(Color.rgb(110, 110, 115))
+            setPadding(0, dp(4), 0, 0)
+        })
+
+        spamFilterRow.addView(
+            spamFilterLabels,
+            LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        )
+
+        val spamFilterSwitch = android.widget.Switch(this).apply {
+            isChecked = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean("auto_filter_promotional_sms", false)
+
+            setOnCheckedChangeListener { _, enabled ->
+                getSharedPreferences(PREFS, MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("auto_filter_promotional_sms", enabled)
+                    .apply()
+
+                Toast.makeText(
+                    this@MainActivity,
+                    if (enabled) "Promotional SMS filtering enabled"
+                    else "Promotional SMS filtering disabled",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        spamFilterRow.addView(spamFilterSwitch)
+        chatSettingsCard.addView(spamFilterRow)
+
         chatSettingsCard.addView(themeRow)
 
         page.addView(
