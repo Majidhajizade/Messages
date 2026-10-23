@@ -692,26 +692,33 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         // لایه محوشونده بالای صفحه، با حفظ تم روشن و تاریک
         // پوشش مات بالای پیام‌ها؛ کنترل‌های هدر در لایه بالاتر باقی می‌مانند
+        // پوشش کوتاه و شفاف بالای چت با محوشدن تدریجی به سمت پایین
         val topFade = View(this).apply {
             isClickable = false
             isFocusable = false
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(
-                    if (darkTheme) Color.BLACK else Color.WHITE,
-                    if (darkTheme) Color.BLACK else Color.WHITE,
-                    if (darkTheme) Color.BLACK else Color.WHITE,
+                    if (darkTheme) Color.argb(145, 0, 0, 0)
+                    else Color.argb(145, 255, 255, 255),
+                    if (darkTheme) Color.argb(100, 0, 0, 0)
+                    else Color.argb(100, 255, 255, 255),
+                    if (darkTheme) Color.argb(40, 0, 0, 0)
+                    else Color.argb(40, 255, 255, 255),
                     Color.TRANSPARENT
                 )
             ).apply {
                 setColors(
                     intArrayOf(
-                        if (darkTheme) Color.BLACK else Color.WHITE,
-                        if (darkTheme) Color.BLACK else Color.WHITE,
-                        if (darkTheme) Color.BLACK else Color.WHITE,
+                        if (darkTheme) Color.argb(145, 0, 0, 0)
+                        else Color.argb(145, 255, 255, 255),
+                        if (darkTheme) Color.argb(100, 0, 0, 0)
+                        else Color.argb(100, 255, 255, 255),
+                        if (darkTheme) Color.argb(40, 0, 0, 0)
+                        else Color.argb(40, 255, 255, 255),
                         Color.TRANSPARENT
                     ),
-                    floatArrayOf(0f, 0.68f, 0.86f, 1f)
+                    floatArrayOf(0f, 0.35f, 0.72f, 1f)
                 )
             }
         }
@@ -1021,7 +1028,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             topFade,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(250)
+                dp(170)
             ).apply { gravity = Gravity.TOP }
         )
         root.addView(
