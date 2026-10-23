@@ -735,7 +735,18 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enablePressEffect = true
             pressScale = 0.96f
             enableAdaptiveTint = false
-            glassTint = Color.argb(220, 235, 237, 240)
+            glassTint = if (isDarkThemeEnabled()) {
+                Color.argb(220, 235, 237, 240)
+            } else {
+                Color.argb(48, 255, 255, 255)
+            }
+            if (!isDarkThemeEnabled()) {
+                blurAmount = 0.075f
+                enableBackdropBlur = true
+                enableDynamicBackground = true
+                enableChromaticAberration = true
+                edgeHighlightOpacity = 72f
+            }
         }
         backCapsule.setOnClickListener { finish() }
 
@@ -877,7 +888,18 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enablePressEffect = true
             pressScale = 0.98f
             enableAdaptiveTint = false
-            glassTint = Color.argb(220, 235, 237, 240)
+            glassTint = if (isDarkThemeEnabled()) {
+                Color.argb(220, 235, 237, 240)
+            } else {
+                Color.argb(48, 255, 255, 255)
+            }
+            if (!isDarkThemeEnabled()) {
+                blurAmount = 0.075f
+                enableBackdropBlur = true
+                enableDynamicBackground = true
+                enableChromaticAberration = true
+                edgeHighlightOpacity = 72f
+            }
         }
         contactNameGlass.setPadding(dp(3), 0, dp(3), 0)
         contactNameGlass.addView(
@@ -928,7 +950,18 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enablePressEffect = true
             pressScale = 0.96f
             enableAdaptiveTint = false
-            glassTint = Color.argb(220, 235, 237, 240)
+            glassTint = if (isDarkThemeEnabled()) {
+                Color.argb(220, 235, 237, 240)
+            } else {
+                Color.argb(48, 255, 255, 255)
+            }
+            if (!isDarkThemeEnabled()) {
+                blurAmount = 0.075f
+                enableBackdropBlur = true
+                enableDynamicBackground = true
+                enableChromaticAberration = true
+                edgeHighlightOpacity = 72f
+            }
         }
         val moreButton = TextView(this).apply {
             text = "⋮"
@@ -997,7 +1030,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         listOf(backCapsule, contactNameGlass, moreCapsule).forEach { glass ->
             (glass as? LiquidGlassView)?.apply {
                 backdropSource = scrollView
-                enableDynamicBackground = true
+                if (!isDarkThemeEnabled()) {
+                    enableDynamicBackground = true
+                }
             }
         }
 
@@ -1279,11 +1314,24 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enableSensorHighlight = true
             enablePressEffect = true
             enableAdaptiveTint = false
-            glassTint = Color.argb(220, 235, 237, 240)
+            glassTint = if (isDarkThemeEnabled()) {
+                Color.argb(220, 235, 237, 240)
+            } else {
+                Color.argb(48, 255, 255, 255)
+            }
+            if (!isDarkThemeEnabled()) {
+                blurAmount = 0.075f
+                enableBackdropBlur = true
+                enableDynamicBackground = true
+                enableChromaticAberration = true
+                edgeHighlightOpacity = 72f
+            }
             clipChildren = false
             clipToPadding = false
             backdropSource = scrollView
-            enableDynamicBackground = true
+            if (!isDarkThemeEnabled()) {
+                enableDynamicBackground = true
+            }
         }
         composerGlass.addView(
             composer,
