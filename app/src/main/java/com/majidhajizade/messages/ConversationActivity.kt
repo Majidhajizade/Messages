@@ -741,12 +741,22 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 Color.argb(48, 255, 255, 255)
             }
             if (!isDarkThemeEnabled()) {
-                adaptiveLensScale = false
-                blurAmount = 0.10f
-                enableBackdropBlur = true
-                enableDynamicBackground = true
-                enableChromaticAberration = true
-                edgeHighlightOpacity = 90f
+                refractionHeight = 0f
+                bevelWidth = 0f
+                dispersionStrength = 0f
+                blurAmount = 0f
+                enableBackdropBlur = false
+                enableDynamicBackground = false
+                enableChromaticAberration = false
+                enableSensorHighlight = false
+                enablePressEffect = false
+                edgeHighlightOpacity = 0f
+                glassTint = Color.TRANSPARENT
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(android.graphics.Color.WHITE)
+                    cornerRadius = dp(24).toFloat()
+                }
+                elevation = dp(2).toFloat()
             }
         }
         backCapsule.setOnClickListener { finish() }
@@ -895,12 +905,22 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 Color.argb(48, 255, 255, 255)
             }
             if (!isDarkThemeEnabled()) {
-                adaptiveLensScale = false
-                blurAmount = 0.08f
-                enableBackdropBlur = true
-                enableDynamicBackground = true
-                enableChromaticAberration = true
-                edgeHighlightOpacity = 82f
+                refractionHeight = 0f
+                bevelWidth = 0f
+                dispersionStrength = 0f
+                blurAmount = 0f
+                enableBackdropBlur = false
+                enableDynamicBackground = false
+                enableChromaticAberration = false
+                enableSensorHighlight = false
+                enablePressEffect = false
+                edgeHighlightOpacity = 0f
+                glassTint = Color.TRANSPARENT
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(android.graphics.Color.WHITE)
+                    cornerRadius = dp(17).toFloat()
+                }
+                elevation = dp(2).toFloat()
             }
         }
         contactNameGlass.setPadding(dp(3), 0, dp(3), 0)
@@ -958,12 +978,22 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 Color.argb(48, 255, 255, 255)
             }
             if (!isDarkThemeEnabled()) {
-                adaptiveLensScale = false
-                blurAmount = 0.10f
-                enableBackdropBlur = true
-                enableDynamicBackground = true
-                enableChromaticAberration = true
-                edgeHighlightOpacity = 90f
+                refractionHeight = 0f
+                bevelWidth = 0f
+                dispersionStrength = 0f
+                blurAmount = 0f
+                enableBackdropBlur = false
+                enableDynamicBackground = false
+                enableChromaticAberration = false
+                enableSensorHighlight = false
+                enablePressEffect = false
+                edgeHighlightOpacity = 0f
+                glassTint = Color.TRANSPARENT
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(android.graphics.Color.WHITE)
+                    cornerRadius = dp(24).toFloat()
+                }
+                elevation = dp(2).toFloat()
             }
         }
         val moreButton = TextView(this).apply {
@@ -1323,19 +1353,26 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 Color.argb(48, 255, 255, 255)
             }
             if (!isDarkThemeEnabled()) {
-                adaptiveLensScale = false
-                blurAmount = 0.10f
-                enableBackdropBlur = true
-                enableDynamicBackground = true
-                enableChromaticAberration = true
-                edgeHighlightOpacity = 90f
+                refractionHeight = 0f
+                bevelWidth = 0f
+                dispersionStrength = 0f
+                blurAmount = 0f
+                enableBackdropBlur = false
+                enableDynamicBackground = false
+                enableChromaticAberration = false
+                enableSensorHighlight = false
+                enablePressEffect = false
+                edgeHighlightOpacity = 0f
+                glassTint = Color.TRANSPARENT
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(android.graphics.Color.WHITE)
+                    cornerRadius = dp(28).toFloat()
+                }
+                elevation = dp(2).toFloat()
             }
             clipChildren = false
             clipToPadding = false
             backdropSource = scrollView
-            if (!isDarkThemeEnabled()) {
-                enableDynamicBackground = true
-            }
         }
         composerGlass.addView(
             composer,
@@ -1505,12 +1542,14 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             label: String,
             iconRes: Int,
             onClick: () -> Unit
-        ): LinearLayout {
+        ): View {
+            val dark = isDarkThemeEnabled()
+
             val card = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
-                    setColor(if (isDarkThemeEnabled()) Color.rgb(43, 43, 49) else Color.WHITE)
+                    setColor(if (dark) Color.TRANSPARENT else Color.WHITE)
                     cornerRadius = dp(18).toFloat()
                 }
                 isClickable = true
@@ -1521,22 +1560,20 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
             val icon = android.widget.ImageView(this).apply {
                 setImageResource(iconRes)
-                setColorFilter(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
+                setColorFilter(if (dark) Color.WHITE else Color.BLACK)
                 scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
                 contentDescription = label
             }
-
             card.addView(icon, LinearLayout.LayoutParams(dp(27), dp(27)))
 
             val text = TextView(this).apply {
                 this.text = label
                 textSize = 12f
-                setTextColor(if (isDarkThemeEnabled()) Color.WHITE else Color.BLACK)
+                setTextColor(if (dark) Color.WHITE else Color.BLACK)
                 gravity = Gravity.CENTER
                 maxLines = 2
+                tag = "contact_action_label"
             }
-
-            text.tag = "contact_action_label"
             card.addView(text, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -1544,9 +1581,25 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 topMargin = dp(5)
             })
 
-            return card
-        }
+            if (!dark) return card
 
+            return LiquidGlassView(this).apply {
+                cornerRadius = dp(18).toFloat()
+                material = GlassMaterial.CLEAR
+                refractionHeight = dp(5).toFloat()
+                bevelWidth = dp(8).toFloat()
+                dispersionStrength = 0.035f
+                enableSensorHighlight = true
+                enablePressEffect = true
+                pressScale = 0.97f
+                enableAdaptiveTint = false
+                glassTint = Color.argb(220, 235, 237, 240)
+                addView(card, android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+                ))
+            }
+        }
         actions.addView(
             makeAction("Notifications", R.drawable.ic_notification_on) {
                 notificationsEnabled = !notificationsEnabled

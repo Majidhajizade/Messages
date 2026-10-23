@@ -1,5 +1,8 @@
 package com.majidhajizade.messages
 
+import com.example.liquidglass.GlassMaterial
+import com.example.liquidglass.LiquidGlassView
+
 import android.Manifest
 import android.app.Activity
 import android.app.Notification
@@ -163,9 +166,9 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     private val selectionDragHandles = mutableMapOf<String, View>()
     private var selectionMode = false
     private var selectionBackCallback: OnBackInvokedCallback? = null
-    private lateinit var selectionHeader: LinearLayout
+    private lateinit var selectionHeader: View
     private lateinit var selectionSelectedText: TextView
-    private lateinit var selectionActionBar: LinearLayout
+    private lateinit var selectionActionBar: View
 private lateinit var selectionPinIcon: android.widget.ImageView
 private lateinit var selectionNotificationIcon: android.widget.ImageView
 companion object {
@@ -3574,7 +3577,7 @@ companion object {
         }
     }
 
-        private fun createSelectionHeader(): LinearLayout {
+        private fun createSelectionHeader(): View {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -3633,16 +3636,33 @@ companion object {
         }
         header.addView(hideButton, LinearLayout.LayoutParams(dp(48), dp(48)))
 
-        return header
+        if (!isDarkMode) return header
+
+        return LiquidGlassView(this).apply {
+            cornerRadius = dp(24).toFloat()
+            material = GlassMaterial.CLEAR
+            refractionHeight = dp(5).toFloat()
+            bevelWidth = dp(8).toFloat()
+            dispersionStrength = 0.035f
+            enableSensorHighlight = true
+            enablePressEffect = true
+            pressScale = 0.97f
+            enableAdaptiveTint = false
+            glassTint = Color.argb(220, 235, 237, 240)
+            addView(header, android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            ))
+        }
     }
 
-private fun createSelectionActionBar(): LinearLayout {
+private fun createSelectionActionBar(): View {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(dp(10), dp(7), dp(10), dp(7))
             background = GradientDrawable().apply {
-                setColor(if (isDarkMode) Color.rgb(43, 43, 49) else Color.WHITE)
+                setColor(if (isDarkMode) Color.TRANSPARENT else Color.WHITE)
                 cornerRadius = dp(39).toFloat()
                 setStroke(
                     dp(1),
@@ -3674,7 +3694,24 @@ private fun createSelectionActionBar(): LinearLayout {
             LinearLayout.LayoutParams(0, dp(38), 1f)
         )
 
-        return bar
+        if (!isDarkMode) return bar
+
+        return LiquidGlassView(this).apply {
+            cornerRadius = dp(39).toFloat()
+            material = GlassMaterial.CLEAR
+            refractionHeight = dp(5).toFloat()
+            bevelWidth = dp(8).toFloat()
+            dispersionStrength = 0.035f
+            enableSensorHighlight = true
+            enablePressEffect = true
+            pressScale = 0.97f
+            enableAdaptiveTint = false
+            glassTint = Color.argb(220, 235, 237, 240)
+            addView(bar, android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            ))
+        }
     }
 
     private fun createSelectionAction(
