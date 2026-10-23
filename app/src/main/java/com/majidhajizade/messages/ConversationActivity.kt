@@ -700,22 +700,22 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(
                     if (darkTheme) Color.argb(145, 0, 0, 0)
-                    else Color.argb(145, 255, 255, 255),
+                    else Color.argb(105, 150, 155, 165),
                     if (darkTheme) Color.argb(100, 0, 0, 0)
-                    else Color.argb(100, 255, 255, 255),
+                    else Color.argb(72, 150, 155, 165),
                     if (darkTheme) Color.argb(40, 0, 0, 0)
-                    else Color.argb(40, 255, 255, 255),
+                    else Color.argb(28, 150, 155, 165),
                     Color.TRANSPARENT
                 )
             ).apply {
                 setColors(
                     intArrayOf(
                         if (darkTheme) Color.argb(145, 0, 0, 0)
-                        else Color.argb(145, 255, 255, 255),
+                        else Color.argb(105, 150, 155, 165),
                         if (darkTheme) Color.argb(100, 0, 0, 0)
-                        else Color.argb(100, 255, 255, 255),
+                        else Color.argb(72, 150, 155, 165),
                         if (darkTheme) Color.argb(40, 0, 0, 0)
-                        else Color.argb(40, 255, 255, 255),
+                        else Color.argb(28, 150, 155, 165),
                         Color.TRANSPARENT
                     ),
                     floatArrayOf(0f, 0.35f, 0.72f, 1f)
