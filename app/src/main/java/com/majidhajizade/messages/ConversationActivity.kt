@@ -1844,6 +1844,10 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     private fun loadConversation() {
         val generation = ++conversationLoadGeneration
+        val previousScrollY = scrollView.scrollY
+        val wasAtBottom =
+            scrollView.height + scrollView.scrollY >=
+                messagesContainer.height - (96 * resources.displayMetrics.density).toInt()
 
         isPopulatingConversation = true
         messagesContainer.removeAllViews()
@@ -1871,7 +1875,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             isPopulatingConversation = false
             playAllLargeEmojiAnimations()
             scrollView.post {
-                scrollView.fullScroll(View.FOCUS_DOWN)
+                if (wasAtBottom) {
+                    scrollView.fullScroll(View.FOCUS_DOWN)
+                } else {
+                    scrollView.scrollTo(0, previousScrollY)
+                }
             }
             return
         }
@@ -1989,7 +1997,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                         // رفتار فعلی انیمیشن‌ها حفظ می‌شود.
                         playAllLargeEmojiAnimations()
                         scrollView.post {
-                            scrollView.fullScroll(View.FOCUS_DOWN)
+                            if (wasAtBottom) {
+                                scrollView.fullScroll(View.FOCUS_DOWN)
+                            } else {
+                                scrollView.scrollTo(0, previousScrollY)
+                            }
                         }
                     }
                 }
