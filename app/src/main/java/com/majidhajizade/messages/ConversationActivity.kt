@@ -768,8 +768,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
         if (!darkTheme) {
             backCapsule.background =
-                android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
-            backCapsule.elevation = 0f
+                android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.argb(232, 255, 255, 255))
+                    cornerRadius = dp(24).toFloat()
+                }
+            backCapsule.elevation = dp(3).toFloat()
         }
 
         backCapsule.setOnClickListener { finish() }
@@ -945,8 +948,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
         if (!darkTheme) {
             contactNameGlass.background =
-                android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
-            contactNameGlass.elevation = 0f
+                android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.argb(232, 255, 255, 255))
+                    cornerRadius = dp(17).toFloat()
+                }
+            contactNameGlass.elevation = dp(3).toFloat()
         }
 
         contactNameGlass.setPadding(dp(3), 0, dp(3), 0)
@@ -1031,8 +1037,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
         if (!darkTheme) {
             moreCapsule.background =
-                android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
-            moreCapsule.elevation = 0f
+                android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.argb(232, 255, 255, 255))
+                    cornerRadius = dp(24).toFloat()
+                }
+            moreCapsule.elevation = dp(3).toFloat()
         }
 
         val moreButton = TextView(this).apply {
@@ -1123,9 +1132,20 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 dp(170)
             ).apply { gravity = Gravity.TOP }
         )
-        // پس‌زمینهٔ خاکستری نیمه‌شفاف از بالای صفحه تا لبهٔ بالایی نام مخاطب
+        // پس‌زمینه سفید نیمه‌شفاف با محوشدگی تدریجی در لبه پایین
         val headerLowerBackground = View(this).apply {
-            setBackgroundColor(Color.argb(175, 155, 168, 171))
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(
+                    Color.argb(190, 255, 255, 255),
+                    Color.argb(175, 255, 255, 255),
+                    Color.argb(145, 255, 255, 255),
+                    Color.argb(105, 255, 255, 255),
+                    Color.argb(65, 255, 255, 255),
+                    Color.argb(30, 255, 255, 255),
+                    Color.TRANSPARENT
+                )
+            )
             visibility = if (darkTheme) View.GONE else View.VISIBLE
             isClickable = false
             isFocusable = false
