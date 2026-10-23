@@ -1105,6 +1105,25 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 dp(170)
             ).apply { gravity = Gravity.TOP }
         )
+        // پس‌زمینهٔ پایین هدر در تم روز، از زیر نام مخاطب
+        val headerLowerBackground = View(this).apply {
+            setBackgroundColor(Color.rgb(155, 168, 171))
+            visibility = if (darkTheme) View.GONE else View.VISIBLE
+            isClickable = false
+            isFocusable = false
+        }
+
+        root.addView(
+            headerLowerBackground,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(22)
+            ).apply {
+                gravity = Gravity.TOP
+                topMargin = dp(128)
+            }
+        )
+
         root.addView(
             header,
             android.widget.FrameLayout.LayoutParams(
