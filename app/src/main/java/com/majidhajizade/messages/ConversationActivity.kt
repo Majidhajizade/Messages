@@ -1883,13 +1883,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     private fun loadConversation(appendOnly: Boolean = false) {
         val generation = ++conversationLoadGeneration
-        val hideUntilInitialPosition = !appendOnly &&
-            messagesContainer.childCount == 0
-
-        if (hideUntilInitialPosition) {
-            scrollView.visibility = View.INVISIBLE
-        }
-
         // بارگذاری‌های هم‌زمان باید موقعیت اولیهٔ اسکرول را حفظ کنند.
         if (!isPopulatingConversation) {
             val hasExistingMessages = messagesContainer.childCount > 0
@@ -2109,22 +2102,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                                 scrollView.scrollTo(0, conversationScrollRestoreY)
                             }
 
-                            scrollView.post {
-                                if (generation != conversationLoadGeneration ||
-                                    isFinishing || isDestroyed
-                                ) {
-                                    return@post
-                                }
-
-                                scrollView.visibility = View.VISIBLE
-
-                                if (!appendOnly) {
-                                    playAllLargeEmojiAnimations()
-                                }
-
-                                isAppendingConversation = false
-                                isPopulatingConversation = false
+                            if (!appendOnly) {
+                                playAllLargeEmojiAnimations()
                             }
+
+                            isAppendingConversation = false
+                            isPopulatingConversation = false
                         }
                     }
                 }
