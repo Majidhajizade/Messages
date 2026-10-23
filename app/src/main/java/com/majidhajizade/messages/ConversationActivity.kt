@@ -725,7 +725,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             setPadding(dp(8), dp(24), dp(8), dp(8))
         }
 
-        val backCapsule: android.widget.FrameLayout = LiquidGlassView(this).apply {
+        val backCapsule: android.widget.FrameLayout = if (isDarkThemeEnabled()) LiquidGlassView(this).apply {
             cornerRadius = dp(24).toFloat()
             material = GlassMaterial.CLEAR
             refractionHeight = if (isDarkThemeEnabled()) dp(5).toFloat() else dp(12).toFloat()
@@ -758,6 +758,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 }
                 elevation = dp(2).toFloat()
             }
+
+        } else android.widget.FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(24).toFloat()
+            }
+            elevation = dp(2).toFloat()
         }
         backCapsule.setOnClickListener { finish() }
 
@@ -889,7 +896,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             )
         )
 
-        val contactNameGlass: android.widget.FrameLayout = LiquidGlassView(this).apply {
+        val contactNameGlass: android.widget.FrameLayout = if (isDarkThemeEnabled()) LiquidGlassView(this).apply {
             cornerRadius = dp(17).toFloat()
             material = GlassMaterial.CLEAR
             refractionHeight = if (isDarkThemeEnabled()) dp(3).toFloat() else dp(7).toFloat()
@@ -922,6 +929,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 }
                 elevation = dp(2).toFloat()
             }
+
+        } else android.widget.FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(17).toFloat()
+            }
+            elevation = dp(2).toFloat()
         }
         contactNameGlass.setPadding(dp(3), 0, dp(3), 0)
         contactNameGlass.addView(
@@ -962,7 +976,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             showContactDetails(contactName)
         }
 
-        val moreCapsule: android.widget.FrameLayout = LiquidGlassView(this).apply {
+        val moreCapsule: android.widget.FrameLayout = if (isDarkThemeEnabled()) LiquidGlassView(this).apply {
             cornerRadius = dp(24).toFloat()
             material = GlassMaterial.CLEAR
             refractionHeight = if (isDarkThemeEnabled()) dp(5).toFloat() else dp(12).toFloat()
@@ -995,6 +1009,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 }
                 elevation = dp(2).toFloat()
             }
+
+        } else android.widget.FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(24).toFloat()
+            }
+            elevation = dp(2).toFloat()
         }
         val moreButton = TextView(this).apply {
             text = "⋮"
@@ -1338,7 +1359,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             LinearLayout.LayoutParams(dp(36), dp(36))
         )
 
-        val composerGlass: android.widget.FrameLayout = LiquidGlassView(this).apply {
+        val composerGlass: android.widget.FrameLayout = if (isDarkThemeEnabled()) LiquidGlassView(this).apply {
             cornerRadius = dp(28).toFloat()
             material = GlassMaterial.CLEAR
             refractionHeight = if (isDarkThemeEnabled()) dp(5).toFloat() else dp(12).toFloat()
@@ -1373,6 +1394,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             clipChildren = false
             clipToPadding = false
             backdropSource = scrollView
+
+        } else android.widget.FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(28).toFloat()
+            }
+            elevation = dp(2).toFloat()
         }
         composerGlass.addView(
             composer,
@@ -1552,6 +1580,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     setColor(if (dark) Color.TRANSPARENT else Color.WHITE)
                     cornerRadius = dp(18).toFloat()
                 }
+                if (!dark) {
+                    elevation = dp(2).toFloat()
+                }
                 isClickable = true
                 isFocusable = true
                 setPadding(dp(4), dp(8), dp(4), dp(8))
@@ -1581,24 +1612,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 topMargin = dp(5)
             })
 
-            if (!dark) return card
-
-            return LiquidGlassView(this).apply {
-                cornerRadius = dp(18).toFloat()
-                material = GlassMaterial.CLEAR
-                refractionHeight = dp(5).toFloat()
-                bevelWidth = dp(8).toFloat()
-                dispersionStrength = 0.035f
-                enableSensorHighlight = true
-                enablePressEffect = true
-                pressScale = 0.97f
-                enableAdaptiveTint = false
-                glassTint = Color.argb(220, 235, 237, 240)
-                addView(card, android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-                ))
-            }
+            return card
         }
         actions.addView(
             makeAction("Notifications", R.drawable.ic_notification_on) {
