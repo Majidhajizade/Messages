@@ -728,9 +728,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val backCapsule: android.widget.FrameLayout = LiquidGlassView(this).apply {
             cornerRadius = dp(24).toFloat()
             material = GlassMaterial.CLEAR
-            refractionHeight = dp(5).toFloat()
-            bevelWidth = dp(8).toFloat()
-            dispersionStrength = 0.04f
+            refractionHeight = if (isDarkThemeEnabled()) dp(5).toFloat() else dp(12).toFloat()
+            bevelWidth = if (isDarkThemeEnabled()) dp(8).toFloat() else dp(10).toFloat()
+            dispersionStrength = if (isDarkThemeEnabled()) 0.04f else 0.10f
             enableSensorHighlight = true
             enablePressEffect = true
             pressScale = 0.96f
@@ -741,11 +741,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 Color.argb(48, 255, 255, 255)
             }
             if (!isDarkThemeEnabled()) {
-                blurAmount = 0.075f
+                adaptiveLensScale = false
+                blurAmount = 0.10f
                 enableBackdropBlur = true
                 enableDynamicBackground = true
                 enableChromaticAberration = true
-                edgeHighlightOpacity = 72f
+                edgeHighlightOpacity = 90f
             }
         }
         backCapsule.setOnClickListener { finish() }
@@ -881,9 +882,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val contactNameGlass: android.widget.FrameLayout = LiquidGlassView(this).apply {
             cornerRadius = dp(17).toFloat()
             material = GlassMaterial.CLEAR
-            refractionHeight = dp(3).toFloat()
-            bevelWidth = dp(4).toFloat()
-            dispersionStrength = 0.025f
+            refractionHeight = if (isDarkThemeEnabled()) dp(3).toFloat() else dp(7).toFloat()
+            bevelWidth = if (isDarkThemeEnabled()) dp(4).toFloat() else dp(6).toFloat()
+            dispersionStrength = if (isDarkThemeEnabled()) 0.025f else 0.05f
             enableSensorHighlight = true
             enablePressEffect = true
             pressScale = 0.98f
@@ -894,11 +895,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 Color.argb(48, 255, 255, 255)
             }
             if (!isDarkThemeEnabled()) {
-                blurAmount = 0.075f
+                adaptiveLensScale = false
+                blurAmount = 0.08f
                 enableBackdropBlur = true
                 enableDynamicBackground = true
                 enableChromaticAberration = true
-                edgeHighlightOpacity = 72f
+                edgeHighlightOpacity = 82f
             }
         }
         contactNameGlass.setPadding(dp(3), 0, dp(3), 0)
@@ -943,9 +945,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val moreCapsule: android.widget.FrameLayout = LiquidGlassView(this).apply {
             cornerRadius = dp(24).toFloat()
             material = GlassMaterial.CLEAR
-            refractionHeight = dp(5).toFloat()
-            bevelWidth = dp(8).toFloat()
-            dispersionStrength = 0.04f
+            refractionHeight = if (isDarkThemeEnabled()) dp(5).toFloat() else dp(12).toFloat()
+            bevelWidth = if (isDarkThemeEnabled()) dp(8).toFloat() else dp(10).toFloat()
+            dispersionStrength = if (isDarkThemeEnabled()) 0.04f else 0.10f
             enableSensorHighlight = true
             enablePressEffect = true
             pressScale = 0.96f
@@ -956,11 +958,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 Color.argb(48, 255, 255, 255)
             }
             if (!isDarkThemeEnabled()) {
-                blurAmount = 0.075f
+                adaptiveLensScale = false
+                blurAmount = 0.10f
                 enableBackdropBlur = true
                 enableDynamicBackground = true
                 enableChromaticAberration = true
-                edgeHighlightOpacity = 72f
+                edgeHighlightOpacity = 90f
             }
         }
         val moreButton = TextView(this).apply {
@@ -1308,9 +1311,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val composerGlass: android.widget.FrameLayout = LiquidGlassView(this).apply {
             cornerRadius = dp(28).toFloat()
             material = GlassMaterial.CLEAR
-            refractionHeight = dp(5).toFloat()
-            bevelWidth = dp(7).toFloat()
-            dispersionStrength = 0.035f
+            refractionHeight = if (isDarkThemeEnabled()) dp(5).toFloat() else dp(12).toFloat()
+            bevelWidth = if (isDarkThemeEnabled()) dp(7).toFloat() else dp(9).toFloat()
+            dispersionStrength = if (isDarkThemeEnabled()) 0.035f else 0.08f
             enableSensorHighlight = true
             enablePressEffect = true
             enableAdaptiveTint = false
@@ -1320,11 +1323,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 Color.argb(48, 255, 255, 255)
             }
             if (!isDarkThemeEnabled()) {
-                blurAmount = 0.075f
+                adaptiveLensScale = false
+                blurAmount = 0.10f
                 enableBackdropBlur = true
                 enableDynamicBackground = true
                 enableChromaticAberration = true
-                edgeHighlightOpacity = 72f
+                edgeHighlightOpacity = 90f
             }
             clipChildren = false
             clipToPadding = false
