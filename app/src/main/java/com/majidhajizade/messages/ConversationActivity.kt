@@ -458,9 +458,56 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     }
 
     private fun createChatWallpaper(darkTheme: Boolean): android.graphics.drawable.Drawable {
-        return android.graphics.drawable.ColorDrawable(
-            if (darkTheme) Color.BLACK else Color.WHITE
-        )
+        if (darkTheme) {
+            return android.graphics.drawable.ColorDrawable(Color.BLACK)
+        }
+
+        val bitmap = android.graphics.BitmapFactory.decodeResource(
+            resources,
+            R.drawable.chat_background
+        ) ?: return android.graphics.drawable.ColorDrawable(Color.WHITE)
+
+        return object : android.graphics.drawable.Drawable() {
+            private val paint = android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG or
+                    android.graphics.Paint.FILTER_BITMAP_FLAG
+            )
+
+            override fun draw(canvas: android.graphics.Canvas) {
+                val area = bounds
+                if (area.isEmpty || bitmap.width <= 0 || bitmap.height <= 0) return
+
+                val scale = maxOf(
+                    area.width().toFloat() / bitmap.width,
+                    area.height().toFloat() / bitmap.height
+                )
+                val width = bitmap.width * scale
+                val height = bitmap.height * scale
+                val left = area.left + (area.width() - width) / 2f
+                val top = area.top + (area.height() - height) / 2f
+
+                canvas.drawBitmap(
+                    bitmap,
+                    null,
+                    android.graphics.RectF(left, top, left + width, top + height),
+                    paint
+                )
+            }
+
+            override fun setAlpha(alpha: Int) {
+                paint.alpha = alpha
+                invalidateSelf()
+            }
+
+            override fun setColorFilter(filter: android.graphics.ColorFilter?) {
+                paint.colorFilter = filter
+                invalidateSelf()
+            }
+
+            @Deprecated("Deprecated in Android")
+            override fun getOpacity(): Int =
+                android.graphics.PixelFormat.TRANSLUCENT
+        }
     }
 
     private inner class MessageBubbleDrawable(
