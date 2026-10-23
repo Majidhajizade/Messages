@@ -1883,11 +1883,19 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     private fun loadConversation(appendOnly: Boolean = false) {
         val generation = ++conversationLoadGeneration
+        val hideUntilInitialPosition = !appendOnly &&
+            messagesContainer.childCount == 0
+
+        if (hideUntilInitialPosition) {
+            scrollView.visibility = View.INVISIBLE
+        }
 
         // بارگذاری‌های هم‌زمان باید موقعیت اولیهٔ اسکرول را حفظ کنند.
         if (!isPopulatingConversation) {
+            val hasExistingMessages = messagesContainer.childCount > 0
+
             conversationScrollRestoreY = scrollView.scrollY
-            conversationWasAtBottom =
+            conversationWasAtBottom = !hasExistingMessages ||
                 scrollView.height + scrollView.scrollY >=
                     messagesContainer.height -
                     (96 * resources.displayMetrics.density).toInt()
@@ -1941,6 +1949,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 } else {
                     scrollView.scrollTo(0, conversationScrollRestoreY)
                 }
+                scrollView.visibility = View.VISIBLE
                 isPopulatingConversation = false
             }
             return
@@ -1949,6 +1958,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         if (checkSelfPermission(Manifest.permission.READ_SMS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
+            scrollView.visibility = View.VISIBLE
             isAppendingConversation = false
             isPopulatingConversation = false
             return
@@ -2019,6 +2029,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 )
                 mainHandler.post {
                     if (generation == conversationLoadGeneration) {
+                        scrollView.visibility = View.VISIBLE
                         isAppendingConversation = false
                         isPopulatingConversation = false
                     }
@@ -2080,11 +2091,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                             renderBatch(endIndex)
                         }
                     } else {
-                        // در بارگذاری افزایشی، انیمیشن پیام‌های قدیمی
-                        // دوباره از ابتدا اجرا نمی‌شود.
-                        if (!appendOnly) {
-                            playAllLargeEmojiAnimations()
-                        }
+                        // ابتدا موقعیت اسکرول تثبیت می‌شود؛ سپس انیمیشن ایموجی‌ها اجرا می‌شود.
                         scrollView.post {
                             if (generation != conversationLoadGeneration ||
                                 isFinishing || isDestroyed
@@ -2093,12 +2100,31 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                             }
 
                             if (conversationWasAtBottom) {
-                                scrollView.fullScroll(View.FOCUS_DOWN)
+                                scrollView.scrollTo(
+                                    0,
+                                    (messagesContainer.height - scrollView.height)
+                                        .coerceAtLeast(0)
+                                )
                             } else {
                                 scrollView.scrollTo(0, conversationScrollRestoreY)
                             }
-                            isAppendingConversation = false
-                            isPopulatingConversation = false
+
+                            scrollView.post {
+                                if (generation != conversationLoadGeneration ||
+                                    isFinishing || isDestroyed
+                                ) {
+                                    return@post
+                                }
+
+                                scrollView.visibility = View.VISIBLE
+
+                                if (!appendOnly) {
+                                    playAllLargeEmojiAnimations()
+                                }
+
+                                isAppendingConversation = false
+                                isPopulatingConversation = false
+                            }
                         }
                     }
                 }
