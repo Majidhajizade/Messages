@@ -1932,6 +1932,18 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
     }
 
+    private val dayKeyFormatter =
+        SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val displayDateFormatter =
+        SimpleDateFormat("dd MMM", Locale.getDefault())
+    private fun getTodayDateKey(): String =
+        dayKeyFormatter.format(Date())
+
+    private fun getYesterdayDateKey(): String =
+        dayKeyFormatter.format(
+            Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000L)
+        )
+
     private var lastMessageDate: Long? = null
     private var lastDateHeaderKey: String? = null
     private var lastTimeView: TextView? = null
@@ -1948,17 +1960,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         messageId: String? = null,
         delivered: Boolean = false
     ) {
-        val dayKey = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(date))
+        val dayKey = dayKeyFormatter.format(Date(date))
         if (dayKey != lastDateHeaderKey) {
             val dateHeader = TextView(this).apply {
                 text = when {
-                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(date)) ==
-                        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) -> "Today"
-                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(date)) ==
-                        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(
-                            Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000L)
-                        ) -> "Yesterday"
-                    else -> SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(date))
+                    dayKey == getTodayDateKey() -> "Today"
+                    dayKey == getYesterdayDateKey() -> "Yesterday"
+                    else -> displayDateFormatter.format(Date(date))
                 }
                 textSize = 12f
                 setTextColor(if (isDarkThemeEnabled()) Color.LTGRAY else Color.rgb(120, 120, 125))

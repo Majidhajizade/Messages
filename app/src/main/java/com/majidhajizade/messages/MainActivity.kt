@@ -1124,17 +1124,21 @@ companion object {
                     val body = rows.getString(
                         rows.getColumnIndexOrThrow(Telephony.Sms.BODY)
                     ) ?: ""
-                    val name = getContactName(address).orEmpty()
-
                     if (
                         address.contains(searchQuery, ignoreCase = true) ||
-                        name.contains(searchQuery, ignoreCase = true) ||
                         body.contains(searchQuery, ignoreCase = true)
                     ) {
                         matchingAddresses.add(address)
                     }
                 }
             }
+
+            matchingAddresses.addAll(
+                conversations.keys.filter { address ->
+                    getContactName(address).orEmpty()
+                        .contains(searchQuery, ignoreCase = true)
+                }
+            )
 
             conversations.keys.retainAll(matchingAddresses)
         }
