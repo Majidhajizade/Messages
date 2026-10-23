@@ -700,22 +700,22 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(
                     if (darkTheme) Color.argb(145, 0, 0, 0)
-                    else Color.TRANSPARENT,
+                    else Color.argb(18, 70, 80, 95),
                     if (darkTheme) Color.argb(100, 0, 0, 0)
-                    else Color.TRANSPARENT,
+                    else Color.argb(10, 70, 80, 95),
                     if (darkTheme) Color.argb(40, 0, 0, 0)
-                    else Color.TRANSPARENT,
+                    else Color.argb(4, 70, 80, 95),
                     Color.TRANSPARENT
                 )
             ).apply {
                 setColors(
                     intArrayOf(
                         if (darkTheme) Color.argb(145, 0, 0, 0)
-                        else Color.TRANSPARENT,
+                        else Color.argb(18, 70, 80, 95),
                         if (darkTheme) Color.argb(100, 0, 0, 0)
-                        else Color.TRANSPARENT,
+                        else Color.argb(10, 70, 80, 95),
                         if (darkTheme) Color.argb(40, 0, 0, 0)
-                        else Color.TRANSPARENT,
+                        else Color.argb(4, 70, 80, 95),
                         Color.TRANSPARENT
                     ),
                     floatArrayOf(0f, 0.35f, 0.72f, 1f)
@@ -729,33 +729,17 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             setPadding(dp(8), dp(24), dp(8), dp(8))
         }
 
-        val backCapsule: android.widget.FrameLayout = if (darkTheme) {
-            LiquidGlassView(this).apply {
-                cornerRadius = dp(24).toFloat()
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    setColor(Color.TRANSPARENT)
-                    cornerRadius = dp(24).toFloat()
-                }
-                material = GlassMaterial.REGULAR
-                refractionHeight = dp(5).toFloat()
-                bevelWidth = dp(8).toFloat()
-                dispersionStrength = 0.04f
-                enableSensorHighlight = true
-                enablePressEffect = true
-                pressScale = 0.96f
-                enableAdaptiveTint = false
-                glassTint = Color.argb(38, 255, 255, 255)
-            }
-        } else {
-            android.widget.FrameLayout(this).apply {
-                elevation = dp(2).toFloat()
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    setColor(Color.WHITE)
-                    cornerRadius = dp(24).toFloat()
-                }
-            }
+        val backCapsule: android.widget.FrameLayout = LiquidGlassView(this).apply {
+            cornerRadius = dp(24).toFloat()
+            material = GlassMaterial.REGULAR
+            refractionHeight = dp(5).toFloat()
+            bevelWidth = dp(8).toFloat()
+            dispersionStrength = 0.04f
+            enableSensorHighlight = true
+            enablePressEffect = true
+            pressScale = 0.96f
+            enableAdaptiveTint = true
+            glassTint = if (darkTheme) Color.argb(38, 255, 255, 255) else Color.argb(42, 255, 255, 255)
         }
         backCapsule.setOnClickListener { finish() }
 
@@ -887,33 +871,17 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             )
         )
 
-        val contactNameGlass: android.widget.FrameLayout = if (darkTheme) {
-            LiquidGlassView(this).apply {
-                cornerRadius = dp(17).toFloat()
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    setColor(Color.TRANSPARENT)
-                    cornerRadius = dp(17).toFloat()
-                }
-                material = GlassMaterial.REGULAR
-                refractionHeight = dp(3).toFloat()
-                bevelWidth = dp(4).toFloat()
-                dispersionStrength = 0.025f
-                enableSensorHighlight = true
-                enablePressEffect = true
-                pressScale = 0.98f
-                enableAdaptiveTint = false
-                glassTint = Color.argb(30, 255, 255, 255)
-            }
-        } else {
-            android.widget.FrameLayout(this).apply {
-                elevation = dp(2).toFloat()
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    setColor(Color.WHITE)
-                    cornerRadius = dp(17).toFloat()
-                }
-            }
+        val contactNameGlass: android.widget.FrameLayout = LiquidGlassView(this).apply {
+            cornerRadius = dp(17).toFloat()
+            material = GlassMaterial.REGULAR
+            refractionHeight = dp(3).toFloat()
+            bevelWidth = dp(4).toFloat()
+            dispersionStrength = 0.025f
+            enableSensorHighlight = true
+            enablePressEffect = true
+            pressScale = 0.98f
+            enableAdaptiveTint = true
+            glassTint = if (darkTheme) Color.argb(30, 255, 255, 255) else Color.argb(38, 255, 255, 255)
         }
         contactNameGlass.setPadding(dp(3), 0, dp(3), 0)
         contactNameGlass.addView(
@@ -954,35 +922,18 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             showContactDetails(contactName)
         }
 
-        val moreCapsule: android.widget.FrameLayout = if (darkTheme) {
-            LiquidGlassView(this).apply {
-                cornerRadius = dp(24).toFloat()
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    setColor(Color.TRANSPARENT)
-                    cornerRadius = dp(24).toFloat()
-                }
-                material = GlassMaterial.REGULAR
-                refractionHeight = dp(5).toFloat()
-                bevelWidth = dp(8).toFloat()
-                dispersionStrength = 0.04f
-                enableSensorHighlight = true
-                enablePressEffect = true
-                pressScale = 0.96f
-                enableAdaptiveTint = false
-                glassTint = Color.argb(38, 255, 255, 255)
-            }
-        } else {
-            android.widget.FrameLayout(this).apply {
-                elevation = dp(2).toFloat()
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    setColor(Color.WHITE)
-                    cornerRadius = dp(24).toFloat()
-                }
-            }
+        val moreCapsule: android.widget.FrameLayout = LiquidGlassView(this).apply {
+            cornerRadius = dp(24).toFloat()
+            material = GlassMaterial.REGULAR
+            refractionHeight = dp(5).toFloat()
+            bevelWidth = dp(8).toFloat()
+            dispersionStrength = 0.04f
+            enableSensorHighlight = true
+            enablePressEffect = true
+            pressScale = 0.96f
+            enableAdaptiveTint = true
+            glassTint = if (darkTheme) Color.argb(38, 255, 255, 255) else Color.argb(42, 255, 255, 255)
         }
-
         val moreButton = TextView(this).apply {
             text = "⋮"
             textSize = 27f
@@ -1047,12 +998,10 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         scrollView.addView(messagesContainer)
 
-        if (darkTheme) {
-            listOf(backCapsule, contactNameGlass, moreCapsule).forEach { glass ->
-                (glass as? LiquidGlassView)?.apply {
-                    backdropSource = scrollView
-                    enableDynamicBackground = true
-                }
+        listOf(backCapsule, contactNameGlass, moreCapsule).forEach { glass ->
+            (glass as? LiquidGlassView)?.apply {
+                backdropSource = scrollView
+                enableDynamicBackground = true
             }
         }
 
@@ -1325,38 +1274,20 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             LinearLayout.LayoutParams(dp(36), dp(36))
         )
 
-        val composerGlass: android.widget.FrameLayout = if (darkTheme) {
-            LiquidGlassView(this).apply {
-                cornerRadius = dp(28).toFloat()
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    setColor(Color.TRANSPARENT)
-                    cornerRadius = dp(28).toFloat()
-                }
-                material = GlassMaterial.REGULAR
-                refractionHeight = dp(5).toFloat()
-                bevelWidth = dp(7).toFloat()
-                dispersionStrength = 0.035f
-                enableSensorHighlight = true
-                enablePressEffect = true
-                enableAdaptiveTint = false
-                glassTint = Color.argb(38, 255, 255, 255)
-                clipChildren = false
-                clipToPadding = false
-                backdropSource = scrollView
-                enableDynamicBackground = true
-            }
-        } else {
-            android.widget.FrameLayout(this).apply {
-                elevation = dp(2).toFloat()
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    setColor(Color.WHITE)
-                    cornerRadius = dp(28).toFloat()
-                }
-                clipChildren = false
-                clipToPadding = false
-            }
+        val composerGlass: android.widget.FrameLayout = LiquidGlassView(this).apply {
+            cornerRadius = dp(28).toFloat()
+            material = GlassMaterial.REGULAR
+            refractionHeight = dp(5).toFloat()
+            bevelWidth = dp(7).toFloat()
+            dispersionStrength = 0.035f
+            enableSensorHighlight = true
+            enablePressEffect = true
+            enableAdaptiveTint = true
+            glassTint = if (darkTheme) Color.argb(38, 255, 255, 255) else Color.argb(48, 255, 255, 255)
+            clipChildren = false
+            clipToPadding = false
+            backdropSource = scrollView
+            enableDynamicBackground = true
         }
         composerGlass.addView(
             composer,
