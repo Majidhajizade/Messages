@@ -153,10 +153,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setFlags(
-            android.view.WindowManager.LayoutParams.FLAG_SECURE,
-            android.view.WindowManager.LayoutParams.FLAG_SECURE
-        )
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         // اجازه نمایش پس‌زمینه در محدوده نوار وضعیت
