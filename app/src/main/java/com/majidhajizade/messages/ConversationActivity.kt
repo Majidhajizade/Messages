@@ -159,6 +159,22 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         )
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
+        // اجازه نمایش پس‌زمینه در محدوده نوار وضعیت
+        window.statusBarColor = Color.TRANSPARENT
+        window.decorView.systemUiVisibility =
+            window.decorView.systemUiVisibility or
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+
+        window.decorView.systemUiVisibility =
+            if (!isDarkThemeEnabled()) {
+                window.decorView.systemUiVisibility or
+                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            } else {
+                window.decorView.systemUiVisibility and
+                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+            }
+
         val uriPhone = intent.data?.schemeSpecificPart
             ?.substringBefore('?')
             ?.removePrefix("//")
@@ -674,6 +690,32 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             background = createChatWallpaper(darkTheme)
         }
 
+        // لایه محوشونده بالای صفحه، با حفظ تم روشن و تاریک
+        // پوشش مات بالای پیام‌ها؛ کنترل‌های هدر در لایه بالاتر باقی می‌مانند
+        val topFade = View(this).apply {
+            isClickable = false
+            isFocusable = false
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(
+                    if (darkTheme) Color.BLACK else Color.WHITE,
+                    if (darkTheme) Color.BLACK else Color.WHITE,
+                    if (darkTheme) Color.BLACK else Color.WHITE,
+                    Color.TRANSPARENT
+                )
+            ).apply {
+                setColors(
+                    intArrayOf(
+                        if (darkTheme) Color.BLACK else Color.WHITE,
+                        if (darkTheme) Color.BLACK else Color.WHITE,
+                        if (darkTheme) Color.BLACK else Color.WHITE,
+                        Color.TRANSPARENT
+                    ),
+                    floatArrayOf(0f, 0.68f, 0.86f, 1f)
+                )
+            }
+        }
+
         val header = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
             elevation = 0f
@@ -975,6 +1017,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             )
         )
 
+        root.addView(
+            topFade,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(250)
+            ).apply { gravity = Gravity.TOP }
+        )
         root.addView(
             header,
             android.widget.FrameLayout.LayoutParams(
