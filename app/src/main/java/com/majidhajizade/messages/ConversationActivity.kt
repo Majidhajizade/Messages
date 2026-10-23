@@ -738,7 +738,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enableSensorHighlight = true
             enablePressEffect = true
             pressScale = 0.96f
-            enableAdaptiveTint = true
+            enableAdaptiveTint = false
             glassTint = if (darkTheme) {
                 Color.argb(38, 255, 255, 255)
             } else {
@@ -884,7 +884,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enableSensorHighlight = true
             enablePressEffect = true
             pressScale = 0.98f
-            enableAdaptiveTint = true
+            enableAdaptiveTint = false
             glassTint = if (darkTheme) {
                 Color.argb(30, 255, 255, 255)
             } else {
@@ -939,7 +939,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enableSensorHighlight = true
             enablePressEffect = true
             pressScale = 0.96f
-            enableAdaptiveTint = true
+            enableAdaptiveTint = false
             glassTint = if (darkTheme) {
                 Color.argb(38, 255, 255, 255)
             } else {
@@ -1293,7 +1293,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             dispersionStrength = 0.035f
             enableSensorHighlight = true
             enablePressEffect = true
-            enableAdaptiveTint = true
+            enableAdaptiveTint = false
             glassTint = if (darkTheme) {
                 Color.argb(38, 255, 255, 255)
             } else {
