@@ -735,7 +735,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enablePressEffect = true
             pressScale = 0.96f
             enableAdaptiveTint = false
-            glassTint = Color.argb(168, 255, 255, 255)
+            glassTint = Color.argb(220, 235, 237, 240)
         }
         backCapsule.setOnClickListener { finish() }
 
@@ -877,7 +877,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enablePressEffect = true
             pressScale = 0.98f
             enableAdaptiveTint = false
-            glassTint = Color.argb(152, 255, 255, 255)
+            glassTint = Color.argb(220, 235, 237, 240)
         }
         contactNameGlass.setPadding(dp(3), 0, dp(3), 0)
         contactNameGlass.addView(
@@ -928,7 +928,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enablePressEffect = true
             pressScale = 0.96f
             enableAdaptiveTint = false
-            glassTint = Color.argb(168, 255, 255, 255)
+            glassTint = Color.argb(220, 235, 237, 240)
         }
         val moreButton = TextView(this).apply {
             text = "⋮"
@@ -1279,7 +1279,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enableSensorHighlight = true
             enablePressEffect = true
             enableAdaptiveTint = false
-            glassTint = Color.argb(168, 255, 255, 255)
+            glassTint = Color.argb(220, 235, 237, 240)
             clipChildren = false
             clipToPadding = false
             backdropSource = scrollView
