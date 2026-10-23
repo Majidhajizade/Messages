@@ -766,6 +766,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
             elevation = dp(2).toFloat()
         }
+        if (!darkTheme) {
+            backCapsule.background =
+                android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
+            backCapsule.elevation = 0f
+        }
+
         backCapsule.setOnClickListener { finish() }
 
         val backCircle = ImageButton(this).apply {
@@ -937,6 +943,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
             elevation = dp(2).toFloat()
         }
+        if (!darkTheme) {
+            contactNameGlass.background =
+                android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
+            contactNameGlass.elevation = 0f
+        }
+
         contactNameGlass.setPadding(dp(3), 0, dp(3), 0)
         contactNameGlass.addView(
             contactNameRow,
@@ -1017,6 +1029,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
             elevation = dp(2).toFloat()
         }
+        if (!darkTheme) {
+            moreCapsule.background =
+                android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
+            moreCapsule.elevation = 0f
+        }
+
         val moreButton = TextView(this).apply {
             text = "⋮"
             textSize = 27f
@@ -1105,9 +1123,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 dp(170)
             ).apply { gravity = Gravity.TOP }
         )
-        // پس‌زمینهٔ پایین هدر در تم روز، از زیر نام مخاطب
+        // پس‌زمینهٔ خاکستری نیمه‌شفاف از بالای صفحه تا لبهٔ بالایی نام مخاطب
         val headerLowerBackground = View(this).apply {
-            setBackgroundColor(Color.rgb(155, 168, 171))
+            setBackgroundColor(Color.argb(175, 155, 168, 171))
             visibility = if (darkTheme) View.GONE else View.VISIBLE
             isClickable = false
             isFocusable = false
@@ -1117,12 +1135,24 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             headerLowerBackground,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(22)
+                dp(150)
             ).apply {
                 gravity = Gravity.TOP
-                topMargin = dp(128)
             }
         )
+
+        headerLowerBackground.post {
+            if (!darkTheme) {
+                val nameTop = (
+                    header.y + profileCapsule.y + contactNameGlass.y +
+                        contactNameGlass.height + dp(8)
+                    ).toInt()
+                headerLowerBackground.layoutParams =
+                    headerLowerBackground.layoutParams.apply {
+                        height = nameTop.coerceAtLeast(0)
+                    }
+            }
+        }
 
         root.addView(
             header,
