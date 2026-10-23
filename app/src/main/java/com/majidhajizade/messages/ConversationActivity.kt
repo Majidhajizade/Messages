@@ -749,10 +749,10 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
         } else {
             android.widget.FrameLayout(this).apply {
+                elevation = dp(2).toFloat()
                 background = android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                     setColor(Color.WHITE)
-                    setStroke(dp(1), Color.rgb(205, 210, 218))
                     cornerRadius = dp(24).toFloat()
                 }
             }
@@ -907,10 +907,10 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
         } else {
             android.widget.FrameLayout(this).apply {
+                elevation = dp(2).toFloat()
                 background = android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                     setColor(Color.WHITE)
-                    setStroke(dp(1), Color.rgb(205, 210, 218))
                     cornerRadius = dp(17).toFloat()
                 }
             }
@@ -974,10 +974,10 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
         } else {
             android.widget.FrameLayout(this).apply {
+                elevation = dp(2).toFloat()
                 background = android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                     setColor(Color.WHITE)
-                    setStroke(dp(1), Color.rgb(205, 210, 218))
                     cornerRadius = dp(24).toFloat()
                 }
             }
@@ -1348,10 +1348,10 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
         } else {
             android.widget.FrameLayout(this).apply {
+                elevation = dp(2).toFloat()
                 background = android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                     setColor(Color.WHITE)
-                    setStroke(dp(1), Color.rgb(205, 210, 218))
                     cornerRadius = dp(28).toFloat()
                 }
                 clipChildren = false
