@@ -753,7 +753,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             glassTint = if (darkTheme) {
                 Color.argb(38, 255, 255, 255)
             } else {
-                Color.argb(220, 255, 255, 255)
+                Color.argb(225, 238, 240, 242)
             }
             setOnClickListener { finish() }
         }
@@ -910,7 +910,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             glassTint = if (darkTheme) {
                 Color.argb(30, 255, 255, 255)
             } else {
-                Color.argb(205, 255, 255, 255)
+                Color.argb(225, 238, 240, 242)
             }
             setPadding(dp(3), 0, dp(3), 0)
             addView(
@@ -976,7 +976,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             glassTint = if (darkTheme) {
                 Color.argb(38, 255, 255, 255)
             } else {
-                Color.argb(220, 255, 255, 255)
+                Color.argb(225, 238, 240, 242)
             }
         }
 
@@ -1341,7 +1341,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             glassTint = if (darkTheme) {
                 Color.argb(38, 255, 255, 255)
             } else {
-                Color.argb(225, 255, 255, 255)
+                Color.argb(225, 238, 240, 242)
             }
             clipChildren = false
             clipToPadding = false
