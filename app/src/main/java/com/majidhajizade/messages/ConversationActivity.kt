@@ -279,6 +279,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     }
 
     override fun onDestroy() {
+        pendingSmsReload?.let {
+            smsObserverHandler.removeCallbacks(it)
+        }
+        pendingSmsReload = null
+
         if (::phone.isInitialized) {
             val currentChatId = phone.trim().uppercase(Locale.US)
 
@@ -323,7 +328,32 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     checkSelfPermission(Manifest.permission.READ_SMS) ==
                         PackageManager.PERMISSION_GRANTED
                 ) {
-                    loadConversation()
+                    pendingSmsReload?.let {
+                        smsObserverHandler.removeCallbacks(it)
+                    }
+
+                    val reload = object : Runnable {
+                        override fun run() {
+                            if (!::phone.isInitialized ||
+                                !::messagesContainer.isInitialized ||
+                                isFinishing || isDestroyed
+                            ) {
+                                pendingSmsReload = null
+                                return
+                            }
+
+                            if (isPopulatingConversation) {
+                                smsObserverHandler.postDelayed(this, 250L)
+                                return
+                            }
+
+                            pendingSmsReload = null
+                            loadConversation(appendOnly = true)
+                        }
+                    }
+
+                    pendingSmsReload = reload
+                    smsObserverHandler.postDelayed(reload, 400L)
                 }
             }
         }
@@ -1834,32 +1864,58 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     private var isPopulatingConversation = false
     private var conversationLoadGeneration = 0
+    private var conversationScrollRestoreY = 0
+    private var conversationWasAtBottom = true
+    private var isAppendingConversation = false
+    private val loadedSmsRowIds = mutableSetOf<String>()
+    private val optimisticSmsMessages = mutableListOf<Pair<String, Long>>()
+
+    private val smsObserverHandler = Handler(Looper.getMainLooper())
+    private var pendingSmsReload: Runnable? = null
 
     private data class SmsConversationRow(
+        val rowId: String,
         val body: String,
         val date: Long,
         val incoming: Boolean,
         val delivered: Boolean
     )
 
-    private fun loadConversation() {
+    private fun loadConversation(appendOnly: Boolean = false) {
         val generation = ++conversationLoadGeneration
-        val previousScrollY = scrollView.scrollY
-        val wasAtBottom =
-            scrollView.height + scrollView.scrollY >=
-                messagesContainer.height - (96 * resources.displayMetrics.density).toInt()
+
+        // بارگذاری‌های هم‌زمان باید موقعیت اولیهٔ اسکرول را حفظ کنند.
+        if (!isPopulatingConversation) {
+            conversationScrollRestoreY = scrollView.scrollY
+            conversationWasAtBottom =
+                scrollView.height + scrollView.scrollY >=
+                    messagesContainer.height -
+                    (96 * resources.displayMetrics.density).toInt()
+        }
 
         isPopulatingConversation = true
-        messagesContainer.removeAllViews()
-        lastMessageDate = null
-        lastTimeView = null
-        lastDateHeaderKey = null
-        lastMessageBubbleDrawable = null
-        lastBubbleIncoming = null
-        lastBubbleDate = null
-        lastBubbleDayKey = null
+        isAppendingConversation = appendOnly
 
-        // مسیر Mesh بدون تغییر باقی می‌ماند.
+        if (!appendOnly) {
+            messagesContainer.removeAllViews()
+            loadedSmsRowIds.clear()
+            optimisticSmsMessages.clear()
+            lastMessageDate = null
+            lastTimeView = null
+            lastDateHeaderKey = null
+            lastMessageBubbleDrawable = null
+            lastBubbleIncoming = null
+            lastBubbleDate = null
+            lastBubbleDayKey = null
+        }
+
+        // مسیر Mesh همچنان با بارگذاری کامل کار می‌کند.
+        if (appendOnly && MainActivity.MESH_ENABLED && activeMeshId != null) {
+            isAppendingConversation = false
+            isPopulatingConversation = false
+            loadConversation()
+            return
+        }
         if (MainActivity.MESH_ENABLED && activeMeshId != null) {
             MeshMessageStore.loadMessages(
                 this,
@@ -1872,14 +1928,20 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 )
             }
 
-            isPopulatingConversation = false
             playAllLargeEmojiAnimations()
             scrollView.post {
-                if (wasAtBottom) {
+                if (generation != conversationLoadGeneration ||
+                    isFinishing || isDestroyed
+                ) {
+                    return@post
+                }
+
+                if (conversationWasAtBottom) {
                     scrollView.fullScroll(View.FOCUS_DOWN)
                 } else {
-                    scrollView.scrollTo(0, previousScrollY)
+                    scrollView.scrollTo(0, conversationScrollRestoreY)
                 }
+                isPopulatingConversation = false
             }
             return
         }
@@ -1887,6 +1949,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         if (checkSelfPermission(Manifest.permission.READ_SMS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
+            isAppendingConversation = false
             isPopulatingConversation = false
             return
         }
@@ -1939,6 +2002,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
                         rows.add(
                             SmsConversationRow(
+                                rowId = rowId,
                                 body = body,
                                 date = date,
                                 incoming = incoming,
@@ -1955,6 +2019,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 )
                 mainHandler.post {
                     if (generation == conversationLoadGeneration) {
+                        isAppendingConversation = false
                         isPopulatingConversation = false
                     }
                 }
@@ -1979,11 +2044,34 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
                     for (index in startIndex until endIndex) {
                         val row = rows[index]
+
+                        if (row.rowId in loadedSmsRowIds) {
+                            continue
+                        }
+
+                        // پیام ارسال‌شده‌ای که از قبل به‌صورت فوری نمایش داده
+                        // شده، دوباره به‌عنوان حباب جدید ساخته نشود.
+                        if (appendOnly && !row.incoming) {
+                            val optimisticIndex =
+                                optimisticSmsMessages.indexOfFirst {
+                                    it.first == row.body &&
+                                        kotlin.math.abs(it.second - row.date) <=
+                                            60_000L
+                                }
+
+                            if (optimisticIndex >= 0) {
+                                loadedSmsRowIds.add(row.rowId)
+                                optimisticSmsMessages.removeAt(optimisticIndex)
+                                continue
+                            }
+                        }
+
                         addMessage(
                             body = row.body,
                             date = row.date,
                             incoming = row.incoming,
-                            delivered = row.delivered
+                            delivered = row.delivered,
+                            smsRowId = row.rowId
                         )
                     }
 
@@ -1992,16 +2080,25 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                             renderBatch(endIndex)
                         }
                     } else {
-                        isPopulatingConversation = false
-
-                        // رفتار فعلی انیمیشن‌ها حفظ می‌شود.
-                        playAllLargeEmojiAnimations()
+                        // در بارگذاری افزایشی، انیمیشن پیام‌های قدیمی
+                        // دوباره از ابتدا اجرا نمی‌شود.
+                        if (!appendOnly) {
+                            playAllLargeEmojiAnimations()
+                        }
                         scrollView.post {
-                            if (wasAtBottom) {
+                            if (generation != conversationLoadGeneration ||
+                                isFinishing || isDestroyed
+                            ) {
+                                return@post
+                            }
+
+                            if (conversationWasAtBottom) {
                                 scrollView.fullScroll(View.FOCUS_DOWN)
                             } else {
-                                scrollView.scrollTo(0, previousScrollY)
+                                scrollView.scrollTo(0, conversationScrollRestoreY)
                             }
+                            isAppendingConversation = false
+                            isPopulatingConversation = false
                         }
                     }
                 }
@@ -2051,8 +2148,17 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         date: Long,
         incoming: Boolean,
         messageId: String? = null,
-        delivered: Boolean = false
+        delivered: Boolean = false,
+        smsRowId: String? = null
     ) {
+        if (smsRowId != null) {
+            loadedSmsRowIds.add(smsRowId)
+        }
+
+        if (messageId != null && !incoming) {
+            optimisticSmsMessages.add(body to date)
+        }
+
         val dayKey = dayKeyFormatter.format(Date(date))
         if (dayKey != lastDateHeaderKey) {
             val dateHeader = TextView(this).apply {
@@ -2643,7 +2749,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         messagesContainer.addView(wrapper)
 
         // پیام تازه با محوشدن و حرکت بسیار کوتاه، نرم ظاهر می‌شود.
-        if (!isPopulatingConversation) {
+        if (!isPopulatingConversation || isAppendingConversation) {
             wrapper.alpha = 0f
             wrapper.translationY = dp(8).toFloat()
             wrapper.animate()
