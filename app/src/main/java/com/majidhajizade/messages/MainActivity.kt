@@ -1,7 +1,5 @@
 package com.majidhajizade.messages
 
-import com.example.liquidglass.GlassMaterial
-import com.example.liquidglass.LiquidGlassView
 
 import android.Manifest
 import android.app.Activity
@@ -3638,22 +3636,7 @@ companion object {
 
         if (!isDarkMode) return header
 
-        return LiquidGlassView(this).apply {
-            cornerRadius = dp(24).toFloat()
-            material = GlassMaterial.CLEAR
-            refractionHeight = dp(5).toFloat()
-            bevelWidth = dp(8).toFloat()
-            dispersionStrength = 0.035f
-            enableSensorHighlight = true
-            enablePressEffect = true
-            pressScale = 0.97f
-            enableAdaptiveTint = false
-            glassTint = Color.argb(220, 235, 237, 240)
-            addView(header, android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-            ))
-        }
+        return header
     }
 
 private fun createSelectionActionBar(): View {
@@ -3694,24 +3677,7 @@ private fun createSelectionActionBar(): View {
             LinearLayout.LayoutParams(0, dp(38), 1f)
         )
 
-        if (!isDarkMode) return bar
-
-        return LiquidGlassView(this).apply {
-            cornerRadius = dp(39).toFloat()
-            material = GlassMaterial.CLEAR
-            refractionHeight = dp(5).toFloat()
-            bevelWidth = dp(8).toFloat()
-            dispersionStrength = 0.035f
-            enableSensorHighlight = true
-            enablePressEffect = true
-            pressScale = 0.97f
-            enableAdaptiveTint = false
-            glassTint = Color.argb(220, 235, 237, 240)
-            addView(bar, android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-            ))
-        }
+        return bar
     }
 
     private fun createSelectionAction(
