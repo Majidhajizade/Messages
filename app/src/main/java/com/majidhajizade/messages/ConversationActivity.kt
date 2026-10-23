@@ -49,6 +49,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private var securityGateShowing = false
     private var conversationInitialized = false
     private var chatUnlockedForCurrentVisit = false
+    private var hasActivityResumed = false
+    private var skipNextResumeReload = false
 
 
     private lateinit var messagesContainer: LinearLayout
@@ -240,6 +242,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         loadConversation()
+        skipNextResumeReload = !hasActivityResumed &&
+            checkSelfPermission(Manifest.permission.READ_SMS) ==
+                PackageManager.PERMISSION_GRANTED
 
         ensureSmsContentObserver()
 
@@ -333,6 +338,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        hasActivityResumed = true
 
         if (conversationInitialized &&
             AppSecurity.isEnabled(this) &&
@@ -362,7 +368,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             checkSelfPermission(Manifest.permission.READ_SMS) ==
                 PackageManager.PERMISSION_GRANTED
         ) {
-            loadConversation()
+            if (skipNextResumeReload) {
+                skipNextResumeReload = false
+            } else {
+                loadConversation()
+            }
             ensureSmsContentObserver()
         }
     }
@@ -1823,8 +1833,18 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     }
 
     private var isPopulatingConversation = false
+    private var conversationLoadGeneration = 0
+
+    private data class SmsConversationRow(
+        val body: String,
+        val date: Long,
+        val incoming: Boolean,
+        val delivered: Boolean
+    )
 
     private fun loadConversation() {
+        val generation = ++conversationLoadGeneration
+
         isPopulatingConversation = true
         messagesContainer.removeAllViews()
         lastMessageDate = null
@@ -1835,6 +1855,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         lastBubbleDate = null
         lastBubbleDayKey = null
 
+        // مسیر Mesh بدون تغییر باقی می‌ماند.
         if (MainActivity.MESH_ENABLED && activeMeshId != null) {
             MeshMessageStore.loadMessages(
                 this,
@@ -1855,67 +1876,127 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             return
         }
 
-        if (checkSelfPermission(Manifest.permission.READ_SMS)
-            != PackageManager.PERMISSION_GRANTED
+        if (checkSelfPermission(Manifest.permission.READ_SMS) !=
+            PackageManager.PERMISSION_GRANTED
         ) {
             isPopulatingConversation = false
             return
         }
 
-        val projection = arrayOf(
-            Telephony.Sms.BODY,
-            Telephony.Sms.DATE,
-            Telephony.Sms.TYPE,
-            Telephony.Sms.ADDRESS,
-            Telephony.Sms._ID
-        )
+        val mainHandler = Handler(Looper.getMainLooper())
 
-        val cursor = contentResolver.query(
-            Telephony.Sms.CONTENT_URI,
-            projection,
-            "${Telephony.Sms.ADDRESS} = ?",
-            arrayOf(phone),
-            "${Telephony.Sms.DATE} ASC"
-        )
+        Thread({
+            val rows = mutableListOf<SmsConversationRow>()
 
-        lastMessageDate = null
-        lastTimeView = null
-
-        val deliveredRows = getSharedPreferences(
-            "messages_settings",
-            MODE_PRIVATE
-        ).getStringSet(
-            SmsDeliveredReceiver.PREF_DELIVERED_ROW_IDS,
-            emptySet()
-        )?.toSet() ?: emptySet()
-
-        cursor?.use {
-            val bodyIndex = it.getColumnIndexOrThrow(Telephony.Sms.BODY)
-            val dateIndex = it.getColumnIndexOrThrow(Telephony.Sms.DATE)
-            val typeIndex = it.getColumnIndexOrThrow(Telephony.Sms.TYPE)
-            val idIndex = it.getColumnIndexOrThrow(Telephony.Sms._ID)
-
-            while (it.moveToNext()) {
-                val body = it.getString(bodyIndex) ?: ""
-                val date = it.getLong(dateIndex)
-                val type = it.getInt(typeIndex)
-                val incoming = type == Telephony.Sms.MESSAGE_TYPE_INBOX
-                val rowId = it.getString(idIndex)
-
-                addMessage(
-                    body = body,
-                    date = date,
-                    incoming = incoming,
-                    delivered = !incoming && rowId in deliveredRows
+            try {
+                val projection = arrayOf(
+                    Telephony.Sms.BODY,
+                    Telephony.Sms.DATE,
+                    Telephony.Sms.TYPE,
+                    Telephony.Sms.ADDRESS,
+                    Telephony.Sms._ID
                 )
-            }
-        }
 
-        isPopulatingConversation = false
-        playAllLargeEmojiAnimations()
-        scrollView.post {
-            scrollView.fullScroll(View.FOCUS_DOWN)
-        }
+                val deliveredRows = getSharedPreferences(
+                    "messages_settings",
+                    MODE_PRIVATE
+                ).getStringSet(
+                    SmsDeliveredReceiver.PREF_DELIVERED_ROW_IDS,
+                    emptySet()
+                )?.toSet() ?: emptySet()
+
+                contentResolver.query(
+                    Telephony.Sms.CONTENT_URI,
+                    projection,
+                    "${Telephony.Sms.ADDRESS} = ?",
+                    arrayOf(phone),
+                    "${Telephony.Sms.DATE} ASC"
+                )?.use { cursor ->
+                    val bodyIndex =
+                        cursor.getColumnIndexOrThrow(Telephony.Sms.BODY)
+                    val dateIndex =
+                        cursor.getColumnIndexOrThrow(Telephony.Sms.DATE)
+                    val typeIndex =
+                        cursor.getColumnIndexOrThrow(Telephony.Sms.TYPE)
+                    val idIndex =
+                        cursor.getColumnIndexOrThrow(Telephony.Sms._ID)
+
+                    while (cursor.moveToNext()) {
+                        val body = cursor.getString(bodyIndex) ?: ""
+                        val date = cursor.getLong(dateIndex)
+                        val incoming =
+                            cursor.getInt(typeIndex) ==
+                                Telephony.Sms.MESSAGE_TYPE_INBOX
+                        val rowId = cursor.getString(idIndex)
+
+                        rows.add(
+                            SmsConversationRow(
+                                body = body,
+                                date = date,
+                                incoming = incoming,
+                                delivered = !incoming && rowId in deliveredRows
+                            )
+                        )
+                    }
+                }
+            } catch (error: Exception) {
+                Log.e(
+                    "ConversationActivity",
+                    "Failed to load SMS conversation",
+                    error
+                )
+                mainHandler.post {
+                    if (generation == conversationLoadGeneration) {
+                        isPopulatingConversation = false
+                    }
+                }
+                return@Thread
+            }
+
+            mainHandler.post {
+                if (generation != conversationLoadGeneration ||
+                    isFinishing || isDestroyed
+                ) {
+                    return@post
+                }
+
+                fun renderBatch(startIndex: Int) {
+                    if (generation != conversationLoadGeneration ||
+                        isFinishing || isDestroyed
+                    ) {
+                        return
+                    }
+
+                    val endIndex = minOf(startIndex + 32, rows.size)
+
+                    for (index in startIndex until endIndex) {
+                        val row = rows[index]
+                        addMessage(
+                            body = row.body,
+                            date = row.date,
+                            incoming = row.incoming,
+                            delivered = row.delivered
+                        )
+                    }
+
+                    if (endIndex < rows.size) {
+                        scrollView.postOnAnimation {
+                            renderBatch(endIndex)
+                        }
+                    } else {
+                        isPopulatingConversation = false
+
+                        // رفتار فعلی انیمیشن‌ها حفظ می‌شود.
+                        playAllLargeEmojiAnimations()
+                        scrollView.post {
+                            scrollView.fullScroll(View.FOCUS_DOWN)
+                        }
+                    }
+                }
+
+                renderBatch(0)
+            }
+        }, "conversation-sms-loader").start()
     }
 
     private fun playAllLargeEmojiAnimations() {
