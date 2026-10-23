@@ -731,6 +731,17 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         val backCapsule = LiquidGlassView(this).apply {
             cornerRadius = dp(24).toFloat()
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setColor(
+                    if (darkTheme) Color.TRANSPARENT
+                    else Color.rgb(238, 240, 242)
+                )
+                if (!darkTheme) {
+                    setStroke(dp(1), Color.rgb(220, 223, 228))
+                }
+                cornerRadius = dp(24).toFloat()
+            }
             material = GlassMaterial.REGULAR
             refractionHeight = dp(5).toFloat()
             bevelWidth = dp(8).toFloat()
@@ -877,6 +888,17 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         val contactNameGlass = LiquidGlassView(this).apply {
             cornerRadius = dp(17).toFloat()
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setColor(
+                    if (darkTheme) Color.TRANSPARENT
+                    else Color.rgb(238, 240, 242)
+                )
+                if (!darkTheme) {
+                    setStroke(dp(1), Color.rgb(220, 223, 228))
+                }
+                cornerRadius = dp(17).toFloat()
+            }
             material = GlassMaterial.REGULAR
             refractionHeight = dp(3).toFloat()
             bevelWidth = dp(4).toFloat()
@@ -932,6 +954,17 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         val moreCapsule = LiquidGlassView(this).apply {
             cornerRadius = dp(24).toFloat()
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setColor(
+                    if (darkTheme) Color.TRANSPARENT
+                    else Color.rgb(238, 240, 242)
+                )
+                if (!darkTheme) {
+                    setStroke(dp(1), Color.rgb(220, 223, 228))
+                }
+                cornerRadius = dp(24).toFloat()
+            }
             material = GlassMaterial.REGULAR
             refractionHeight = dp(5).toFloat()
             bevelWidth = dp(8).toFloat()
@@ -1287,6 +1320,17 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         val composerGlass = LiquidGlassView(this).apply {
             cornerRadius = dp(28).toFloat()
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setColor(
+                    if (darkTheme) Color.TRANSPARENT
+                    else Color.rgb(238, 240, 242)
+                )
+                if (!darkTheme) {
+                    setStroke(dp(1), Color.rgb(220, 223, 228))
+                }
+                cornerRadius = dp(28).toFloat()
+            }
             material = GlassMaterial.REGULAR
             refractionHeight = dp(5).toFloat()
             bevelWidth = dp(7).toFloat()
