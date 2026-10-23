@@ -689,11 +689,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enableSensorHighlight = true
             enablePressEffect = true
             pressScale = 0.96f
-            enableAdaptiveTint = false
+            enableAdaptiveTint = true
             glassTint = if (darkTheme) {
                 Color.argb(38, 255, 255, 255)
             } else {
-                Color.argb(76, 255, 255, 255)
+                Color.argb(88, 255, 255, 255)
             }
             setOnClickListener { finish() }
         }
@@ -835,11 +835,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enableSensorHighlight = true
             enablePressEffect = true
             pressScale = 0.98f
-            enableAdaptiveTint = false
+            enableAdaptiveTint = true
             glassTint = if (darkTheme) {
                 Color.argb(30, 255, 255, 255)
             } else {
-                Color.argb(64, 255, 255, 255)
+                Color.argb(76, 255, 255, 255)
             }
             setPadding(dp(3), 0, dp(3), 0)
             addView(
@@ -890,11 +890,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             enableSensorHighlight = true
             enablePressEffect = true
             pressScale = 0.96f
-            enableAdaptiveTint = false
+            enableAdaptiveTint = true
             glassTint = if (darkTheme) {
                 Color.argb(38, 255, 255, 255)
             } else {
-                Color.argb(76, 255, 255, 255)
+                Color.argb(88, 255, 255, 255)
             }
         }
 
@@ -1237,11 +1237,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             dispersionStrength = 0.035f
             enableSensorHighlight = true
             enablePressEffect = true
-            enableAdaptiveTint = false
+            enableAdaptiveTint = true
             glassTint = if (darkTheme) {
                 Color.argb(38, 255, 255, 255)
             } else {
-                Color.argb(76, 255, 255, 255)
+                Color.argb(88, 255, 255, 255)
             }
             clipChildren = false
             clipToPadding = false
