@@ -456,7 +456,7 @@ companion object {
 
             homeBottomFade?.let { fade ->
                 (fade.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                    params.bottomMargin = safe.bottom
+                    params.bottomMargin = 0
                     fade.layoutParams = params
                 }
             }
@@ -801,7 +801,8 @@ companion object {
         ))
         pullBanner.isClickable = false
 
-        // Soft bottom fade behind search and compose controls.
+        // One continuous fade from the search capsule's top edge
+        // to the physical screen bottom, including navigation.
         val bottomFadeColor = if (isDarkMode) Color.BLACK else Color.WHITE
         val bottomFade = View(this).apply {
             background = GradientDrawable(
@@ -1182,10 +1183,10 @@ companion object {
             bottomFade,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(150),
+                0,
                 Gravity.BOTTOM
             ).apply {
-                bottomMargin = homeBottomInset
+                bottomMargin = 0
             }
         )
 
@@ -1201,6 +1202,44 @@ companion object {
             }
         )
         bottomDock.bringToFront()
+
+        var updateHomeBottomFadeBounds: (() -> Unit)? = null
+
+        // Position the fade using the actual search capsule coordinates.
+        updateHomeBottomFadeBounds = {
+            if (rootFrame.height > 0 && bottomDock.height > 0 &&
+                searchCapsule.height > 0
+            ) {
+                val rootLocation = IntArray(2)
+                val searchLocation = IntArray(2)
+                rootFrame.getLocationOnScreen(rootLocation)
+                searchCapsule.getLocationOnScreen(searchLocation)
+
+                val fadeTop = searchLocation[1] - rootLocation[1]
+                val targetHeight = (rootFrame.height - fadeTop).coerceAtLeast(0)
+
+                homeBottomFade?.let { fade ->
+                    (fade.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+                        if (params.height != targetHeight || params.bottomMargin != 0) {
+                            params.height = targetHeight
+                            params.bottomMargin = 0
+                            fade.layoutParams = params
+                        }
+                    }
+                }
+            }
+        }
+
+        rootFrame.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateHomeBottomFadeBounds?.invoke()
+        }
+        bottomDock.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateHomeBottomFadeBounds?.invoke()
+        }
+        searchCapsule.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateHomeBottomFadeBounds?.invoke()
+        }
+        updateHomeBottomFadeBounds?.invoke()
 
         return rootFrame
     }
