@@ -3280,7 +3280,7 @@ companion object {
             clipChildren = false
             clipToPadding = false
             translationX = dp(4).toFloat()
-            layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply {
                 rightMargin = dp(12)
             }
         }
@@ -3302,7 +3302,7 @@ companion object {
             }
             contactFrame.addView(
                 contact,
-                FrameLayout.LayoutParams(dp(48), dp(48))
+                FrameLayout.LayoutParams(dp(44), dp(44))
             )
         } else {
             val avatarName = contactName?.trim().orEmpty().ifEmpty { address.trim() }
@@ -3313,7 +3313,7 @@ companion object {
 
             val contact = TextView(this).apply {
                 text = avatarLetter
-                textSize = 21f
+                textSize = 19f
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
                 typeface = Typeface.DEFAULT_BOLD
@@ -3325,7 +3325,7 @@ companion object {
             }
             contactFrame.addView(
                 contact,
-                FrameLayout.LayoutParams(dp(48), dp(48))
+                FrameLayout.LayoutParams(dp(44), dp(44))
             )
         }
 
@@ -3364,7 +3364,8 @@ companion object {
             setTextColor(primaryText)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.START
-            textDirection = View.TEXT_DIRECTION_LOCALE
+            textAlignment = View.TEXT_ALIGNMENT_TEXT_START
+            textDirection = View.TEXT_DIRECTION_FIRST_STRONG
         }
 
         val preview = TextView(this).apply {
@@ -3375,7 +3376,8 @@ companion object {
             ellipsize = android.text.TextUtils.TruncateAt.END
             setPadding(0, dp(4), 0, 0)
             gravity = Gravity.START
-            textDirection = View.TEXT_DIRECTION_LOCALE
+            textAlignment = View.TEXT_ALIGNMENT_TEXT_START
+            textDirection = View.TEXT_DIRECTION_FIRST_STRONG
         }
 
         textContainer.addView(
@@ -3413,7 +3415,7 @@ companion object {
 
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
-            translationX = -dp(12).toFloat()
+            translationX = -dp(16).toFloat()
             textSize = 11f
             setTextColor(
                 if (isDarkMode) Color.rgb(205, 205, 212)
@@ -3601,8 +3603,8 @@ companion object {
                 dp(1),
                 Gravity.BOTTOM
             ).apply {
-                leftMargin = dp(68)
-                rightMargin = dp(18)
+                marginStart = dp(56)
+                marginEnd = dp(16)
             }
         )
 
@@ -4377,10 +4379,42 @@ private fun createSelectionActionBar(): View {
     }
 
     private fun formatShortDate(timestamp: Long): String {
-        return SimpleDateFormat(
-            "MMM d",
-            Locale.US
-        ).format(Date(timestamp))
+        val now = java.util.Calendar.getInstance()
+        val messageDay = java.util.Calendar.getInstance().apply {
+            timeInMillis = timestamp
+        }
+
+        fun sameCalendarDay(
+            first: java.util.Calendar,
+            second: java.util.Calendar
+        ): Boolean {
+            return first.get(java.util.Calendar.ERA) ==
+                second.get(java.util.Calendar.ERA) &&
+                first.get(java.util.Calendar.YEAR) ==
+                second.get(java.util.Calendar.YEAR) &&
+                first.get(java.util.Calendar.DAY_OF_YEAR) ==
+                second.get(java.util.Calendar.DAY_OF_YEAR)
+        }
+
+        if (sameCalendarDay(messageDay, now)) {
+            return SimpleDateFormat("h:mm a", Locale.US).format(Date(timestamp))
+        }
+
+        val comparisonDay = now.clone() as java.util.Calendar
+        comparisonDay.add(java.util.Calendar.DAY_OF_YEAR, -1)
+
+        if (sameCalendarDay(messageDay, comparisonDay)) {
+            return "Yesterday"
+        }
+
+        for (daysAgo in 2..6) {
+            comparisonDay.add(java.util.Calendar.DAY_OF_YEAR, -1)
+            if (sameCalendarDay(messageDay, comparisonDay)) {
+                return SimpleDateFormat("EEEE", Locale.US).format(Date(timestamp))
+            }
+        }
+
+        return SimpleDateFormat("MMM d", Locale.US).format(Date(timestamp))
     }
 
     private fun openConversation(address: String) {
