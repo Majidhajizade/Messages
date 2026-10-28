@@ -419,7 +419,7 @@ companion object {
     }
 
     private fun createHomeScreen(): View {
-        val homeBackground = if (isDarkMode) Color.BLACK else Color.rgb(246, 246, 248)
+        val homeBackground = if (isDarkMode) Color.BLACK else Color.WHITE
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(homeBackground)
@@ -470,9 +470,9 @@ companion object {
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
                 setColor(if (isDarkMode) Color.rgb(30, 30, 32) else Color.WHITE)
-                cornerRadius = dp(18).toFloat()
+                cornerRadius = dp(20).toFloat()
             }
-            elevation = dp(3).toFloat()
+            elevation = dp(1).toFloat()
             contentDescription = "Edit conversations"
             isClickable = true
             isFocusable = true
@@ -506,9 +506,9 @@ companion object {
         val menuButton = FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 setColor(if (isDarkMode) Color.rgb(30, 30, 32) else Color.WHITE)
-                cornerRadius = dp(18).toFloat()
+                cornerRadius = dp(20).toFloat()
             }
-            elevation = dp(3).toFloat()
+            elevation = dp(1).toFloat()
             contentDescription = "More"
             isClickable = true
             isFocusable = true
@@ -737,6 +737,7 @@ companion object {
 
         val bottomDock = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(20), dp(6), dp(20), dp(6))
             clipChildren = false
@@ -794,7 +795,7 @@ companion object {
 
         val pencilButton = FrameLayout(this).apply {
             background = GradientDrawable().apply {
-                cornerRadius = dp(17).toFloat()
+                shape = GradientDrawable.OVAL
                 setColor(if (isDarkMode) Color.rgb(35, 35, 38) else Color.WHITE)
             }
             elevation = dp(5).toFloat()
