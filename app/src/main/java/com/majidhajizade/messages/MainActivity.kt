@@ -455,6 +455,7 @@ companion object {
 
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
             gravity = Gravity.CENTER_VERTICAL
             setBackgroundColor(homeBackground)
             setPadding(dp(20), 0, dp(20), 0)
@@ -468,9 +469,10 @@ companion object {
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(13).toFloat()
+                setColor(if (isDarkMode) Color.rgb(30, 30, 32) else Color.WHITE)
+                cornerRadius = dp(18).toFloat()
             }
+            elevation = dp(3).toFloat()
             contentDescription = "Edit conversations"
             isClickable = true
             isFocusable = true
@@ -479,7 +481,7 @@ companion object {
                 enterSelectionMode()
             }
         }
-        header.addView(editButton, LinearLayout.LayoutParams(dp(68), dp(42)))
+        header.addView(editButton, LinearLayout.LayoutParams(dp(68), dp(40)))
 
         if (AppSecurity.isEnabled(this)) {
             val lockButton = ImageView(this).apply {
@@ -496,11 +498,17 @@ companion object {
             header.addView(lockButton, LinearLayout.LayoutParams(dp(42), dp(44)))
         }
 
+        header.addView(
+            View(this),
+            LinearLayout.LayoutParams(0, 1, 1f)
+        )
+
         val menuButton = FrameLayout(this).apply {
             background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(13).toFloat()
+                setColor(if (isDarkMode) Color.rgb(30, 30, 32) else Color.WHITE)
+                cornerRadius = dp(18).toFloat()
             }
+            elevation = dp(3).toFloat()
             contentDescription = "More"
             isClickable = true
             isFocusable = true
@@ -515,7 +523,7 @@ companion object {
             setOnClickListener { showHeaderMenu() }
         }
         headerMenuButton = menuButton
-        header.addView(menuButton, LinearLayout.LayoutParams(dp(54), dp(42)))
+        header.addView(menuButton, LinearLayout.LayoutParams(dp(48), dp(40)))
 
         val headerLayer = FrameLayout(this).apply {
             setBackgroundColor(homeBackground)
@@ -569,7 +577,7 @@ companion object {
             clipToPadding = false
 
             val scrollContent = LinearLayout(this@MainActivity).apply {
-                setPadding(0, 0, 0, 0)
+                setPadding(0, 0, 0, dp(88))
                 clipToPadding = false
                 orientation = LinearLayout.VERTICAL
                 setBackgroundColor(homeBackground)
@@ -608,8 +616,8 @@ companion object {
 
         }
         val chatLayer = FrameLayout(this).apply {
-            clipChildren = true
-            clipToPadding = true
+            clipChildren = false
+            clipToPadding = false
         }
 
         chatLayer.addView(
@@ -730,10 +738,11 @@ companion object {
         val bottomDock = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(20), dp(8), dp(20), dp(8))
+            setPadding(dp(20), dp(6), dp(20), dp(6))
             clipChildren = false
             clipToPadding = false
-            setBackgroundColor(homeBackground)
+            setBackgroundColor(Color.TRANSPARENT)
+            elevation = dp(8).toFloat()
         }
 
         val searchCapsule = LinearLayout(this).apply {
@@ -745,8 +754,9 @@ companion object {
                     if (isDarkMode) Color.argb(210, 66, 66, 70)
                     else Color.argb(232, 255, 255, 255)
                 )
-                cornerRadius = dp(25).toFloat()
+                cornerRadius = dp(28).toFloat()
             }
+            elevation = dp(5).toFloat()
             isClickable = true
             isFocusable = true
             contentDescription = "Search messages"
@@ -779,15 +789,15 @@ companion object {
         }
         bottomDock.addView(
             searchCapsule,
-            LinearLayout.LayoutParams(0, dp(58), 1f)
+            LinearLayout.LayoutParams(0, dp(46), 1f)
         )
 
         val pencilButton = FrameLayout(this).apply {
             background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.argb(224, 255, 255, 255))
+                cornerRadius = dp(17).toFloat()
+                setColor(if (isDarkMode) Color.rgb(35, 35, 38) else Color.WHITE)
             }
-            elevation = dp(2).toFloat()
+            elevation = dp(5).toFloat()
             isClickable = true
             isFocusable = true
             contentDescription = "New message"
@@ -803,18 +813,23 @@ companion object {
         floatingComposeButton = pencilButton
         bottomDock.addView(
             pencilButton,
-            LinearLayout.LayoutParams(dp(58), dp(58)).apply {
+            LinearLayout.LayoutParams(dp(46), dp(46)).apply {
                 leftMargin = dp(12)
             }
         )
 
-        root.addView(
+        chatLayer.addView(
             bottomDock,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(74)
-            )
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(58),
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            ).apply {
+                rightMargin = 0
+                bottomMargin = dp(10)
+            }
         )
+        bottomDock.bringToFront()
 
         var pullStartY = 0f
         var pullStartX = 0f
