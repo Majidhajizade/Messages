@@ -429,11 +429,19 @@ companion object {
             clipToPadding = false
         }
 
+        // Full-screen overlay: bottom controls no longer depend on chatLayer.
+        val rootFrame = FrameLayout(this).apply {
+            setBackgroundColor(homeBackground)
+            clipChildren = false
+            clipToPadding = false
+        }
+
         var homeTopInset = 0
         var homeBottomInset = 0
         var headerFadeView: View? = null
+        var homeBottomFade: View? = null
 
-        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(rootFrame) { _, insets ->
             val safe = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or
                     WindowInsetsCompat.Type.displayCutout()
@@ -442,19 +450,23 @@ companion object {
             homeBottomInset = safe.bottom
             headerFadeView?.translationY = -safe.top.toFloat()
 
-            homeBottomDock?.let { dock ->
-                (dock.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                    params.bottomMargin = 0
-                    dock.layoutParams = params
+            // Keep the content below the status bar, while overlays use
+            // the full window and reserve the actual navigation-bar inset.
+            root.setPadding(safe.left, safe.top, safe.right, 0)
+
+            homeBottomFade?.let { fade ->
+                (fade.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+                    params.bottomMargin = safe.bottom
+                    fade.layoutParams = params
                 }
             }
 
-            view.setPadding(
-                safe.left,
-                safe.top,
-                safe.right,
-                0
-            )
+            homeBottomDock?.let { dock ->
+                (dock.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+                    params.bottomMargin = safe.bottom
+                    dock.layoutParams = params
+                }
+            }
             insets
         }
 
@@ -803,14 +815,9 @@ companion object {
             isClickable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
-        chatLayer.addView(
-            bottomFade,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(150),
-                Gravity.BOTTOM
-            )
-        )
+        // Added to rootFrame after the main content, so the fade aligns
+        // with the screen bottom rather than chatLayer's bounds.
+        homeBottomFade = bottomFade
 
         val bottomDock = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -900,18 +907,8 @@ companion object {
             }
         )
 
-        chatLayer.addView(
-            bottomDock,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                dp(60),
-                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            ).apply {
-                rightMargin = 0
-                bottomMargin = 0
-            }
-        )
-        bottomDock.bringToFront()
+        // Attach the dock to the full-screen overlay at the end of
+        // createHomeScreen(), after root content and bottom fade.
 
         var pullStartY = 0f
         var pullStartX = 0f
@@ -1173,7 +1170,39 @@ companion object {
             }
         }
 
-        return root
+        rootFrame.addView(
+            root,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        rootFrame.addView(
+            bottomFade,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(150),
+                Gravity.BOTTOM
+            ).apply {
+                bottomMargin = homeBottomInset
+            }
+        )
+
+        rootFrame.addView(
+            bottomDock,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                dp(60),
+                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            ).apply {
+                rightMargin = 0
+                bottomMargin = homeBottomInset
+            }
+        )
+        bottomDock.bringToFront()
+
+        return rootFrame
     }
 
     private fun loadMessages() {
