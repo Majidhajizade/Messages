@@ -790,6 +790,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         val backCircle = ImageButton(this).apply {
             setImageResource(R.drawable.ic_back_arrow)
+            setColorFilter(
+                if (darkTheme) Color.WHITE else Color.BLACK
+            )
             contentDescription = "Back"
             scaleType = android.widget.ImageView.ScaleType.CENTER
             setPadding(dp(4), dp(4), dp(4), dp(4))
@@ -1132,31 +1135,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
         )
 
-        val floatingDateCapsule = TextView(this).apply {
-            textSize = 12f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(dp(14), dp(6), dp(14), dp(6))
-            background = GradientDrawable().apply {
-                setColor(Color.argb(115, 0, 0, 0))
-                cornerRadius = dp(18).toFloat()
-            }
-            elevation = dp(3).toFloat()
-            alpha = 0f
-            visibility = View.GONE
-        }
-
-        root.addView(
-            floatingDateCapsule,
-            android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                topMargin = dp(160)
-            }
-        )
-
         val scrollJumpButton = android.widget.ImageButton(this).apply {
             setImageResource(R.drawable.ic_back_arrow)
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
@@ -1179,51 +1157,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             }
         }
 
-        val hideDateCapsule = Runnable {
-            floatingDateCapsule.animate()
-                .alpha(0f)
-                .setDuration(250L)
-                .withEndAction {
-                    floatingDateCapsule.visibility = View.GONE
-                }
-                .start()
-        }
-
         scrollView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
             if (scrollY != oldScrollY) {
-                var activeDate: TextView? = null
-                val dateThreshold = scrollY + dp(120)
-
-                // تاریخ‌ها مرتب هستند؛ تاریخ فعال را با جست‌وجوی دودویی پیدا کن.
-                var low = 0
-                var high = dateHeaderRows.lastIndex
-                var activeIndex = -1
-
-                while (low <= high) {
-                    val mid = (low + high) ushr 1
-                    if (dateHeaderRows[mid].top <= dateThreshold) {
-                        activeIndex = mid
-                        low = mid + 1
-                    } else {
-                        high = mid - 1
-                    }
-                }
-
-                if (activeIndex >= 0) {
-                    activeDate =
-                        (dateHeaderRows[activeIndex] as? LinearLayout)
-                            ?.getChildAt(0) as? TextView
-                }
-
-                if (activeDate != null) {
-                    floatingDateCapsule.text = activeDate.text
-                    floatingDateCapsule.animate().cancel()
-                    floatingDateCapsule.alpha = 1f
-                    floatingDateCapsule.visibility = View.VISIBLE
-                    floatingDateCapsule.removeCallbacks(hideDateCapsule)
-                    floatingDateCapsule.postDelayed(hideDateCapsule, 2000L)
-                }
-
                 val maxY =
                     (messagesContainer.height - scrollView.height).coerceAtLeast(0)
                 val atTop = scrollY <= dp(4)
@@ -2222,6 +2157,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         SimpleDateFormat("yyyy-MM-dd", Locale.US)
     private val displayDateFormatter =
         SimpleDateFormat("dd MMM", Locale.getDefault())
+    private val displayTimeFormatter =
+        SimpleDateFormat("h:mm a", Locale.getDefault())
     private fun getTodayDateKey(): String =
         dayKeyFormatter.format(Date())
 
@@ -2266,13 +2203,19 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         val dayKey = dayKeyFormatter.format(Date(date))
-        if (dayKey != lastDateHeaderKey) {
+        val previousDate = lastMessageDate
+        val startsNewTimeGroup = previousDate != null &&
+            date > previousDate &&
+            date - previousDate > 60 * 60 * 1000L
+
+        if (dayKey != lastDateHeaderKey || startsNewTimeGroup) {
             val dateHeader = TextView(this).apply {
-                text = when {
+                val dayLabel = when {
                     dayKey == getTodayDateKey() -> "Today"
                     dayKey == getYesterdayDateKey() -> "Yesterday"
                     else -> displayDateFormatter.format(Date(date))
                 }
+                text = "$dayLabel ${displayTimeFormatter.format(Date(date))}"
                 textSize = 12f
                 setTextColor(if (isDarkThemeEnabled()) Color.LTGRAY else Color.rgb(120, 120, 125))
                 gravity = Gravity.CENTER
@@ -2295,7 +2238,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             lastDateHeaderKey = dayKey
         }
 
-        val previousDate = lastMessageDate
         val closeToPrevious = previousDate != null &&
             date - previousDate < 60_000L
 
