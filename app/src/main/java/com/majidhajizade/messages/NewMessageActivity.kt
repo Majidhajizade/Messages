@@ -30,20 +30,46 @@ class NewMessageActivity : Activity() {
 
     companion object {
         private const val CONTACTS_PERMISSION_REQUEST = 1002
-        private val PAGE_BG = Color.rgb(239, 239, 242)
-        private val TEXT_COLOR = Color.rgb(28, 28, 30)
-        private val MUTED_COLOR = Color.rgb(125, 125, 130)
     }
+
+    private fun isDarkThemeEnabled(): Boolean {
+        val prefs = getSharedPreferences("messages_settings", MODE_PRIVATE)
+        val systemDark = (resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        return when (prefs.getString("theme_mode", null)) {
+            "day" -> false
+            "night" -> true
+            "system" -> systemDark
+            else -> if (prefs.contains("dark_mode")) {
+                prefs.getBoolean("dark_mode", false)
+            } else {
+                systemDark
+            }
+        }
+    }
+
+    private val pageBg: Int
+        get() = if (isDarkThemeEnabled()) Color.BLACK else Color.rgb(239, 239, 242)
+    private val textColor: Int
+        get() = if (isDarkThemeEnabled()) Color.WHITE else Color.rgb(28, 28, 30)
+    private val mutedColor: Int
+        get() = if (isDarkThemeEnabled()) Color.rgb(165, 165, 175) else Color.rgb(125, 125, 130)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        window.statusBarColor = PAGE_BG
-        window.navigationBarColor = PAGE_BG
+        window.statusBarColor = pageBg
+        window.navigationBarColor = pageBg
+        val currentUiFlags = window.decorView.systemUiVisibility
         window.decorView.systemUiVisibility =
-            window.decorView.systemUiVisibility or
-                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
-                View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            if (isDarkThemeEnabled()) {
+                currentUiFlags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv() and
+                    View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+            } else {
+                currentUiFlags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                    View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            }
 
         val existingPhone = intent.getStringExtra("phone")
         if (!existingPhone.isNullOrBlank()) {
@@ -54,7 +80,7 @@ class NewMessageActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(PAGE_BG)
+            setBackgroundColor(pageBg)
             setPadding(dp(16), dp(8), dp(16), dp(12))
         }
 
@@ -81,7 +107,7 @@ class NewMessageActivity : Activity() {
             TextView(this).apply {
                 text = "New message"
                 textSize = 20f
-                setTextColor(TEXT_COLOR)
+                setTextColor(textColor)
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER_VERTICAL
             },
@@ -116,14 +142,14 @@ class NewMessageActivity : Activity() {
         val searchBox = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = roundedBackground(Color.WHITE, 32)
+            background = roundedBackground(if (isDarkThemeEnabled()) Color.rgb(22, 22, 22) else Color.WHITE, 32)
             setPadding(dp(16), 0, dp(16), 0)
         }
 
         val searchIcon = TextView(this).apply {
             text = "⌕"
             textSize = 27f
-            setTextColor(MUTED_COLOR)
+            setTextColor(mutedColor)
             gravity = Gravity.CENTER
         }
 
@@ -135,8 +161,8 @@ class NewMessageActivity : Activity() {
         searchInput = EditText(this).apply {
             hint = "Search Contacts"
             textSize = 16f
-            setTextColor(TEXT_COLOR)
-            setHintTextColor(MUTED_COLOR)
+            setTextColor(textColor)
+            setHintTextColor(mutedColor)
             setSingleLine(true)
             background = null
             setPadding(dp(6), 0, dp(4), 0)
@@ -164,7 +190,7 @@ class NewMessageActivity : Activity() {
 
         val actionsCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = roundedBackground(Color.WHITE, 20)
+            background = roundedBackground(if (isDarkThemeEnabled()) Color.rgb(22, 22, 22) else Color.WHITE, 20)
             setPadding(dp(14), dp(4), dp(14), dp(4))
         }
 
@@ -214,7 +240,7 @@ class NewMessageActivity : Activity() {
 
         val contactsCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = roundedBackground(Color.WHITE, 20)
+            background = roundedBackground(if (isDarkThemeEnabled()) Color.rgb(22, 22, 22) else Color.WHITE, 20)
             setPadding(dp(14), dp(12), dp(14), dp(8))
         }
 
@@ -222,7 +248,7 @@ class NewMessageActivity : Activity() {
             TextView(this).apply {
                 text = "All contacts"
                 textSize = 16f
-                setTextColor(TEXT_COLOR)
+                setTextColor(textColor)
                 typeface = Typeface.DEFAULT_BOLD
                 setPadding(dp(2), dp(2), dp(2), dp(10))
             }
@@ -315,7 +341,7 @@ class NewMessageActivity : Activity() {
             val icon = TextView(this@NewMessageActivity).apply {
                 text = symbol
                 textSize = 24f
-                setTextColor(TEXT_COLOR)
+                setTextColor(textColor)
                 gravity = Gravity.CENTER
             }
 
@@ -328,7 +354,7 @@ class NewMessageActivity : Activity() {
                 TextView(this@NewMessageActivity).apply {
                     text = label
                     textSize = 16f
-                    setTextColor(TEXT_COLOR)
+                    setTextColor(textColor)
                     gravity = Gravity.CENTER_VERTICAL
                 },
                 LinearLayout.LayoutParams(
@@ -422,7 +448,7 @@ class NewMessageActivity : Activity() {
                         "No matching contacts"
                     }
                     textSize = 14f
-                    setTextColor(MUTED_COLOR)
+                    setTextColor(mutedColor)
                     gravity = Gravity.CENTER
                     setPadding(0, dp(24), 0, dp(24))
                 }
@@ -522,7 +548,7 @@ class NewMessageActivity : Activity() {
                     TextView(this@NewMessageActivity).apply {
                         text = name
                         textSize = 16f
-                        setTextColor(TEXT_COLOR)
+                        setTextColor(textColor)
                         maxLines = 1
                         ellipsize = android.text.TextUtils.TruncateAt.END
                     }
@@ -532,7 +558,7 @@ class NewMessageActivity : Activity() {
                     TextView(this@NewMessageActivity).apply {
                         text = number
                         textSize = 14f
-                        setTextColor(MUTED_COLOR)
+                        setTextColor(mutedColor)
                         maxLines = 1
                         ellipsize = android.text.TextUtils.TruncateAt.END
                     }

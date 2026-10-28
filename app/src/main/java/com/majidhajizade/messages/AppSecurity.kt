@@ -976,6 +976,24 @@ object AppSecurity {
 
     fun showSettings(activity: FragmentActivity) {
         val enabled = isEnabled(activity)
+        val themePrefs = activity.getSharedPreferences("messages_settings", Context.MODE_PRIVATE)
+        val systemDark = (activity.resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val dark = when (themePrefs.getString("theme_mode", null)) {
+            "day" -> false
+            "night" -> true
+            "system" -> systemDark
+            else -> if (themePrefs.contains("dark_mode")) {
+                themePrefs.getBoolean("dark_mode", false)
+            } else {
+                systemDark
+            }
+        }
+        val pageBg = if (dark) Color.BLACK else Color.WHITE
+        val mainText = if (dark) Color.WHITE else Color.rgb(33, 33, 33)
+        val secondaryText = if (dark) Color.rgb(175, 175, 185) else Color.rgb(117, 117, 117)
+        val dividerColor = if (dark) Color.rgb(48, 48, 48) else Color.rgb(230, 230, 230)
         val density = activity.resources.displayMetrics.density
         fun dp(value: Int): Int = (value * density + 0.5f).toInt()
 
@@ -985,7 +1003,7 @@ object AppSecurity {
         )
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(pageBg)
             clipToPadding = false
         }
 
@@ -1002,7 +1020,7 @@ object AppSecurity {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(8), 0, dp(16), 0)
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(pageBg)
         }
 
         val back = TextView(activity).apply {
@@ -1016,7 +1034,7 @@ object AppSecurity {
         val title = TextView(activity).apply {
             text = "Passcode"
             textSize = 20f
-            setTextColor(Color.rgb(33, 33, 33))
+            setTextColor(mainText)
             gravity = Gravity.CENTER_VERTICAL
         }
         toolbar.addView(
@@ -1030,7 +1048,6 @@ object AppSecurity {
             )
         )
 
-        val dividerColor = Color.rgb(230, 230, 230)
         root.addView(View(activity).apply {
             setBackgroundColor(dividerColor)
         }, LinearLayout.LayoutParams(
@@ -1098,14 +1115,14 @@ object AppSecurity {
             textColumn.addView(TextView(activity).apply {
                 text = label
                 textSize = 16f
-                setTextColor(Color.rgb(33, 33, 33))
+                setTextColor(mainText)
             })
 
             if (detail != null) {
                 val description = TextView(activity).apply {
                     text = detail
                     textSize = 13f
-                    setTextColor(Color.rgb(117, 117, 117))
+                    setTextColor(secondaryText)
                     setPadding(0, dp(4), 0, 0)
                 }
                 textColumn.addView(description)
@@ -1149,12 +1166,12 @@ object AppSecurity {
             textColumn.addView(TextView(activity).apply {
                 text = label
                 textSize = 16f
-                setTextColor(Color.rgb(33, 33, 33))
+                setTextColor(mainText)
             })
             textColumn.addView(TextView(activity).apply {
                 text = detail
                 textSize = 13f
-                setTextColor(Color.rgb(117, 117, 117))
+                setTextColor(secondaryText)
                 setPadding(0, dp(4), 0, 0)
             })
 
@@ -1250,8 +1267,8 @@ object AppSecurity {
         dialog.setContentView(root)
         dialog.show()
         dialog.window?.apply {
-            setBackgroundDrawable(ColorDrawable(Color.WHITE))
-            decorView.setBackgroundColor(Color.WHITE)
+            setBackgroundDrawable(ColorDrawable(pageBg))
+            decorView.setBackgroundColor(pageBg)
             setLayout(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT

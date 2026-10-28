@@ -103,7 +103,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     private val secondaryText = Color.rgb(110, 110, 115)
     private var isDarkMode = false
     private val screenBackground: Int
-        get() = if (isDarkMode) Color.rgb(12, 12, 14) else Color.WHITE
+        get() = if (isDarkMode) Color.BLACK else Color.WHITE
     private val primaryText: Int
         get() = if (isDarkMode) Color.WHITE else Color.BLACK
     private val secondaryThemeText: Int
@@ -1950,7 +1950,7 @@ companion object {
         val previousQuery = smsSearchQuery
         smsSearchQuery = ""
 
-        val pageBackground = if (isDarkMode) Color.rgb(18, 18, 18) else Color.WHITE
+        val pageBackground = if (isDarkMode) Color.BLACK else Color.WHITE
         val textColor = if (isDarkMode) Color.WHITE else Color.rgb(25, 25, 25)
         val secondaryColor = if (isDarkMode) Color.rgb(170, 170, 170) else Color.rgb(105, 105, 105)
         val capsuleColor = if (isDarkMode) Color.rgb(48, 48, 48) else Color.rgb(242, 242, 244)
@@ -3223,7 +3223,10 @@ companion object {
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
                 setPadding(dp(5), 0, dp(5), 0)
                 background = GradientDrawable().apply {
-                    setColor(Color.rgb(240, 240, 240))
+                    setColor(
+                        if (isDarkMode) Color.rgb(38, 38, 42)
+                        else Color.rgb(240, 240, 240)
+                    )
                     cornerRadius = dp(12).toFloat()
                     setStroke(
                         dp(1),
@@ -4165,7 +4168,7 @@ private fun createSelectionActionBar(): View {
 
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(245, 245, 247))
+            setBackgroundColor(screenBackground)
             setPadding(dp(18), dp(8), dp(18), dp(16))
         }
 
@@ -4211,7 +4214,7 @@ private fun createSelectionActionBar(): View {
                 text = "Settings"
                 textSize = 26f
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(33, 33, 33))
+                setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(33, 33, 33))
                 gravity = Gravity.CENTER
             },
             android.widget.FrameLayout.LayoutParams(
@@ -4235,7 +4238,7 @@ private fun createSelectionActionBar(): View {
             return LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(16), dp(16), dp(16), dp(16))
-                background = solidDrawable(Color.WHITE, dp(20).toFloat())
+                background = solidDrawable(if (isDarkMode) Color.rgb(22, 22, 22) else Color.WHITE, dp(20).toFloat())
             }
         }
 
@@ -4244,7 +4247,7 @@ private fun createSelectionActionBar(): View {
                 text = label
                 textSize = 17f
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(33, 33, 33))
+                setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(33, 33, 33))
             })
         }
 
@@ -4252,7 +4255,7 @@ private fun createSelectionActionBar(): View {
             card.addView(TextView(this).apply {
                 text = label
                 textSize = 14f
-                setTextColor(Color.rgb(110, 110, 115))
+                setTextColor(if (isDarkMode) Color.rgb(175, 175, 185) else Color.rgb(110, 110, 115))
                 setPadding(0, dp(5), 0, 0)
             })
         }
@@ -4298,13 +4301,13 @@ private fun createSelectionActionBar(): View {
         themeLabels.addView(TextView(this).apply {
             text = "System Default"
             textSize = 16f
-            setTextColor(Color.rgb(33, 33, 33))
+            setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(33, 33, 33))
         })
 
         themeLabels.addView(TextView(this).apply {
             text = "Follow device appearance"
             textSize = 13f
-            setTextColor(Color.rgb(110, 110, 115))
+            setTextColor(if (isDarkMode) Color.rgb(175, 175, 185) else Color.rgb(110, 110, 115))
             setPadding(0, dp(4), 0, 0)
         })
 
@@ -4320,7 +4323,7 @@ private fun createSelectionActionBar(): View {
         themeRow.addView(TextView(this).apply {
             text = "›"
             textSize = 26f
-            setTextColor(Color.rgb(110, 110, 115))
+            setTextColor(if (isDarkMode) Color.rgb(175, 175, 185) else Color.rgb(110, 110, 115))
             gravity = Gravity.CENTER
         })
 
@@ -4348,13 +4351,13 @@ private fun createSelectionActionBar(): View {
         spamFilterLabels.addView(TextView(this).apply {
             text = "Filter promotional SMS"
             textSize = 16f
-            setTextColor(Color.rgb(33, 33, 33))
+            setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(33, 33, 33))
         })
 
         spamFilterLabels.addView(TextView(this).apply {
             text = "Automatically filter likely carrier ads; security and banking messages are exempt"
             textSize = 13f
-            setTextColor(Color.rgb(110, 110, 115))
+            setTextColor(if (isDarkMode) Color.rgb(175, 175, 185) else Color.rgb(110, 110, 115))
             setPadding(0, dp(4), 0, 0)
         })
 
@@ -4410,7 +4413,7 @@ private fun createSelectionActionBar(): View {
 
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(245, 245, 248))
+            setBackgroundColor(screenBackground)
             setPadding(dp(18), dp(18), dp(18), dp(16))
         }
 
