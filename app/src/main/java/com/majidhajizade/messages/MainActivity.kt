@@ -122,6 +122,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     private var homeTitle: View? = null
     private var composeButtonView: View? = null
     private var floatingComposeButton: View? = null
+    private var homeBottomDock: View? = null
     private var meshManager: OfflineMeshManager? = null
     private var meshPopup: PopupWindow? = null
     private var headerMenuButton: View? = null
@@ -465,12 +466,12 @@ companion object {
         val editButton = TextView(this).apply {
             text = "Edit"
             textSize = 15f
-            setTextColor(Color.rgb(35, 35, 38))
+            setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(35, 35, 38))
             gravity = Gravity.CENTER
             typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
                 setColor(if (isDarkMode) Color.rgb(30, 30, 32) else Color.WHITE)
-                cornerRadius = dp(20).toFloat()
+                cornerRadius = dp(22).toFloat()
             }
             elevation = dp(1).toFloat()
             contentDescription = "Edit conversations"
@@ -506,7 +507,7 @@ companion object {
         val menuButton = FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 setColor(if (isDarkMode) Color.rgb(30, 30, 32) else Color.WHITE)
-                cornerRadius = dp(20).toFloat()
+                cornerRadius = dp(22).toFloat()
             }
             elevation = dp(1).toFloat()
             contentDescription = "More"
@@ -516,7 +517,7 @@ companion object {
                 ImageView(this@MainActivity).apply {
                     setImageResource(R.drawable.ic_menu_lines_custom)
                     scaleType = ImageView.ScaleType.CENTER_INSIDE
-                    setColorFilter(Color.rgb(40, 40, 44))
+                    setColorFilter(if (isDarkMode) Color.WHITE else Color.rgb(40, 40, 44))
                 },
                 FrameLayout.LayoutParams(dp(25), dp(25), Gravity.CENTER)
             )
@@ -738,13 +739,16 @@ companion object {
         val bottomDock = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutDirection = View.LAYOUT_DIRECTION_LTR
-            gravity = Gravity.CENTER_VERTICAL
+            weightSum = 1f
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END
             setPadding(dp(20), dp(6), dp(20), dp(6))
             clipChildren = false
             clipToPadding = false
             setBackgroundColor(Color.TRANSPARENT)
             elevation = dp(8).toFloat()
         }
+
+        homeBottomDock = bottomDock
 
         val searchCapsule = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -790,7 +794,7 @@ companion object {
         }
         bottomDock.addView(
             searchCapsule,
-            LinearLayout.LayoutParams(0, dp(46), 1f)
+            LinearLayout.LayoutParams(0, dp(46), 0.95f)
         )
 
         val pencilButton = FrameLayout(this).apply {
@@ -806,6 +810,7 @@ companion object {
                 ImageView(this@MainActivity).apply {
                     setImageResource(R.drawable.ic_pencil_custom)
                     scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    setColorFilter(if (isDarkMode) Color.WHITE else Color.rgb(40, 40, 44))
                 },
                 FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
             )
@@ -814,8 +819,8 @@ companion object {
         floatingComposeButton = pencilButton
         bottomDock.addView(
             pencilButton,
-            LinearLayout.LayoutParams(dp(46), dp(46)).apply {
-                leftMargin = dp(12)
+            LinearLayout.LayoutParams(dp(48), dp(48)).apply {
+                leftMargin = dp(8)
             }
         )
 
@@ -823,7 +828,7 @@ companion object {
             bottomDock,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(58),
+                dp(60),
                 Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             ).apply {
                 rightMargin = 0
@@ -3907,10 +3912,20 @@ private fun createSelectionActionBar(): View {
 
         homeHeader?.visibility = View.GONE
         selectionHeader.visibility = View.VISIBLE
-        floatingComposeButton?.animate()?.cancel()
-        floatingComposeButton?.visibility = View.GONE
-        floatingComposeButton?.alpha = 0f
-        floatingComposeButton?.translationY = dp(18).toFloat()
+        homeBottomDock?.animate()?.cancel()
+        homeBottomDock?.visibility = View.VISIBLE
+        homeBottomDock?.alpha = 1f
+        homeBottomDock?.translationY = 0f
+        homeBottomDock?.animate()
+            ?.alpha(0f)
+            ?.translationY(dp(8).toFloat())
+            ?.setDuration(220L)
+            ?.withEndAction {
+                if (selectionMode) {
+                    homeBottomDock?.visibility = View.GONE
+                }
+            }
+            ?.start()
 
         updateSelectionUI()
     }
@@ -4112,10 +4127,15 @@ private fun createSelectionActionBar(): View {
         selectionHeader.visibility = View.GONE
         selectionActionBar.visibility = View.GONE
         homeHeader?.visibility = View.VISIBLE
-        floatingComposeButton?.animate()?.cancel()
-        floatingComposeButton?.alpha = 1f
-        floatingComposeButton?.translationY = 0f
-        floatingComposeButton?.visibility = View.VISIBLE
+        homeBottomDock?.animate()?.cancel()
+        homeBottomDock?.visibility = View.VISIBLE
+        homeBottomDock?.alpha = 0f
+        homeBottomDock?.translationY = dp(8).toFloat()
+        homeBottomDock?.animate()
+            ?.alpha(1f)
+            ?.translationY(0f)
+            ?.setDuration(240L)
+            ?.start()
 
         selectionOverlays.values.forEach { it.visibility = View.GONE }
         selectionDragHandles.values.forEach { it.visibility = View.GONE }
