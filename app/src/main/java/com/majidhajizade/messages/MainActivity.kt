@@ -444,8 +444,7 @@ companion object {
 
             homeBottomDock?.let { dock ->
                 (dock.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                    params.bottomMargin =
-                        (safe.bottom - dp(10)).coerceAtLeast(0)
+                    params.bottomMargin = 0
                     dock.layoutParams = params
                 }
             }
@@ -909,7 +908,7 @@ companion object {
                 Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             ).apply {
                 rightMargin = 0
-                bottomMargin = (homeBottomInset - dp(10)).coerceAtLeast(0)
+                bottomMargin = 0
             }
         )
         bottomDock.bringToFront()
