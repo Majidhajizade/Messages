@@ -1458,27 +1458,33 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
 
-        // با تغییر inset کیبورد، فضای داخلی ریشه کوچک می‌شود؛
-        // در نتیجه فهرست پیام‌ها و کادر تایپ با هم بالا می‌آیند.
+        // فضای پایین ریشه فقط به اندازه کیبورد تنظیم می‌شود.
+        // با بازشدن کیبورد، فهرست پیام‌ها و کادر تایپ با هم جابه‌جا می‌شوند.
+        var imeWasVisible = false
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val imeBottom = insets.getInsets(
                 androidx.core.view.WindowInsetsCompat.Type.ime()
             ).bottom
+            val imeVisible = imeBottom > 0
 
-            val navigationBottom = insets.getInsets(
-                androidx.core.view.WindowInsetsCompat.Type.navigationBars()
-            ).bottom
-
-            val bottomInset = maxOf(imeBottom, navigationBottom)
-
-            if (view.paddingBottom != bottomInset) {
+            if (view.paddingBottom != imeBottom) {
                 view.setPadding(
                     view.paddingLeft,
                     view.paddingTop,
                     view.paddingRight,
-                    bottomInset
+                    imeBottom
                 )
             }
+
+            // پس از تغییر اندازه صفحه، آخرین پیام را بالای کادر تایپ بیاور.
+            if (imeVisible && !imeWasVisible) {
+                root.post {
+                    scrollView.postOnAnimation {
+                        scrollView.fullScroll(View.FOCUS_DOWN)
+                    }
+                }
+            }
+            imeWasVisible = imeVisible
 
             insets
         }
