@@ -429,11 +429,26 @@ companion object {
             clipToPadding = false
         }
 
+        var homeTopInset = 0
+        var homeBottomInset = 0
+        var headerFadeView: View? = null
+
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val safe = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or
                     WindowInsetsCompat.Type.displayCutout()
             )
+            homeTopInset = safe.top
+            homeBottomInset = safe.bottom
+            headerFadeView?.translationY = -safe.top.toFloat()
+
+            homeBottomDock?.let { dock ->
+                (dock.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
+                    params.bottomMargin = safe.bottom
+                    dock.layoutParams = params
+                }
+            }
+
             view.setPadding(
                 safe.left,
                 safe.top,
@@ -562,6 +577,9 @@ companion object {
             )
             isClickable = false
         }
+        headerFadeView = headerFade
+        headerFade.translationY = -homeTopInset.toFloat()
+
         headerLayer.addView(
             headerFade,
             FrameLayout.LayoutParams(
@@ -796,7 +814,7 @@ companion object {
             bottomFade,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(124),
+                dp(150),
                 Gravity.BOTTOM
             )
         )
@@ -859,7 +877,7 @@ companion object {
         }
         bottomDock.addView(
             searchCapsule,
-            LinearLayout.LayoutParams(dp(218), dp(46))
+            LinearLayout.LayoutParams(dp(260), dp(46))
         )
 
         val pencilButton = FrameLayout(this).apply {
@@ -897,7 +915,7 @@ companion object {
                 Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             ).apply {
                 rightMargin = 0
-                bottomMargin = dp(10)
+                bottomMargin = homeBottomInset
             }
         )
         bottomDock.bringToFront()
