@@ -444,7 +444,8 @@ companion object {
 
             homeBottomDock?.let { dock ->
                 (dock.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                    params.bottomMargin = safe.bottom
+                    params.bottomMargin =
+                        (safe.bottom - dp(10)).coerceAtLeast(0)
                     dock.layoutParams = params
                 }
             }
@@ -473,14 +474,7 @@ companion object {
             orientation = LinearLayout.HORIZONTAL
             layoutDirection = View.LAYOUT_DIRECTION_LTR
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(
-                Color.argb(
-                    228,
-                    Color.red(homeBackground),
-                    Color.green(homeBackground),
-                    Color.blue(homeBackground)
-                )
-            )
+            setBackgroundColor(Color.TRANSPARENT)
             setPadding(dp(20), 0, dp(20), 0)
         }
         homeHeader = header
@@ -915,7 +909,7 @@ companion object {
                 Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             ).apply {
                 rightMargin = 0
-                bottomMargin = homeBottomInset
+                bottomMargin = (homeBottomInset - dp(10)).coerceAtLeast(0)
             }
         )
         bottomDock.bringToFront()
