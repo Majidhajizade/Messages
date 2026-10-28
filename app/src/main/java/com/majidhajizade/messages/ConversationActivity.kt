@@ -2206,7 +2206,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val previousDate = lastMessageDate
         val startsNewTimeGroup = previousDate != null &&
             date > previousDate &&
-            date - previousDate > 60 * 60 * 1000L
+            date - previousDate > 3 * 60 * 60 * 1000L
 
         if (dayKey != lastDateHeaderKey || startsNewTimeGroup) {
             val dateHeader = TextView(this).apply {
