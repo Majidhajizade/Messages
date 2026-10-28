@@ -153,7 +153,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
         // اجازه نمایش پس‌زمینه در محدوده نوار وضعیت
         window.statusBarColor = Color.TRANSPARENT
@@ -1458,8 +1458,34 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
 
-        // اندازه فضای قابل‌نمایش هنگام بازشدن کیبورد را خود اندروید تنظیم می‌کند.
-        composerGlass.translationY = 0f
+        // با تغییر inset کیبورد، فضای داخلی ریشه کوچک می‌شود؛
+        // در نتیجه فهرست پیام‌ها و کادر تایپ با هم بالا می‌آیند.
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val imeBottom = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.ime()
+            ).bottom
+
+            val navigationBottom = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.navigationBars()
+            ).bottom
+
+            val bottomInset = maxOf(imeBottom, navigationBottom)
+
+            if (view.paddingBottom != bottomInset) {
+                view.setPadding(
+                    view.paddingLeft,
+                    view.paddingTop,
+                    view.paddingRight,
+                    bottomInset
+                )
+            }
+
+            insets
+        }
+
+        root.post {
+            androidx.core.view.ViewCompat.requestApplyInsets(root)
+        }
 
 
         return root
