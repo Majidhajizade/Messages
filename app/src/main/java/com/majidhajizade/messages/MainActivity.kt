@@ -458,7 +458,14 @@ companion object {
             orientation = LinearLayout.HORIZONTAL
             layoutDirection = View.LAYOUT_DIRECTION_LTR
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(homeBackground)
+            setBackgroundColor(
+                Color.argb(
+                    228,
+                    Color.red(homeBackground),
+                    Color.green(homeBackground),
+                    Color.blue(homeBackground)
+                )
+            )
             setPadding(dp(20), 0, dp(20), 0)
         }
         homeHeader = header
@@ -527,17 +534,67 @@ companion object {
         header.addView(menuButton, LinearLayout.LayoutParams(dp(48), dp(40)))
 
         val headerLayer = FrameLayout(this).apply {
-            setBackgroundColor(homeBackground)
+            setBackgroundColor(Color.TRANSPARENT)
             clipChildren = false
             clipToPadding = false
-            elevation = 0f
+            elevation = dp(12).toFloat()
         }
+
+        val headerFadeColor = homeBackground
+        val headerFade = View(this).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(
+                    Color.argb(
+                        228,
+                        Color.red(headerFadeColor),
+                        Color.green(headerFadeColor),
+                        Color.blue(headerFadeColor)
+                    ),
+                    Color.argb(
+                        170,
+                        Color.red(headerFadeColor),
+                        Color.green(headerFadeColor),
+                        Color.blue(headerFadeColor)
+                    ),
+                    Color.TRANSPARENT
+                )
+            )
+            isClickable = false
+        }
+        headerLayer.addView(
+            headerFade,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(124)
+            )
+        )
 
         headerLayer.addView(
             header,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 dp(72)
+            )
+        )
+
+        val title = TextView(this@MainActivity).apply {
+            text = if (showingArchivedChats) "Archived chats" else "Messages"
+            textSize = 22f
+            setTextColor(primaryText)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            isClickable = false
+            isFocusable = false
+            homeTitle = this
+        }
+        headerLayer.addView(
+            title,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(72),
+                Gravity.CENTER
             )
         )
 
@@ -561,13 +618,13 @@ companion object {
             clipChildren = false
             clipToPadding = false
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(homeBackground)
+            setBackgroundColor(Color.TRANSPARENT)
             clipToOutline = false
             setPadding(0, 0, 0, 0)
         }
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
-            setBackgroundColor(homeBackground)
+            setBackgroundColor(Color.TRANSPARENT)
 
             isVerticalScrollBarEnabled = false
             isScrollbarFadingEnabled = false
@@ -578,27 +635,12 @@ companion object {
             clipToPadding = false
 
             val scrollContent = LinearLayout(this@MainActivity).apply {
-                setPadding(0, 0, 0, dp(88))
+                setPadding(0, dp(72), 0, dp(88))
                 clipToPadding = false
                 orientation = LinearLayout.VERTICAL
-                setBackgroundColor(homeBackground)
+                setBackgroundColor(Color.TRANSPARENT)
             }
 
-            val title = TextView(this@MainActivity).apply {
-                text = if (showingArchivedChats) "Archived chats" else "Messages"
-                textSize = 28f
-                setTextColor(primaryText)
-                typeface = Typeface.DEFAULT_BOLD
-                setPadding(dp(20), dp(12), dp(20), dp(16))
-                homeTitle = this
-            }
-            scrollContent.addView(
-                title,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            )
             scrollContent.addView(
                 messagesContainer,
                 LinearLayout.LayoutParams(
@@ -647,7 +689,7 @@ companion object {
             0,
             1f
         ).apply {
-            topMargin = 0
+            topMargin = -dp(72)
             rightMargin = -dp(20)
         }
 
@@ -736,12 +778,34 @@ companion object {
         ))
         pullBanner.isClickable = false
 
+        // Soft bottom fade behind search and compose controls.
+        val bottomFadeColor = if (isDarkMode) Color.BLACK else Color.WHITE
+        val bottomFade = View(this).apply {
+            background = GradientDrawable(
+                GradientDrawable.Orientation.BOTTOM_TOP,
+                intArrayOf(
+                    Color.argb(225, Color.red(bottomFadeColor), Color.green(bottomFadeColor), Color.blue(bottomFadeColor)),
+                    Color.argb(125, Color.red(bottomFadeColor), Color.green(bottomFadeColor), Color.blue(bottomFadeColor)),
+                    Color.TRANSPARENT
+                )
+            )
+            isClickable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        chatLayer.addView(
+            bottomFade,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(124),
+                Gravity.BOTTOM
+            )
+        )
+
         val bottomDock = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutDirection = View.LAYOUT_DIRECTION_LTR
-            weightSum = 1f
-            gravity = Gravity.CENTER_VERTICAL or Gravity.END
-            setPadding(dp(20), dp(6), dp(20), dp(6))
+            gravity = Gravity.CENTER
+            setPadding(0, dp(6), 0, dp(6))
             clipChildren = false
             clipToPadding = false
             setBackgroundColor(Color.TRANSPARENT)
@@ -749,6 +813,7 @@ companion object {
         }
 
         homeBottomDock = bottomDock
+        bottomDock.translationX = -dp(10).toFloat()
 
         val searchCapsule = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -794,7 +859,7 @@ companion object {
         }
         bottomDock.addView(
             searchCapsule,
-            LinearLayout.LayoutParams(0, dp(46), 0.95f)
+            LinearLayout.LayoutParams(dp(218), dp(46))
         )
 
         val pencilButton = FrameLayout(this).apply {
@@ -827,7 +892,7 @@ companion object {
         chatLayer.addView(
             bottomDock,
             FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
                 dp(60),
                 Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             ).apply {
@@ -3136,7 +3201,7 @@ companion object {
             clipChildren = false
             clipToPadding = false
             translationX = dp(4).toFloat()
-            layoutParams = LinearLayout.LayoutParams(dp(52), dp(52)).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply {
                 rightMargin = dp(12)
             }
         }
@@ -3158,7 +3223,7 @@ companion object {
             }
             contactFrame.addView(
                 contact,
-                FrameLayout.LayoutParams(dp(52), dp(52))
+                FrameLayout.LayoutParams(dp(48), dp(48))
             )
         } else {
             val avatarName = contactName?.trim().orEmpty().ifEmpty { address.trim() }
@@ -3181,7 +3246,7 @@ companion object {
             }
             contactFrame.addView(
                 contact,
-                FrameLayout.LayoutParams(dp(52), dp(52))
+                FrameLayout.LayoutParams(dp(48), dp(48))
             )
         }
 
@@ -3441,7 +3506,26 @@ companion object {
             )
         )
 
-
+        actionLayer.addView(
+            View(this).apply {
+                setBackgroundColor(
+                    if (isDarkMode) {
+                        Color.argb(38, 190, 190, 200)
+                    } else {
+                        Color.argb(105, 120, 125, 135)
+                    }
+                )
+                isClickable = false
+            },
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(1),
+                Gravity.BOTTOM
+            ).apply {
+                leftMargin = dp(68)
+                rightMargin = dp(18)
+            }
+        )
 
         actionLayer.tag = address
         rowViews[address] = name
