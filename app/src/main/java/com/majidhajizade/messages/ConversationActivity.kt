@@ -1063,7 +1063,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             clipToPadding = false
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.TRANSPARENT)
-            setPadding(dp(16), dp(148), dp(16), dp(12))
+            setPadding(dp(16), dp(180), dp(16), dp(12))
         }
 
         scrollView.addView(messagesContainer)
