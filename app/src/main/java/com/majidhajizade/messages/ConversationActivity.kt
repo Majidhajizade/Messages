@@ -1192,14 +1192,27 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         scrollView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
             if (scrollY != oldScrollY) {
                 var activeDate: TextView? = null
+                val dateThreshold = scrollY + dp(120)
 
-                for (i in 0 until messagesContainer.childCount) {
-                    val child = messagesContainer.getChildAt(i)
-                    if (child.tag == "date_header_row" &&
-                        child.top <= scrollY + dp(120)) {
-                        activeDate =
-                            (child as? LinearLayout)?.getChildAt(0) as? TextView
+                // تاریخ‌ها مرتب هستند؛ تاریخ فعال را با جست‌وجوی دودویی پیدا کن.
+                var low = 0
+                var high = dateHeaderRows.lastIndex
+                var activeIndex = -1
+
+                while (low <= high) {
+                    val mid = (low + high) ushr 1
+                    if (dateHeaderRows[mid].top <= dateThreshold) {
+                        activeIndex = mid
+                        low = mid + 1
+                    } else {
+                        high = mid - 1
                     }
+                }
+
+                if (activeIndex >= 0) {
+                    activeDate =
+                        (dateHeaderRows[activeIndex] as? LinearLayout)
+                            ?.getChildAt(0) as? TextView
                 }
 
                 if (activeDate != null) {
@@ -1424,6 +1437,14 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         composer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             positionScrollJumpButton()
+
+            // با تغییر ارتفاع کادر تایپ، فضای انتهای پیام‌ها هم به‌روز شود.
+            messagesContainer.setPadding(
+                dp(16),
+                messagesContainer.paddingTop,
+                dp(16),
+                composer.height + dp(2) + dp(24)
+            )
         }
         composer.post { positionScrollJumpButton() }
         composer.post {
@@ -1437,14 +1458,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
 
-        root.setOnApplyWindowInsetsListener { _, insets ->
-            val imeBottom = insets.getInsets(
-                android.view.WindowInsets.Type.ime()
-            ).bottom
-            composerGlass.translationY = -(imeBottom + dp(1)).toFloat()
-            insets
-        }
-        root.requestApplyInsets()
+        // اندازه فضای قابل‌نمایش هنگام بازشدن کیبورد را خود اندروید تنظیم می‌کند.
+        composerGlass.translationY = 0f
 
 
         return root
@@ -1906,6 +1921,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         if (!appendOnly) {
             messagesContainer.removeAllViews()
+            dateHeaderRows.clear()
             loadedSmsRowIds.clear()
             optimisticSmsMessages.clear()
             lastMessageDate = null
@@ -2087,6 +2103,28 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     }
 
                     if (endIndex < rows.size) {
+                        // نمایش صفحه پس از اولین دسته، بدون انتظار برای تمام پیام‌ها.
+                        if (hideUntilInitialPosition) {
+                            scrollView.post {
+                                if (generation != conversationLoadGeneration ||
+                                    isFinishing || isDestroyed
+                                ) {
+                                    return@post
+                                }
+
+                                // اگر گفتگو از ابتدا در انتها بوده، انتهای محتوای فعلی حفظ شود.
+                                if (conversationWasAtBottom) {
+                                    scrollView.scrollTo(
+                                        0,
+                                        (messagesContainer.height - scrollView.height)
+                                            .coerceAtLeast(0)
+                                    )
+                                }
+
+                                scrollView.visibility = View.VISIBLE
+                            }
+                        }
+
                         scrollView.postOnAnimation {
                             renderBatch(endIndex)
                         }
@@ -2162,6 +2200,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     private var lastMessageDate: Long? = null
     private var lastDateHeaderKey: String? = null
+    private val dateHeaderRows = mutableListOf<View>()
     private var lastTimeView: TextView? = null
 
     private var lastMessageBubbleDrawable: MessageBubbleDrawable? = null
@@ -2177,6 +2216,15 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         delivered: Boolean = false,
         smsRowId: String? = null
     ) {
+        // فقط اگر کاربر پیش از اضافه‌شدن پیام پایین چت بوده، پایین را حفظ کن.
+        val stickToBottom = !isPopulatingConversation &&
+            (
+                scrollView.height <= 0 ||
+                !scrollView.canScrollVertically(1) ||
+                scrollView.height + scrollView.scrollY >=
+                    messagesContainer.height - dp(48)
+            )
+
         if (smsRowId != null) {
             loadedSmsRowIds.add(smsRowId)
         }
@@ -2211,6 +2259,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 )
             }
             messagesContainer.addView(dateHeaderRow)
+            dateHeaderRows.add(dateHeaderRow)
             lastDateHeaderKey = dayKey
         }
 
@@ -2773,6 +2822,21 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         lastBubbleDayKey = if (currentShape != null) dayKey else null
 
         messagesContainer.addView(wrapper)
+
+        if (stickToBottom) {
+            // پس از اندازه‌گیری نهایی حباب، اسکرول را تنظیم کن؛
+            // پیام‌های بلند ممکن است در چند مرحله اندازه‌گیری شوند.
+            scrollView.post {
+                scrollView.postOnAnimation {
+                    scrollView.postOnAnimation {
+                        val maxY = (
+                            messagesContainer.height - scrollView.height
+                        ).coerceAtLeast(0)
+                        scrollView.scrollTo(0, maxY)
+                    }
+                }
+            }
+        }
 
         // پیام تازه با محوشدن و حرکت بسیار کوتاه، نرم ظاهر می‌شود.
         if (!isPopulatingConversation || isAppendingConversation) {
