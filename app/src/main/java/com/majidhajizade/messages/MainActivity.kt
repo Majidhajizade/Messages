@@ -419,9 +419,10 @@ companion object {
     }
 
     private fun createHomeScreen(): View {
+        val homeBackground = if (isDarkMode) Color.BLACK else Color.rgb(246, 246, 248)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(screenBackground)
+            setBackgroundColor(homeBackground)
             setPadding(0, 0, 0, dp(12))
             clipChildren = false
             clipToPadding = false
@@ -455,49 +456,36 @@ companion object {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(screenBackground)
+            setBackgroundColor(homeBackground)
             setPadding(dp(20), 0, dp(20), 0)
         }
         homeHeader = header
 
-        val title = TextView(this).apply {
-            text = if (showingArchivedChats) "Archived chats" else "Messages"
-            textSize = 28f
-            setTextColor(primaryText)
-            typeface = Typeface.DEFAULT_BOLD
-        }
-
-        homeTitle = title
-
-        header.addView(
-            title,
-            LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
-            )
-        )
-
-        val searchButton = TextView(this).apply {
-            text = "⌕"
-            textSize = 32f
-            setTextColor(primaryText)
+        val editButton = TextView(this).apply {
+            text = "Edit"
+            textSize = 15f
+            setTextColor(Color.rgb(35, 35, 38))
             gravity = Gravity.CENTER
-            contentDescription = "Search messages"
-            setOnClickListener { showSmsSearchPage() }
+            typeface = Typeface.DEFAULT_BOLD
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(13).toFloat()
+            }
+            contentDescription = "Edit conversations"
+            isClickable = true
+            isFocusable = true
+            setPadding(dp(16), 0, dp(16), 0)
+            setOnClickListener {
+                enterSelectionMode()
+            }
         }
-
-        searchButton.visibility = android.view.View.GONE
-        header.addView(
-            searchButton,
-            LinearLayout.LayoutParams(dp(42), dp(60))
-        )
+        header.addView(editButton, LinearLayout.LayoutParams(dp(68), dp(42)))
 
         if (AppSecurity.isEnabled(this)) {
             val lockButton = ImageView(this).apply {
                 setImageResource(R.drawable.lock_keyhole)
                 scaleType = ImageView.ScaleType.FIT_CENTER
-                setPadding(dp(10), dp(14), dp(10), dp(14))
+                setPadding(dp(10), dp(10), dp(10), dp(10))
                 imageAlpha = 255
                 setColorFilter(primaryText)
                 contentDescription = "Lock app"
@@ -505,38 +493,32 @@ companion object {
                 isFocusable = true
                 setOnClickListener { clickedView -> lockNow(clickedView) }
             }
-            header.addView(
-                lockButton,
-                LinearLayout.LayoutParams(dp(42), dp(60))
-            )
+            header.addView(lockButton, LinearLayout.LayoutParams(dp(42), dp(44)))
         }
 
-        val menuButton = TextView(this).apply {
-            text = "⋮"
-            textSize = 26f
-            setTextColor(primaryText)
-            gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-            contentDescription = "More"
-            translationX = dp(5).toFloat()
-            setPadding(dp(8), 0, dp(2), 0)
-
-            setOnClickListener {
-                showHeaderMenu()
+        val menuButton = FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = dp(13).toFloat()
             }
-        }
-
-        headerMenuButton = menuButton
-        header.addView(
-            menuButton,
-            LinearLayout.LayoutParams(
-                dp(42),
-                dp(60)
+            contentDescription = "More"
+            isClickable = true
+            isFocusable = true
+            addView(
+                ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_menu_lines_custom)
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    setColorFilter(Color.rgb(40, 40, 44))
+                },
+                FrameLayout.LayoutParams(dp(25), dp(25), Gravity.CENTER)
             )
-        )
+            setOnClickListener { showHeaderMenu() }
+        }
+        headerMenuButton = menuButton
+        header.addView(menuButton, LinearLayout.LayoutParams(dp(54), dp(42)))
 
         val headerLayer = FrameLayout(this).apply {
-            setBackgroundColor(screenBackground)
+            setBackgroundColor(homeBackground)
             clipChildren = false
             clipToPadding = false
             elevation = 0f
@@ -570,13 +552,13 @@ companion object {
             clipChildren = false
             clipToPadding = false
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(screenBackground)
+            setBackgroundColor(homeBackground)
             clipToOutline = false
             setPadding(0, 0, 0, 0)
         }
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
-            setBackgroundColor(screenBackground)
+            setBackgroundColor(homeBackground)
 
             isVerticalScrollBarEnabled = false
             isScrollbarFadingEnabled = false
@@ -590,9 +572,24 @@ companion object {
                 setPadding(0, 0, 0, 0)
                 clipToPadding = false
                 orientation = LinearLayout.VERTICAL
-                setBackgroundColor(screenBackground)
+                setBackgroundColor(homeBackground)
             }
 
+            val title = TextView(this@MainActivity).apply {
+                text = if (showingArchivedChats) "Archived chats" else "Messages"
+                textSize = 28f
+                setTextColor(primaryText)
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(dp(20), dp(12), dp(20), dp(16))
+                homeTitle = this
+            }
+            scrollContent.addView(
+                title,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
             scrollContent.addView(
                 messagesContainer,
                 LinearLayout.LayoutParams(
@@ -635,47 +632,6 @@ companion object {
         )
 
         selectionActionBar.bringToFront()
-
-        val floatingButton = FrameLayout(this).apply {
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.rgb(0, 127, 255))
-            }
-            elevation = dp(18).toFloat()
-            isClickable = true
-            isFocusable = true
-
-            addView(
-                MessengerComposeIcon(this@MainActivity),
-                FrameLayout.LayoutParams(
-                    dp(48),
-                    dp(48),
-                    Gravity.CENTER
-                )
-            )
-
-            setOnClickListener {
-                openNewMessage()
-            }
-
-            visibility = View.VISIBLE
-            alpha = 1f
-            translationY = 0f
-        }
-
-        floatingComposeButton = floatingButton
-
-        chatLayer.addView(
-            floatingButton,
-            FrameLayout.LayoutParams(
-                dp(54),
-                dp(54)
-            ).apply {
-                gravity = Gravity.BOTTOM or Gravity.END
-                rightMargin = dp(42)
-                bottomMargin = dp(84)
-            }
-        )
 
         val chatLayerParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -770,6 +726,95 @@ companion object {
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
         ))
         pullBanner.isClickable = false
+
+        val bottomDock = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            clipChildren = false
+            clipToPadding = false
+            setBackgroundColor(homeBackground)
+        }
+
+        val searchCapsule = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), 0, dp(16), 0)
+            background = GradientDrawable().apply {
+                setColor(
+                    if (isDarkMode) Color.argb(210, 66, 66, 70)
+                    else Color.argb(232, 255, 255, 255)
+                )
+                cornerRadius = dp(25).toFloat()
+            }
+            isClickable = true
+            isFocusable = true
+            contentDescription = "Search messages"
+            addView(
+                ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_search_custom)
+                    imageTintList = android.content.res.ColorStateList.valueOf(
+                        if (isDarkMode) Color.WHITE else Color.rgb(50, 50, 54)
+                    )
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                },
+                LinearLayout.LayoutParams(dp(22), dp(22)).apply {
+                    rightMargin = dp(10)
+                }
+            )
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = "Search"
+                    textSize = 16f
+                    setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(65, 65, 70))
+                    gravity = Gravity.CENTER_VERTICAL
+                    includeFontPadding = false
+                },
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.MATCH_PARENT
+                )
+            )
+            setOnClickListener { showSmsSearchPage() }
+        }
+        bottomDock.addView(
+            searchCapsule,
+            LinearLayout.LayoutParams(0, dp(58), 1f)
+        )
+
+        val pencilButton = FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.argb(224, 255, 255, 255))
+            }
+            elevation = dp(2).toFloat()
+            isClickable = true
+            isFocusable = true
+            contentDescription = "New message"
+            addView(
+                ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_pencil_custom)
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                },
+                FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
+            )
+            setOnClickListener { openNewMessage() }
+        }
+        floatingComposeButton = pencilButton
+        bottomDock.addView(
+            pencilButton,
+            LinearLayout.LayoutParams(dp(58), dp(58)).apply {
+                leftMargin = dp(12)
+            }
+        )
+
+        root.addView(
+            bottomDock,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(74)
+            )
+        )
 
         var pullStartY = 0f
         var pullStartX = 0f
@@ -3826,7 +3871,7 @@ private fun createSelectionActionBar(): View {
         }
     }
 
-    private fun enterSelectionMode(address: String) {
+    private fun enterSelectionMode(address: String? = null) {
         selectionMode = true
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
             selectionBackCallback == null
@@ -3842,7 +3887,7 @@ private fun createSelectionActionBar(): View {
             )
         }
         selectedAddresses.clear()
-        selectedAddresses.add(address)
+        if (address != null) selectedAddresses.add(address)
 
         homeHeader?.visibility = View.GONE
         selectionHeader.visibility = View.VISIBLE
