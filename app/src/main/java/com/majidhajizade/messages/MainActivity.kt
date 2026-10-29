@@ -734,42 +734,6 @@ companion object {
             }
         }
 
-        val pullContent = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        val arrowCircle = FrameLayout(this).apply {
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.WHITE)
-            }
-        }
-        val arrow = TextView(this).apply {
-            text = "↓"
-            textSize = 27f
-            gravity = Gravity.CENTER
-            setTextColor(Color.rgb(70, 70, 75))
-        }
-        arrowCircle.addView(
-            arrow,
-            FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER)
-        )
-        pullContent.addView(
-            arrowCircle,
-            LinearLayout.LayoutParams(dp(40), dp(40)).apply {
-                rightMargin = dp(14)
-            }
-        )
-        pullBanner.addView(
-            pullContent,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                Gravity.LEFT or Gravity.CENTER_VERTICAL
-            )
-        )
-
         val pullLabel = TextView(this).apply {
             text = "Pull down for archive"
             textSize = 16f
@@ -793,8 +757,26 @@ companion object {
         ).apply {
             leftMargin = -dp(20)
             rightMargin = 0
-            topMargin = 0
+            topMargin = dp(72) - homeTopInset
         })
+
+        // Re-align after layout/inset changes so the banner starts at screen top.
+        rootFrame.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            val bannerParams = pullBanner.layoutParams as? FrameLayout.LayoutParams
+            val desiredTop = dp(72) - homeTopInset
+            if (bannerParams != null && bannerParams.topMargin != desiredTop) {
+                bannerParams.topMargin = desiredTop
+                pullBanner.layoutParams = bannerParams
+            }
+        }
+        rootFrame.post {
+            val bannerParams = pullBanner.layoutParams as? FrameLayout.LayoutParams
+            val desiredTop = dp(72) - homeTopInset
+            if (bannerParams != null && bannerParams.topMargin != desiredTop) {
+                bannerParams.topMargin = desiredTop
+                pullBanner.layoutParams = bannerParams
+            }
+        }
         root.addView(chatLayer, chatLayerParams)
         chatLayer.addView(pullOverlay, 0, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
@@ -942,8 +924,6 @@ companion object {
             messagesScroll.translationY = d * 0.72f
             pullLabel.text = if (ready)
                 "Release for archive" else "Pull down for archive"
-            arrow.animate().rotation(if (ready) 180f else 0f)
-                .setDuration(90L).start()
             pullBanner.visibility = View.VISIBLE
         }
 
@@ -3372,7 +3352,7 @@ companion object {
             text = body
             textSize = 15f
             setTextColor(secondaryThemeText)
-            maxLines = 1
+            maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
             setPadding(0, dp(4), 0, 0)
             gravity = Gravity.START
@@ -3415,7 +3395,7 @@ companion object {
 
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
-            translationX = -dp(16).toFloat()
+            translationX = -dp(22).toFloat()
             textSize = 11f
             setTextColor(
                 if (isDarkMode) Color.rgb(205, 205, 212)
@@ -3591,9 +3571,9 @@ companion object {
             View(this).apply {
                 setBackgroundColor(
                     if (isDarkMode) {
-                        Color.argb(38, 190, 190, 200)
+                        Color.argb(24, 190, 190, 200)
                     } else {
-                        Color.argb(105, 120, 125, 135)
+                        Color.argb(38, 145, 150, 158)
                     }
                 )
                 isClickable = false
@@ -3604,7 +3584,7 @@ companion object {
                 Gravity.BOTTOM
             ).apply {
                 marginStart = dp(56)
-                marginEnd = dp(16)
+                marginEnd = dp(22)
             }
         )
 
