@@ -2154,7 +2154,7 @@ companion object {
             isFillViewport = true
             addView(
                 resultsContainer,
-                android.widget.ScrollView.LayoutParams(
+                android.view.ViewGroup.LayoutParams(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                 )
