@@ -2138,6 +2138,11 @@ companion object {
 
     private fun showSmsSearchPage() {
         val previousQuery = smsSearchQuery
+        val composeOrigin = floatingComposeButton?.takeIf { it.isAttachedToWindow }
+        val composeOriginLocation = IntArray(2)
+        val composeOriginWidth = composeOrigin?.width ?: dp(48)
+        val composeOriginHeight = composeOrigin?.height ?: dp(48)
+        if (composeOrigin != null) composeOrigin.getLocationOnScreen(composeOriginLocation)
         smsSearchQuery = ""
 
         val pageBackground = if (isDarkMode) Color.BLACK else Color.WHITE
@@ -2167,6 +2172,11 @@ companion object {
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             contentDescription = "Back"
             setPadding(dp(2), dp(2), dp(2), dp(2))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(if (isDarkMode) Color.rgb(48, 48, 48) else Color.WHITE)
+            }
+            elevation = dp(2).toFloat()
             setOnClickListener {
                 smsSearchQuery = ""
                 setContentView(createHomeScreen())
@@ -2178,13 +2188,14 @@ companion object {
             }
         }
 
-        topRow.addView(backButton, LinearLayout.LayoutParams(dp(40), dp(48)))
+        topRow.addView(backButton, LinearLayout.LayoutParams(dp(40), dp(40)))
 
         val searchBox = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = solidDrawable(capsuleColor, dp(28).toFloat())
             setPadding(dp(16), 0, dp(14), 0)
+            alpha = 0f
         }
 
         val searchInput = EditText(this).apply {
@@ -2244,6 +2255,105 @@ companion object {
         )
 
         setContentView(page)
+
+        fun focusSearchInputAndShowKeyboard() {
+            searchInput.requestFocus()
+            searchInput.post {
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                imm.showSoftInput(
+                    searchInput,
+                    android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
+                )
+            }
+        }
+
+        // Morph the compose button into the search field using measured screen positions.
+        page.post {
+            val decor = window.decorView as? ViewGroup
+            val origin = composeOrigin
+            if (decor != null && origin != null && searchBox.width > 0 && searchBox.height > 0) {
+                val decorLocation = IntArray(2)
+                val targetLocation = IntArray(2)
+                decor.getLocationOnScreen(decorLocation)
+                searchBox.getLocationOnScreen(targetLocation)
+
+                val startX = (composeOriginLocation[0] - decorLocation[0]).toFloat()
+                val startY = (composeOriginLocation[1] - decorLocation[1]).toFloat()
+                val endX = (targetLocation[0] - decorLocation[0]).toFloat()
+                val endY = (targetLocation[1] - decorLocation[1]).toFloat()
+                val startW = composeOriginWidth.coerceAtLeast(dp(48))
+                val startH = composeOriginHeight.coerceAtLeast(dp(48))
+                val endW = searchBox.width
+                val endH = searchBox.height
+
+                val morph = FrameLayout(this).apply {
+                    background = GradientDrawable().apply {
+                        setColor(if (isDarkMode) Color.rgb(48, 48, 48) else Color.WHITE)
+                        cornerRadius = dp(28).toFloat()
+                    }
+                    elevation = dp(12).toFloat()
+                    clipChildren = false
+                    clipToPadding = false
+                }
+                val morphIcon = ImageView(this).apply {
+                    setImageResource(R.drawable.ic_pencil_custom)
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    setColorFilter(if (isDarkMode) Color.WHITE else Color.rgb(40, 40, 44))
+                }
+                morph.addView(
+                    morphIcon,
+                    FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
+                )
+                decor.addView(morph, FrameLayout.LayoutParams(startW, startH))
+                morph.x = startX
+                morph.y = startY
+
+                val animator = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+                    duration = 480L
+                    interpolator = android.view.animation.PathInterpolator(0.18f, 0.72f, 0.24f, 1f)
+                    addUpdateListener { animation ->
+                        val t = animation.animatedValue as Float
+                        val easedWidth = startW + (endW - startW) * t
+                        val easedHeight = startH + (endH - startH) * t
+                        morph.layoutParams = FrameLayout.LayoutParams(
+                            easedWidth.toInt().coerceAtLeast(1),
+                            easedHeight.toInt().coerceAtLeast(1)
+                        )
+                        morph.x = startX + (endX - startX) * t
+                        morph.y = startY + (endY - startY) * t
+                        morph.scaleY = 0.88f + 0.12f * t +
+                            (0.08f * kotlin.math.sin(t * Math.PI)).toFloat()
+                        morphIcon.setImageResource(
+                            if (t < 0.52f) R.drawable.ic_pencil_custom
+                            else R.drawable.ic_search_custom
+                        )
+                        morphIcon.layoutParams = FrameLayout.LayoutParams(
+                            if (t < 0.52f) dp(24) else dp(22),
+                            if (t < 0.52f) dp(24) else dp(22),
+                            Gravity.CENTER
+                        )
+                    }
+                    addListener(object : android.animation.AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: android.animation.Animator) {
+                            searchBox.alpha = 1f
+                            decor.removeView(morph)
+                            focusSearchInputAndShowKeyboard()
+                        }
+                    })
+                }
+                animator.start()
+            } else {
+                searchBox.animate()
+                    .alpha(1f)
+                    .setDuration(180L)
+                    .setListener(object : android.animation.AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: android.animation.Animator) {
+                            focusSearchInputAndShowKeyboard()
+                        }
+                    })
+                    .start()
+            }
+        }
 
         fun addSearchResult(address: String, body: String, date: Long, subtitle: String) {
             val row = LinearLayout(this).apply {
@@ -2400,11 +2510,6 @@ companion object {
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
-        searchInput.requestFocus()
-        searchInput.post {
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            imm.showSoftInput(searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-        }
     }
 
     private fun showHeaderMenu() {
@@ -3352,11 +3457,11 @@ companion object {
             text = body
             textSize = 15f
             setTextColor(secondaryThemeText)
-            maxLines = 2
+            maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             setPadding(0, dp(1), 0, 0)
-            gravity = Gravity.START
-            textAlignment = View.TEXT_ALIGNMENT_TEXT_START
+            gravity = Gravity.END
+            textAlignment = View.TEXT_ALIGNMENT_VIEW_END
             textDirection = View.TEXT_DIRECTION_FIRST_STRONG
         }
 
@@ -3584,7 +3689,7 @@ companion object {
                 Gravity.BOTTOM
             ).apply {
                 marginStart = dp(56)
-                marginEnd = dp(22)
+                marginEnd = dp(8)
             }
         )
 
