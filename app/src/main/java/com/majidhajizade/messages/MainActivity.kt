@@ -2137,379 +2137,559 @@ companion object {
     }
 
     private fun showSmsSearchPage() {
-        val previousQuery = smsSearchQuery
-        val composeOrigin = floatingComposeButton?.takeIf { it.isAttachedToWindow }
-        val composeOriginLocation = IntArray(2)
-        val composeOriginWidth = composeOrigin?.width ?: dp(48)
-        val composeOriginHeight = composeOrigin?.height ?: dp(48)
-        if (composeOrigin != null) composeOrigin.getLocationOnScreen(composeOriginLocation)
-        smsSearchQuery = ""
-
-        val pageBackground = if (isDarkMode) Color.BLACK else Color.WHITE
-        val textColor = if (isDarkMode) Color.WHITE else Color.rgb(25, 25, 25)
-        val secondaryColor = if (isDarkMode) Color.rgb(170, 170, 170) else Color.rgb(105, 105, 105)
-        val capsuleColor = if (isDarkMode) Color.rgb(48, 48, 48) else Color.rgb(242, 242, 244)
-
-        window.statusBarColor = pageBackground
-        window.navigationBarColor = pageBackground
-        window.decorView.systemUiVisibility =
-            if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-
-        val page = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(pageBackground)
-            setPadding(dp(16), dp(8), dp(16), 0)
-        }
-
-        val topRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-
-        val backButton = android.widget.ImageView(this).apply {
-            setImageResource(R.drawable.ic_back_arrow)
-            imageTintList = android.content.res.ColorStateList.valueOf(textColor)
-            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-            contentDescription = "Back"
-            setPadding(dp(2), dp(2), dp(2), dp(2))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(if (isDarkMode) Color.rgb(48, 48, 48) else Color.WHITE)
-            }
-            elevation = dp(2).toFloat()
-            setOnClickListener {
-                smsSearchQuery = ""
-                setContentView(createHomeScreen())
-                loadMessages()
-                window.statusBarColor = screenBackground
-                window.navigationBarColor = screenBackground
-                window.decorView.systemUiVisibility =
-                    if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-            }
-        }
-
-        topRow.addView(backButton, LinearLayout.LayoutParams(dp(40), dp(40)))
-
-        val searchBox = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = solidDrawable(capsuleColor, dp(28).toFloat())
-            setPadding(dp(16), 0, dp(14), 0)
-            alpha = 0f
-        }
-
-        val searchInput = EditText(this).apply {
-            hint = "Search"
-            textSize = 16f
-            setTextColor(textColor)
-            setHintTextColor(secondaryColor)
-            setSingleLine(true)
-            background = null
-            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
-            setPadding(0, 0, 0, 0)
-        }
-
-        searchBox.addView(
-            searchInput,
-            LinearLayout.LayoutParams(0, dp(48), 1f)
-        )
-
-        topRow.addView(
-            searchBox,
-            LinearLayout.LayoutParams(0, dp(48), 1f).apply {
-                leftMargin = dp(4)
-            }
-        )
-
-        page.addView(
-            topRow,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dp(56)
+        val root = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT
             )
-        )
-
-        val results = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(8), 0, dp(16))
         }
 
-        val resultsScroll = android.widget.ScrollView(this).apply {
+        val resultsContainer = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(dp(16), dp(12), dp(16), dp(88))
+        }
+
+        val scrollView = android.widget.ScrollView(this).apply {
             isFillViewport = true
             addView(
-                results,
-                android.view.ViewGroup.LayoutParams(
-                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                resultsContainer,
+                android.widget.ScrollView.LayoutParams(
+                    android.widget.ScrollView.LayoutParams.MATCH_PARENT,
+                    android.widget.ScrollView.LayoutParams.WRAP_CONTENT
                 )
             )
         }
 
-        page.addView(
-            resultsScroll,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
+        val searchInput = android.widget.EditText(this).apply {
+            hint = "جست‌وجوی پیام‌ها"
+            singleLine = true
+            textSize = 16f
+            setPadding(dp(16), 0, dp(16), 0)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                cornerRadius = dp(28).toFloat()
+                setColor(0xFFF0F0F0.toInt())
+            }
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+        }
+
+        val backButton = android.widget.ImageButton(this).apply {
+            contentDescription = "بازگشت"
+            setImageResource(R.drawable.ic_back_custom)
+            background = null
+            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+        }
+
+        val searchRow = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            addView(
+                backButton,
+                android.widget.LinearLayout.LayoutParams(dp(48), dp(48))
+            )
+            addView(
+                searchInput,
+                android.widget.LinearLayout.LayoutParams(
+                    0, dp(48), 1f
+                ).apply {
+                    marginStart = dp(8)
+                }
+            )
+        }
+
+        root.addView(
+            scrollView,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
             )
         )
 
-        setContentView(page)
+        root.addView(
+            searchRow,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.BOTTOM
+            )
+        )
 
-        fun focusSearchInputAndShowKeyboard() {
-            searchInput.requestFocus()
-            searchInput.post {
-                val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-                imm.showSoftInput(
-                    searchInput,
-                    android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
-                )
-            }
+        val previousSoftInputMode = window.attributes.softInputMode
+        window.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        )
+
+
+        data class SearchRecord(
+            val address: String,
+            val body: String,
+            val date: Long,
+            val title: String,
+        )
+
+        val handler = android.os.Handler(mainLooper)
+        val searchExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { task ->
+            Thread(task, "MessagesSearch").apply { isDaemon = true }
+        }
+        var pendingSearch: Runnable? = null
+        var loadStarted = false
+        var records = emptyList<SearchRecord>()
+        val generation = java.util.concurrent.atomic.AtomicInteger(0)
+
+        val searchClosed = java.util.concurrent.atomic.AtomicBoolean(false)
+        var searchMorphAnimator: android.animation.ValueAnimator? = null
+
+        fun closeSearch() {
+            if (searchClosed.get()) return
+            searchClosed.set(true)
+            searchMorphAnimator?.cancel()
+            searchMorphAnimator = null
+            generation.incrementAndGet()
+            pendingSearch?.let(handler::removeCallbacks)
+            pendingSearch = null
+            searchExecutor.shutdownNow()
+            (getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+                ?.hideSoftInputFromWindow(searchInput.windowToken, 0)
+            window.setSoftInputMode(previousSoftInputMode)
+            smsSearchQuery = ""
+            setContentView(createHomeScreen())
+            loadMessages()
+            window.statusBarColor = screenBackground
+            window.navigationBarColor = screenBackground
+            window.decorView.systemUiVisibility =
+                if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         }
 
-        // Morph the compose button into the search field using measured screen positions.
-        page.post {
-            val decor = window.decorView as? ViewGroup
-            val origin = composeOrigin
-            if (decor != null && origin != null && searchBox.width > 0 && searchBox.height > 0) {
-                val decorLocation = IntArray(2)
-                val targetLocation = IntArray(2)
-                decor.getLocationOnScreen(decorLocation)
-                searchBox.getLocationOnScreen(targetLocation)
+        backButton.setOnClickListener { closeSearch() }
 
-                val startX = (composeOriginLocation[0] - decorLocation[0]).toFloat()
-                val startY = (composeOriginLocation[1] - decorLocation[1]).toFloat()
-                val endX = (targetLocation[0] - decorLocation[0]).toFloat()
-                val endY = (targetLocation[1] - decorLocation[1]).toFloat()
-                val startW = composeOriginWidth.coerceAtLeast(dp(48))
-                val startH = composeOriginHeight.coerceAtLeast(dp(48))
-                val endW = searchBox.width
-                val endH = searchBox.height
+        fun renderResults(query: String, requestGeneration: Int) {
+            if (searchClosed.get()) return
+            val q = query.trim().lowercase(Locale.getDefault())
 
-                val morph = FrameLayout(this).apply {
-                    background = GradientDrawable().apply {
-                        setColor(if (isDarkMode) Color.rgb(48, 48, 48) else Color.WHITE)
-                        cornerRadius = dp(28).toFloat()
+            if (q.isEmpty()) {
+                resultsContainer.removeAllViews()
+                return
+            }
+
+            searchExecutor.execute {
+                if (searchClosed.get() || generation.get() != requestGeneration) return@execute
+
+                val matches = records.asSequence()
+                    .filter { record ->
+                        record.address.contains(q, ignoreCase = true) ||
+                            record.title.contains(q, ignoreCase = true) ||
+                            record.body.contains(q, ignoreCase = true)
                     }
-                    elevation = dp(12).toFloat()
-                    clipChildren = false
-                    clipToPadding = false
-                }
-                val morphIcon = ImageView(this).apply {
-                    setImageResource(R.drawable.ic_pencil_custom)
-                    scaleType = ImageView.ScaleType.CENTER_INSIDE
-                    setColorFilter(if (isDarkMode) Color.WHITE else Color.rgb(40, 40, 44))
-                }
-                morph.addView(
-                    morphIcon,
-                    FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER)
-                )
-                decor.addView(morph, FrameLayout.LayoutParams(startW, startH))
-                morph.x = startX
-                morph.y = startY
+                    .sortedByDescending { it.date }
+                    .take(100)
+                    .toList()
 
-                val animator = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
-                    duration = 480L
-                    interpolator = android.view.animation.PathInterpolator(0.18f, 0.72f, 0.24f, 1f)
-                    addUpdateListener { animation ->
-                        val t = animation.animatedValue as Float
-                        val easedWidth = startW + (endW - startW) * t
-                        val easedHeight = startH + (endH - startH) * t
-                        morph.layoutParams = FrameLayout.LayoutParams(
-                            easedWidth.toInt().coerceAtLeast(1),
-                            easedHeight.toInt().coerceAtLeast(1)
-                        )
-                        morph.x = startX + (endX - startX) * t
-                        morph.y = startY + (endY - startY) * t
-                        morph.scaleY = 0.88f + 0.12f * t +
-                            (0.08f * kotlin.math.sin(t * Math.PI)).toFloat()
-                        morphIcon.setImageResource(
-                            if (t < 0.52f) R.drawable.ic_pencil_custom
-                            else R.drawable.ic_search_custom
-                        )
-                        morphIcon.layoutParams = FrameLayout.LayoutParams(
-                            if (t < 0.52f) dp(24) else dp(22),
-                            if (t < 0.52f) dp(24) else dp(22),
-                            Gravity.CENTER
+                runOnUiThread {
+                    if (searchClosed.get() || generation.get() != requestGeneration ||
+                        !root.isAttachedToWindow
+                    ) return@runOnUiThread
+
+                    resultsContainer.removeAllViews()
+
+                    if (matches.isEmpty()) {
+                        resultsContainer.addView(
+                            android.widget.TextView(this).apply {
+                                text = "نتیجه‌ای پیدا نشد"
+                                textSize = 15f
+                                setTextColor(
+                                    if (isDarkMode) android.graphics.Color.WHITE
+                                    else android.graphics.Color.BLACK
+                                )
+                                setPadding(dp(8), dp(16), dp(8), dp(16))
+                            }
                         )
                     }
-                    addListener(object : android.animation.AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(animation: android.animation.Animator) {
-                            searchBox.alpha = 1f
-                            decor.removeView(morph)
-                            focusSearchInputAndShowKeyboard()
-                        }
-                    })
-                }
-                animator.start()
-            } else {
-                searchBox.animate()
-                    .alpha(1f)
-                    .setDuration(180L)
-                    .setListener(object : android.animation.AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(animation: android.animation.Animator) {
-                            focusSearchInputAndShowKeyboard()
-                        }
-                    })
-                    .start()
-            }
-        }
 
-        fun addSearchResult(address: String, body: String, date: Long, subtitle: String) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(14), dp(12), dp(14), dp(12))
-                isClickable = true
-                isFocusable = true
-                background = android.util.TypedValue().let {
-                    val out = android.util.TypedValue()
-                    theme.resolveAttribute(android.R.attr.selectableItemBackground, out, true)
-                    if (out.resourceId != 0) {
-                        android.graphics.drawable.Drawable.createFromXml(
-                            resources,
-                            resources.getXml(out.resourceId)
+                    matches.forEach { record ->
+                        val item = android.widget.LinearLayout(this).apply {
+                            orientation = android.widget.LinearLayout.VERTICAL
+                            setPadding(dp(12), dp(10), dp(12), dp(10))
+                            isClickable = true
+                            isFocusable = true
+                            setOnClickListener {
+                                try {
+                                    openConversation(record.address)
+                                } catch (_: Exception) {
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "باز کردن گفتگو ناموفق بود",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+
+                            addView(android.widget.TextView(this@MainActivity).apply {
+                                text = record.title.ifBlank { record.address }
+                                textSize = 15f
+                                maxLines = 1
+                                setTextColor(
+                                    if (isDarkMode) android.graphics.Color.WHITE
+                                    else android.graphics.Color.BLACK
+                                )
+                            })
+
+                            addView(android.widget.TextView(this@MainActivity).apply {
+                                text = record.body
+                                textSize = 14f
+                                maxLines = 2
+                                setTextColor(
+                                    if (isDarkMode) 0xFFCCCCCC.toInt()
+                                    else 0xFF555555.toInt()
+                                )
+                            })
+
+                            addView(android.widget.TextView(this@MainActivity).apply {
+                                text = try {
+                                    SimpleDateFormat(
+                                        "MMM d, HH:mm",
+                                        Locale.getDefault()
+                                    ).format(Date(record.date))
+                                } catch (_: Exception) {
+                                    ""
+                                }
+                                textSize = 11f
+                                setTextColor(
+                                    if (isDarkMode) 0xFFAAAAAA.toInt()
+                                    else 0xFF777777.toInt()
+                                )
+                            })
+                        }
+
+                        resultsContainer.addView(
+                            item,
+                            android.widget.LinearLayout.LayoutParams(
+                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                            )
                         )
-                    } else null
+
+                        resultsContainer.addView(
+                            android.view.View(this).apply {
+                                setBackgroundColor(0x22000000)
+                            },
+                            android.widget.LinearLayout.LayoutParams(
+                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                dp(1)
+                            )
+                        )
+                    }
                 }
-                setOnClickListener { openConversation(address) }
             }
-
-            val name = getContactName(address)?.takeIf { it.isNotBlank() } ?: address
-            row.addView(TextView(this).apply {
-                text = name
-                textSize = 16f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(textColor)
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-            })
-
-            row.addView(TextView(this).apply {
-                text = body
-                textSize = 14f
-                setTextColor(secondaryColor)
-                maxLines = 2
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setPadding(0, dp(4), 0, 0)
-            })
-
-            if (subtitle.isNotBlank()) {
-                row.addView(TextView(this).apply {
-                    text = subtitle
-                    textSize = 11f
-                    setTextColor(secondaryColor)
-                    setPadding(0, dp(4), 0, 0)
-                })
-            }
-
-            results.addView(
-                row,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            )
-
-            val divider = View(this).apply {
-                setBackgroundColor(if (isDarkMode) Color.rgb(48, 48, 48) else Color.rgb(238, 238, 238))
-            }
-            results.addView(divider, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(1)
-            ))
         }
 
-        fun refreshSearchResults(queryText: String) {
-            results.removeAllViews()
-            val query = queryText.trim()
-            if (query.isEmpty()) return
+        fun loadSnapshot() {
+            if (searchClosed.get()) return
+            if (loadStarted) {
+                renderResults(
+                    searchInput.text?.toString().orEmpty(),
+                    generation.get()
+                )
+                return
+            }
 
-            val seen = mutableSetOf<String>()
-            val projection = arrayOf(
-                Telephony.Sms.ADDRESS,
-                Telephony.Sms.BODY,
-                Telephony.Sms.DATE
-            )
-            val cursor = contentResolver.query(
-                Telephony.Sms.CONTENT_URI,
-                projection,
-                null,
-                null,
-                "${Telephony.Sms.DATE} DESC"
-            )
+            loadStarted = true
 
-            cursor?.use { rows ->
-                while (rows.moveToNext()) {
-                    val address = rows.getString(
-                        rows.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
-                    ) ?: "Unknown"
-                    val body = rows.getString(
-                        rows.getColumnIndexOrThrow(Telephony.Sms.BODY)
-                    ) ?: ""
-                    val date = rows.getLong(
-                        rows.getColumnIndexOrThrow(Telephony.Sms.DATE)
+            searchExecutor.execute {
+                if (searchClosed.get()) return@execute
+                val loaded = mutableListOf<SearchRecord>()
+                val namesByNumber = HashMap<String, String>()
+
+                try {
+                    val phoneUri =
+                        android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+                    val phoneProjection = arrayOf(
+                        android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER,
+                        android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
                     )
-                    val name = getContactName(address).orEmpty()
 
-                    val matchesQuery =
-                        address.contains(query, ignoreCase = true) ||
-                        name.contains(query, ignoreCase = true) ||
-                        body.contains(query, ignoreCase = true)
+                    contentResolver.query(
+                        phoneUri,
+                        phoneProjection,
+                        null,
+                        null,
+                        null
+                    )?.use { cursor ->
+                        val numberIndex = cursor.getColumnIndex(
+                            android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+                        )
+                        val nameIndex = cursor.getColumnIndex(
+                            android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+                        )
 
-                    if (matchesQuery) {
-                        val key = "$address|$body|$date"
-                        if (seen.add(key)) {
-                            addSearchResult(
-                                address,
-                                body,
-                                date,
-                                SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(date))
-                            )
+                        while (cursor.moveToNext()) {
+                            if (searchClosed.get() || Thread.currentThread().isInterrupted) break
+                            if (numberIndex < 0 || nameIndex < 0) break
+                            val number = cursor.getString(numberIndex).orEmpty()
+                            val name = cursor.getString(nameIndex).orEmpty()
+
+                            if (number.isNotBlank() && name.isNotBlank()) {
+                                namesByNumber[number] = name
+                                namesByNumber[number.filter { it.isDigit() }] = name
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    android.util.Log.w(
+                        "MessagesSearch",
+                        "Contact name snapshot failed",
+                        e
+                    )
                 }
-            }
 
-            MeshMessageStore.loadConversations(this).forEach { meshId ->
-                val messages = MeshMessageStore.loadMessages(this, meshId)
-                messages.asReversed().forEach { message ->
-                    val name = meshId
-                    if (
-                        name.contains(query, ignoreCase = true) ||
-                        message.body.contains(query, ignoreCase = true)
-                    ) {
-                        val key = "$meshId|${message.body}|${message.date}"
-                        if (seen.add(key)) {
-                            addSearchResult(
-                                meshId,
-                                message.body,
-                                message.date,
-                                SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(message.date))
-                            )
+                try {
+                    val projection = arrayOf(
+                        Telephony.Sms.ADDRESS,
+                        Telephony.Sms.BODY,
+                        Telephony.Sms.DATE
+                    )
+
+                    contentResolver.query(
+                        Telephony.Sms.CONTENT_URI,
+                        projection,
+                        null,
+                        null,
+                        "${Telephony.Sms.DATE} DESC"
+                    )?.use { cursor ->
+                        val addressIndex = cursor.getColumnIndex(Telephony.Sms.ADDRESS)
+                        val bodyIndex = cursor.getColumnIndex(Telephony.Sms.BODY)
+                        val dateIndex = cursor.getColumnIndex(Telephony.Sms.DATE)
+
+                        while (cursor.moveToNext() && loaded.size < 10000) {
+                            if (searchClosed.get() || Thread.currentThread().isInterrupted) break
+                            val address = if (addressIndex >= 0) {
+                                cursor.getString(addressIndex).orEmpty()
+                            } else ""
+
+                            val body = if (bodyIndex >= 0) {
+                                cursor.getString(bodyIndex).orEmpty()
+                            } else ""
+
+                            val date = if (dateIndex >= 0) {
+                                cursor.getLong(dateIndex)
+                            } else 0L
+
+                            if (address.isNotBlank() || body.isNotBlank()) {
+                                val digits = address.filter { it.isDigit() }
+                                val name = namesByNumber[address]
+                                    ?: namesByNumber[digits]
+                                    ?: address
+
+                                loaded.add(
+                                    SearchRecord(
+                                        address = address,
+                                        body = body,
+                                        date = date,
+                                        title = name,
+                                    )
+                                )
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    android.util.Log.e(
+                        "MessagesSearch",
+                        "SMS search snapshot failed",
+                        e
+                    )
                 }
-            }
 
-            if (results.childCount == 0) {
-                results.addView(TextView(this).apply {
-                    text = "No results"
-                    textSize = 15f
-                    gravity = Gravity.CENTER
-                    setTextColor(secondaryColor)
-                    setPadding(0, dp(28), 0, dp(28))
-                })
+                if (searchClosed.get() || Thread.currentThread().isInterrupted) return@execute
+
+                val snapshot = loaded
+                    .distinctBy {
+                        "${it.address}|${it.body}|${it.date}"
+                    }
+                    .sortedByDescending { it.date }
+
+                runOnUiThread {
+                    if (searchClosed.get() || !root.isAttachedToWindow) return@runOnUiThread
+                    records = snapshot
+                    renderResults(
+                        searchInput.text?.toString().orEmpty(),
+                        generation.get()
+                    )
+                }
             }
         }
 
         searchInput.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                refreshSearchResults(s?.toString().orEmpty())
+            override fun beforeTextChanged(
+                s: CharSequence?,
+                start: Int,
+                count: Int,
+                after: Int
+            ) = Unit
+
+            override fun onTextChanged(
+                s: CharSequence?,
+                start: Int,
+                before: Int,
+                count: Int
+            ) {
+                if (searchClosed.get()) return
+                val thisGeneration = generation.incrementAndGet()
+                pendingSearch?.let(handler::removeCallbacks)
+                val query = s?.toString().orEmpty()
+
+                pendingSearch = Runnable {
+                    if (!loadStarted) {
+                        loadSnapshot()
+                    } else {
+                        renderResults(query, thisGeneration)
+                    }
+                }
+
+                handler.postDelayed(pendingSearch!!, 200)
             }
-            override fun afterTextChanged(s: android.text.Editable?) {}
+
+            override fun afterTextChanged(s: android.text.Editable?) = Unit
         })
 
+        // محل اولیه دکمهٔ مداد را پیش از تعویض صفحه ذخیره می‌کنیم.
+        val composeStartLocation = IntArray(2)
+        val composeSource = floatingComposeButton
+        val hasComposeSource = composeSource != null && composeSource.isAttachedToWindow
+        if (hasComposeSource) {
+            composeSource!!.getLocationOnScreen(composeStartLocation)
+        }
+
+        // جایگاه جست‌وجو در پایین صفحه است تا پس از باز شدن صفحه‌کلید قابل دسترسی بماند.
+        setContentView(root)
+        searchInput.requestFocus()
+        loadSnapshot()
+
+        searchRow.alpha = 0f
+        root.post {
+            if (!hasComposeSource || composeSource == null ||
+                composeStartLocation[0] == 0 && composeStartLocation[1] == 0) {
+                searchRow.animate().alpha(1f).setDuration(180L).start()
+                searchInput.postDelayed({
+                    val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                    imm?.showSoftInput(searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                }, 180)
+                return@post
+            }
+
+            val rootLocation = IntArray(2)
+            val targetLocation = IntArray(2)
+            root.getLocationOnScreen(rootLocation)
+            searchRow.getLocationOnScreen(targetLocation)
+
+            val startX = composeStartLocation[0] - rootLocation[0]
+            val startY = composeStartLocation[1] - rootLocation[1]
+            val endX = targetLocation[0] - rootLocation[0]
+            val endY = targetLocation[1] - rootLocation[1]
+            val startWidth = composeSource.width.coerceAtLeast(dp(48))
+            val startHeight = composeSource.height.coerceAtLeast(dp(48))
+            val endWidth = searchRow.width.coerceAtLeast(startWidth)
+            val endHeight = searchRow.height.coerceAtLeast(startHeight)
+
+            val morph = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                clipChildren = false
+                clipToPadding = false
+                setPadding(dp(12), 0, dp(12), 0)
+                background = GradientDrawable().apply {
+                    setColor(if (isDarkMode) Color.rgb(35, 35, 38) else Color.WHITE)
+                    cornerRadius = dp(28).toFloat()
+                }
+                elevation = dp(12).toFloat()
+
+                addView(ImageView(this@MainActivity).apply {
+                    tag = "morph_search_icon"
+                    setImageResource(R.drawable.ic_pencil_custom)
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    setColorFilter(if (isDarkMode) Color.WHITE else Color.rgb(40, 40, 44))
+                }, LinearLayout.LayoutParams(dp(24), dp(24)))
+
+                addView(TextView(this@MainActivity).apply {
+                    tag = "morph_search_label"
+                    text = "جست‌وجوی پیام‌ها"
+                    textSize = 16f
+                    includeFontPadding = false
+                    setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(40, 40, 44))
+                    alpha = 0f
+                    setPadding(dp(10), 0, 0, 0)
+                }, LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                ))
+            }
+
+            val overlayParams = android.widget.FrameLayout.LayoutParams(
+                startWidth, startHeight
+            ).apply {
+                leftMargin = startX
+                topMargin = startY
+            }
+            root.addView(morph, overlayParams)
+            composeSource.alpha = 0f
+
+            val icon = morph.getChildAt(0) as ImageView
+            val label = morph.getChildAt(1)
+            val corner = if (isDarkMode) Color.rgb(35, 35, 38) else Color.WHITE
+
+            android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+                searchMorphAnimator = this
+                duration = 380L
+                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                addUpdateListener { animator ->
+                    val t = animator.animatedValue as Float
+                    val lp = morph.layoutParams as android.widget.FrameLayout.LayoutParams
+                    lp.width = (startWidth + (endWidth - startWidth) * t).toInt()
+                    lp.height = (startHeight + (endHeight - startHeight) * t).toInt()
+                    lp.leftMargin = (startX + (endX - startX) * t).toInt()
+                    lp.topMargin = (startY + (endY - startY) * t).toInt()
+                    morph.layoutParams = lp
+
+                    (morph.background as? GradientDrawable)?.cornerRadius =
+                        (dp(24) + (dp(8) - dp(24)) * t).toFloat()
+
+                    label.alpha = ((t - 0.35f) / 0.45f).coerceIn(0f, 1f)
+                    if (t >= 0.5f && icon.tag != "search") {
+                        icon.setImageResource(R.drawable.ic_search_custom)
+                        icon.tag = "search"
+                    }
+                }
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        if (searchMorphAnimator === animation) {
+                            searchMorphAnimator = null
+                        }
+                        root.removeView(morph)
+                        searchRow.alpha = 1f
+                        composeSource.alpha = 1f
+                        if (searchClosed.get()) return
+                        searchInput.postDelayed({
+                            if (searchClosed.get()) return@postDelayed
+                            val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                            imm?.showSoftInput(
+                                searchInput,
+                                android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
+                            )
+                        }, 80)
+                    }
+
+                    override fun onAnimationCancel(animation: android.animation.Animator) {
+                        root.removeView(morph)
+                        searchRow.alpha = 1f
+                        composeSource.alpha = 1f
+                        if (searchMorphAnimator === animation) {
+                            searchMorphAnimator = null
+                        }
+                    }
+                })
+                start()
+            }
+        }
     }
 
     private fun showHeaderMenu() {
