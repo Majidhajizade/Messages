@@ -2147,7 +2147,7 @@ companion object {
 
         val resultsContainer = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(88))
+            setPadding(dp(16), dp(12), dp(16), dp(24))
         }
 
         val scrollView = android.widget.ScrollView(this).apply {
@@ -2184,23 +2184,63 @@ companion object {
         }
 
         val resultsTitle = android.widget.TextView(this).apply {
-            text = "Results"
+            text = "Messages"
             textSize = 22f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = android.view.Gravity.CENTER_VERTICAL
+            gravity = android.view.Gravity.CENTER
+            includeFontPadding = false
             setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
         }
 
-        val resultsHeader = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(dp(8), dp(8), dp(16), dp(8))
-            addView(backButton, android.widget.LinearLayout.LayoutParams(dp(48), dp(48)))
+        val fadeColor = if (isDarkMode) Color.BLACK else Color.WHITE
+        val headerFade = android.view.View(this).apply {
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(
+                    Color.argb(228, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
+                    Color.argb(170, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
+                    Color.TRANSPARENT
+                )
+            )
+            isClickable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        val bottomFade = android.view.View(this).apply {
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
+                intArrayOf(
+                    Color.argb(225, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
+                    Color.argb(125, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
+                    Color.TRANSPARENT
+                )
+            )
+            isClickable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+
+        val resultsHeader = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            addView(
+                backButton,
+                android.widget.FrameLayout.LayoutParams(
+                    dp(48), dp(48),
+                    android.view.Gravity.TOP or android.view.Gravity.START
+                ).apply {
+                    topMargin = dp(4)
+                    marginStart = dp(8)
+                }
+            )
             addView(
                 resultsTitle,
-                android.widget.LinearLayout.LayoutParams(
-                    0, dp(48), 1f
-                ).apply { marginStart = dp(8) }
+                android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                    dp(44),
+                    android.view.Gravity.TOP
+                ).apply {
+                    topMargin = dp(56)
+                    leftMargin = dp(24)
+                    rightMargin = dp(24)
+                }
             )
         }
 
@@ -2218,25 +2258,39 @@ companion object {
         }
 
         root.addView(
-            resultsHeader,
+            headerFade,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(64),
+                dp(150),
                 android.view.Gravity.TOP
             )
         )
-
+        root.addView(
+            bottomFade,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(180),
+                android.view.Gravity.BOTTOM
+            )
+        )
         root.addView(
             scrollView,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT
             ).apply {
-                topMargin = dp(64)
+                topMargin = dp(128)
                 bottomMargin = dp(64)
             }
         )
-
+        root.addView(
+            resultsHeader,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(112),
+                android.view.Gravity.TOP
+            )
+        )
         root.addView(
             searchRow,
             android.widget.FrameLayout.LayoutParams(
@@ -2245,6 +2299,46 @@ companion object {
                 android.view.Gravity.BOTTOM
             )
         )
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val systemInsets = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+            )
+            val imeInsets = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
+            val bottomInset = maxOf(systemInsets.bottom, imeInsets.bottom)
+
+            (resultsHeader.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
+                params.height = systemInsets.top + dp(112)
+                resultsHeader.layoutParams = params
+            }
+            (backButton.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
+                params.topMargin = systemInsets.top + dp(4)
+                backButton.layoutParams = params
+            }
+            (resultsTitle.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
+                params.topMargin = systemInsets.top + dp(56)
+                resultsTitle.layoutParams = params
+            }
+            (headerFade.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
+                params.height = systemInsets.top + dp(150)
+                headerFade.layoutParams = params
+            }
+            (bottomFade.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
+                params.bottomMargin = bottomInset
+                bottomFade.layoutParams = params
+            }
+            (scrollView.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
+                params.topMargin = systemInsets.top + dp(128)
+                params.bottomMargin = dp(64) + bottomInset
+                scrollView.layoutParams = params
+            }
+            (searchRow.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
+                params.bottomMargin = bottomInset
+                searchRow.layoutParams = params
+            }
+            insets
+        }
 
         val previousSoftInputMode = window.attributes.softInputMode
         window.setSoftInputMode(
