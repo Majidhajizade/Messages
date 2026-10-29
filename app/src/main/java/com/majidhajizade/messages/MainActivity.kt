@@ -2169,8 +2169,10 @@ companion object {
             background = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 cornerRadius = dp(28).toFloat()
-                setColor(0xFFF0F0F0.toInt())
+                setColor(if (isDarkMode) Color.rgb(38, 38, 42) else 0xFFF0F0F0.toInt())
             }
+            setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
+            setHintTextColor(if (isDarkMode) 0xFFAAAAAA.toInt() else 0xFF777777.toInt())
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
         }
 
@@ -2181,38 +2183,65 @@ companion object {
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
         }
 
-        val searchRow = android.widget.LinearLayout(this).apply {
+        val resultsTitle = android.widget.TextView(this).apply {
+            text = "Results"
+            textSize = 22f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
+        }
+
+        val resultsHeader = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            setPadding(dp(8), dp(8), dp(16), dp(8))
+            addView(backButton, android.widget.LinearLayout.LayoutParams(dp(48), dp(48)))
             addView(
-                backButton,
-                android.widget.LinearLayout.LayoutParams(dp(48), dp(48))
-            )
-            addView(
-                searchInput,
+                resultsTitle,
                 android.widget.LinearLayout.LayoutParams(
                     0, dp(48), 1f
-                ).apply {
-                    marginStart = dp(8)
-                }
+                ).apply { marginStart = dp(8) }
             )
         }
+
+        val searchRow = android.widget.FrameLayout(this).apply {
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            setBackgroundColor(Color.TRANSPARENT)
+            addView(
+                searchInput,
+                android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                    dp(48),
+                    android.view.Gravity.CENTER
+                )
+            )
+        }
+
+        root.addView(
+            resultsHeader,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(64),
+                android.view.Gravity.TOP
+            )
+        )
 
         root.addView(
             scrollView,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-            )
+            ).apply {
+                topMargin = dp(64)
+                bottomMargin = dp(64)
+            }
         )
 
         root.addView(
             searchRow,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                dp(64),
                 android.view.Gravity.BOTTOM
             )
         )
@@ -2228,6 +2257,7 @@ companion object {
             val body: String,
             val date: Long,
             val title: String,
+            val incoming: Boolean,
         )
 
         val handler = android.os.Handler(mainLooper)
@@ -2240,13 +2270,10 @@ companion object {
         val generation = java.util.concurrent.atomic.AtomicInteger(0)
 
         val searchClosed = java.util.concurrent.atomic.AtomicBoolean(false)
-        var searchMorphAnimator: android.animation.ValueAnimator? = null
 
         fun closeSearch() {
             if (searchClosed.get()) return
             searchClosed.set(true)
-            searchMorphAnimator?.cancel()
-            searchMorphAnimator = null
             generation.incrementAndGet()
             pendingSearch?.let(handler::removeCallbacks)
             pendingSearch = null
@@ -2267,8 +2294,7 @@ companion object {
 
         fun renderResults(query: String, requestGeneration: Int) {
             if (searchClosed.get()) return
-            val q = query.trim().lowercase(Locale.getDefault())
-
+            val q = query.trim()
             if (q.isEmpty()) {
                 resultsContainer.removeAllViews()
                 return
@@ -2299,19 +2325,21 @@ companion object {
                             android.widget.TextView(this).apply {
                                 text = "نتیجه‌ای پیدا نشد"
                                 textSize = 15f
-                                setTextColor(
-                                    if (isDarkMode) android.graphics.Color.WHITE
-                                    else android.graphics.Color.BLACK
-                                )
-                                setPadding(dp(8), dp(16), dp(8), dp(16))
-                            }
+                                gravity = android.view.Gravity.CENTER
+                                setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
+                                setPadding(dp(8), dp(24), dp(8), dp(24))
+                            },
+                            android.widget.LinearLayout.LayoutParams(
+                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                            )
                         )
                     }
 
                     matches.forEach { record ->
-                        val item = android.widget.LinearLayout(this).apply {
+                        val row = android.widget.LinearLayout(this).apply {
                             orientation = android.widget.LinearLayout.VERTICAL
-                            setPadding(dp(12), dp(10), dp(12), dp(10))
+                            setPadding(dp(8), dp(7), dp(8), dp(7))
                             isClickable = true
                             isFocusable = true
                             setOnClickListener {
@@ -2325,46 +2353,100 @@ companion object {
                                     ).show()
                                 }
                             }
-
-                            addView(android.widget.TextView(this@MainActivity).apply {
-                                text = record.title.ifBlank { record.address }
-                                textSize = 15f
-                                maxLines = 1
-                                setTextColor(
-                                    if (isDarkMode) android.graphics.Color.WHITE
-                                    else android.graphics.Color.BLACK
-                                )
-                            })
-
-                            addView(android.widget.TextView(this@MainActivity).apply {
-                                text = record.body
-                                textSize = 14f
-                                maxLines = 2
-                                setTextColor(
-                                    if (isDarkMode) 0xFFCCCCCC.toInt()
-                                    else 0xFF555555.toInt()
-                                )
-                            })
-
-                            addView(android.widget.TextView(this@MainActivity).apply {
-                                text = try {
-                                    SimpleDateFormat(
-                                        "MMM d, HH:mm",
-                                        Locale.getDefault()
-                                    ).format(Date(record.date))
-                                } catch (_: Exception) {
-                                    ""
-                                }
-                                textSize = 11f
-                                setTextColor(
-                                    if (isDarkMode) 0xFFAAAAAA.toInt()
-                                    else 0xFF777777.toInt()
-                                )
-                            })
                         }
 
-                        resultsContainer.addView(
-                            item,
+                        val senderLabel = android.widget.TextView(this).apply {
+                            text = "${record.title.ifBlank { record.address }}  ·  ${if (record.incoming) "Received" else "Sent"}"
+                            textSize = 12f
+                            setTextColor(if (isDarkMode) 0xFFAAAAAA.toInt() else 0xFF777777.toInt())
+                            gravity = if (record.incoming) android.view.Gravity.START else android.view.Gravity.END
+                            setPadding(dp(4), 0, dp(4), dp(4))
+                        }
+                        row.addView(
+                            senderLabel,
+                            android.widget.LinearLayout.LayoutParams(
+                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                            )
+                        )
+
+                        val highlightText = android.text.SpannableString(record.body)
+                        var searchAt = 0
+                        while (searchAt < record.body.length) {
+                            val foundAt = record.body.indexOf(q, searchAt, ignoreCase = true)
+                            if (foundAt < 0) break
+                            val foundEnd = foundAt + q.length
+                            highlightText.setSpan(
+                                android.text.style.BackgroundColorSpan(
+                                    if (isDarkMode) Color.rgb(130, 95, 0) else Color.rgb(255, 225, 90)
+                                ),
+                                foundAt,
+                                foundEnd,
+                                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                            highlightText.setSpan(
+                                android.text.style.ForegroundColorSpan(
+                                    if (isDarkMode) Color.WHITE else Color.BLACK
+                                ),
+                                foundAt,
+                                foundEnd,
+                                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                            searchAt = foundEnd
+                        }
+
+                        val bubbleColor = if (record.incoming) {
+                            if (isDarkMode) Color.rgb(48, 48, 55) else Color.rgb(236, 236, 236)
+                        } else {
+                            Color.rgb(50, 205, 50)
+                        }
+                        val bubbleTextColor = if (record.incoming && !isDarkMode) Color.BLACK else Color.WHITE
+
+                        val bubble = android.widget.TextView(this).apply {
+                            text = highlightText
+                            textSize = 15f
+                            setTextColor(bubbleTextColor)
+                            setPadding(dp(12), dp(9), dp(12), dp(9))
+                            maxWidth = (resources.displayMetrics.widthPixels * 0.78f).toInt()
+                            background = android.graphics.drawable.GradientDrawable().apply {
+                                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                                cornerRadius = dp(18).toFloat()
+                                setColor(bubbleColor)
+                            }
+                        }
+
+                        val bubbleFrame = android.widget.FrameLayout(this)
+                        bubbleFrame.addView(
+                            bubble,
+                            android.widget.FrameLayout.LayoutParams(
+                                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                                if (record.incoming) android.view.Gravity.START else android.view.Gravity.END
+                            ).apply {
+                                marginStart = dp(2)
+                                marginEnd = dp(2)
+                            }
+                        )
+                        row.addView(
+                            bubbleFrame,
+                            android.widget.LinearLayout.LayoutParams(
+                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                            )
+                        )
+
+                        val timeLabel = android.widget.TextView(this).apply {
+                            text = try {
+                                SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
+                                    .format(Date(record.date))
+                            } catch (_: Exception) { "" }
+                            textSize = 10f
+                            setTextColor(if (isDarkMode) 0xFF888888.toInt() else 0xFF999999.toInt())
+                            gravity = if (record.incoming) android.view.Gravity.START else android.view.Gravity.END
+                            setPadding(dp(4), dp(3), dp(4), 0)
+                        }
+                        row.addView(
+                            timeLabel,
                             android.widget.LinearLayout.LayoutParams(
                                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
@@ -2372,12 +2454,10 @@ companion object {
                         )
 
                         resultsContainer.addView(
-                            android.view.View(this).apply {
-                                setBackgroundColor(0x22000000)
-                            },
+                            row,
                             android.widget.LinearLayout.LayoutParams(
                                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                                dp(1)
+                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
                             )
                         )
                     }
@@ -2448,7 +2528,8 @@ companion object {
                     val projection = arrayOf(
                         Telephony.Sms.ADDRESS,
                         Telephony.Sms.BODY,
-                        Telephony.Sms.DATE
+                        Telephony.Sms.DATE,
+                        Telephony.Sms.TYPE
                     )
 
                     contentResolver.query(
@@ -2461,6 +2542,7 @@ companion object {
                         val addressIndex = cursor.getColumnIndex(Telephony.Sms.ADDRESS)
                         val bodyIndex = cursor.getColumnIndex(Telephony.Sms.BODY)
                         val dateIndex = cursor.getColumnIndex(Telephony.Sms.DATE)
+                        val typeIndex = cursor.getColumnIndex(Telephony.Sms.TYPE)
 
                         while (cursor.moveToNext() && loaded.size < 10000) {
                             if (searchClosed.get() || Thread.currentThread().isInterrupted) break
@@ -2475,6 +2557,8 @@ companion object {
                             val date = if (dateIndex >= 0) {
                                 cursor.getLong(dateIndex)
                             } else 0L
+                            val messageType = if (typeIndex >= 0) cursor.getInt(typeIndex) else Telephony.Sms.MESSAGE_TYPE_INBOX
+                            val incoming = messageType == Telephony.Sms.MESSAGE_TYPE_INBOX
 
                             if (address.isNotBlank() || body.isNotBlank()) {
                                 val digits = address.filter { it.isDigit() }
@@ -2488,6 +2572,7 @@ companion object {
                                         body = body,
                                         date = date,
                                         title = name,
+                                        incoming = incoming,
                                     )
                                 )
                             }
@@ -2553,142 +2638,20 @@ companion object {
             override fun afterTextChanged(s: android.text.Editable?) = Unit
         })
 
-        // محل اولیه دکمهٔ مداد را پیش از تعویض صفحه ذخیره می‌کنیم.
-        val composeStartLocation = IntArray(2)
-        val composeSource = floatingComposeButton
-        val hasComposeSource = composeSource != null && composeSource.isAttachedToWindow
-        if (hasComposeSource) {
-            composeSource!!.getLocationOnScreen(composeStartLocation)
-        }
-
-        // جایگاه جست‌وجو در پایین صفحه است تا پس از باز شدن صفحه‌کلید قابل دسترسی بماند.
+        // صفحهٔ نتایج مستقیماً و بدون انیمیشن تبدیل دکمه باز می‌شود.
         setContentView(root)
+        configureMainSystemBars()
+        backButton.setOnClickListener { closeSearch() }
         searchInput.requestFocus()
         loadSnapshot()
 
-        searchRow.alpha = 0f
-        root.post {
-            if (!hasComposeSource || composeSource == null ||
-                composeStartLocation[0] == 0 && composeStartLocation[1] == 0) {
-                searchRow.animate().alpha(1f).setDuration(180L).start()
-                searchInput.postDelayed({
-                    val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-                    imm?.showSoftInput(searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-                }, 180)
-                return@post
-            }
-
-            val rootLocation = IntArray(2)
-            val targetLocation = IntArray(2)
-            root.getLocationOnScreen(rootLocation)
-            searchRow.getLocationOnScreen(targetLocation)
-
-            val startX = composeStartLocation[0] - rootLocation[0]
-            val startY = composeStartLocation[1] - rootLocation[1]
-            val endX = targetLocation[0] - rootLocation[0]
-            val endY = targetLocation[1] - rootLocation[1]
-            val startWidth = composeSource.width.coerceAtLeast(dp(48))
-            val startHeight = composeSource.height.coerceAtLeast(dp(48))
-            val endWidth = searchRow.width.coerceAtLeast(startWidth)
-            val endHeight = searchRow.height.coerceAtLeast(startHeight)
-
-            val morph = LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                clipChildren = false
-                clipToPadding = false
-                setPadding(dp(12), 0, dp(12), 0)
-                background = GradientDrawable().apply {
-                    setColor(if (isDarkMode) Color.rgb(35, 35, 38) else Color.WHITE)
-                    cornerRadius = dp(28).toFloat()
-                }
-                elevation = dp(12).toFloat()
-
-                addView(ImageView(this@MainActivity).apply {
-                    tag = "morph_search_icon"
-                    setImageResource(R.drawable.ic_pencil_custom)
-                    scaleType = ImageView.ScaleType.CENTER_INSIDE
-                    setColorFilter(if (isDarkMode) Color.WHITE else Color.rgb(40, 40, 44))
-                }, LinearLayout.LayoutParams(dp(24), dp(24)))
-
-                addView(TextView(this@MainActivity).apply {
-                    tag = "morph_search_label"
-                    text = "جست‌وجوی پیام‌ها"
-                    textSize = 16f
-                    includeFontPadding = false
-                    setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(40, 40, 44))
-                    alpha = 0f
-                    setPadding(dp(10), 0, 0, 0)
-                }, LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                ))
-            }
-
-            val overlayParams = android.widget.FrameLayout.LayoutParams(
-                startWidth, startHeight
-            ).apply {
-                leftMargin = startX
-                topMargin = startY
-            }
-            root.addView(morph, overlayParams)
-            composeSource.alpha = 0f
-
-            val icon = morph.getChildAt(0) as ImageView
-            val label = morph.getChildAt(1)
-            val corner = if (isDarkMode) Color.rgb(35, 35, 38) else Color.WHITE
-
-            android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
-                searchMorphAnimator = this
-                duration = 380L
-                interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-                addUpdateListener { animator ->
-                    val t = animator.animatedValue as Float
-                    val lp = morph.layoutParams as android.widget.FrameLayout.LayoutParams
-                    lp.width = (startWidth + (endWidth - startWidth) * t).toInt()
-                    lp.height = (startHeight + (endHeight - startHeight) * t).toInt()
-                    lp.leftMargin = (startX + (endX - startX) * t).toInt()
-                    lp.topMargin = (startY + (endY - startY) * t).toInt()
-                    morph.layoutParams = lp
-
-                    (morph.background as? GradientDrawable)?.cornerRadius =
-                        (dp(24) + (dp(8) - dp(24)) * t).toFloat()
-
-                    label.alpha = ((t - 0.35f) / 0.45f).coerceIn(0f, 1f)
-                    if (t >= 0.5f && icon.tag != "search") {
-                        icon.setImageResource(R.drawable.ic_search_custom)
-                        icon.tag = "search"
-                    }
-                }
-                addListener(object : android.animation.AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: android.animation.Animator) {
-                        if (searchMorphAnimator === animation) {
-                            searchMorphAnimator = null
-                        }
-                        root.removeView(morph)
-                        searchRow.alpha = 1f
-                        composeSource.alpha = 1f
-                        if (searchClosed.get()) return
-                        searchInput.postDelayed({
-                            if (searchClosed.get()) return@postDelayed
-                            val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-                            imm?.showSoftInput(
-                                searchInput,
-                                android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
-                            )
-                        }, 80)
-                    }
-
-                    override fun onAnimationCancel(animation: android.animation.Animator) {
-                        root.removeView(morph)
-                        searchRow.alpha = 1f
-                        composeSource.alpha = 1f
-                        if (searchMorphAnimator === animation) {
-                            searchMorphAnimator = null
-                        }
-                    }
-                })
-                start()
-            }
+        searchInput.post {
+            if (searchClosed.get()) return@post
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.showSoftInput(
+                searchInput,
+                android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
+            )
         }
     }
 
