@@ -2236,7 +2236,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             textSize = 18f
             gravity = Gravity.CENTER
             includeFontPadding = false
-            elevation = dp(5).toFloat()
+            elevation = dp(8).toFloat()
+            translationZ = dp(2).toFloat()
             contentDescription = "Message reaction: $reaction"
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -2247,7 +2248,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 setStroke(
                     dp(1),
                     if (isDarkThemeEnabled()) Color.rgb(95, 95, 105)
-                    else Color.rgb(220, 220, 225)
+                    else Color.rgb(205, 209, 218)
                 )
             }
             setOnClickListener {
@@ -2309,7 +2310,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 setColor(surfaceColor)
                 setStroke(dp(1), outlineColor)
             }
-            elevation = dp(4).toFloat()
+            elevation = dp(9).toFloat()
+            translationZ = dp(2).toFloat()
         }
 
         val popup = android.widget.PopupWindow(this)
@@ -2430,7 +2432,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         popup.setBackgroundDrawable(
             android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
         )
-        popup.elevation = dp(4).toFloat()
+        popup.elevation = dp(8).toFloat()
 
         val root = window.decorView
         val rootLocation = IntArray(2)
