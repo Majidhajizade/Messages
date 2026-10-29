@@ -2296,8 +2296,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         val emojis = listOf("❤️", "😂", "👍", "👎", "😮", "😢", "🙏")
         val dark = isDarkThemeEnabled()
-        val surfaceColor = if (dark) Color.rgb(43, 43, 49) else Color.WHITE
-        val outlineColor = if (dark) Color.rgb(75, 75, 83) else Color.rgb(225, 225, 230)
+        val surfaceColor = if (dark) Color.argb(226, 43, 43, 49) else Color.argb(222, 255, 255, 255)
+        val outlineColor = if (dark) Color.argb(105, 150, 150, 165) else Color.argb(115, 255, 255, 255)
 
         val capsule = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -2309,7 +2309,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 setColor(surfaceColor)
                 setStroke(dp(1), outlineColor)
             }
-            elevation = dp(8).toFloat()
+            elevation = dp(4).toFloat()
         }
 
         val popup = android.widget.PopupWindow(this)
@@ -2349,7 +2349,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             capsule.addView(item, LinearLayout.LayoutParams(dp(38), dp(42)))
         }
 
-        // Curved tail connected visually to the capsule.
+        // Two small glass-colored dots lead into a rounded, curved tail.
         val tail = object : View(this) {
             private val fillPaint = android.graphics.Paint(
                 android.graphics.Paint.ANTI_ALIAS_FLAG
@@ -2363,28 +2363,39 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
                 val w = width.toFloat()
                 val h = height.toFloat()
+
+                fillPaint.color = surfaceColor
+                fillPaint.style = android.graphics.Paint.Style.FILL
+
+                // Small bubbles before the main tail.
+                canvas.drawCircle(dp(5).toFloat(), dp(4).toFloat(), dp(2).toFloat(), fillPaint)
+                canvas.drawCircle(dp(13).toFloat(), dp(9).toFloat(), dp(3).toFloat(), fillPaint)
+
                 val path = android.graphics.Path().apply {
-                    moveTo(dp(2).toFloat(), 0f)
+                    moveTo(dp(18).toFloat(), dp(7).toFloat())
                     cubicTo(
-                        w * 0.28f, h * 0.05f,
-                        w * 0.34f, h * 0.62f,
-                        w * 0.50f, h * 0.84f
+                        dp(24).toFloat(), dp(8).toFloat(),
+                        w * 0.72f, h * 0.68f,
+                        w * 0.82f, h * 0.84f
                     )
                     cubicTo(
-                        w * 0.66f, h * 0.62f,
-                        w * 0.72f, h * 0.05f,
-                        w - dp(2).toFloat(), 0f
+                        w * 0.91f, h * 0.94f,
+                        w * 0.98f, h * 0.94f,
+                        w - dp(2).toFloat(), h - dp(2).toFloat()
+                    )
+                    cubicTo(
+                        w * 0.72f, h * 0.88f,
+                        w * 0.58f, h * 0.63f,
+                        dp(18).toFloat(), dp(7).toFloat()
                     )
                     close()
                 }
 
-                fillPaint.color = surfaceColor
-                fillPaint.style = android.graphics.Paint.Style.FILL
                 canvas.drawPath(path, fillPaint)
 
                 strokePaint.color = outlineColor
                 strokePaint.style = android.graphics.Paint.Style.STROKE
-                strokePaint.strokeWidth = dp(1).toFloat()
+                strokePaint.strokeWidth = dp(0.7f).toFloat()
                 canvas.drawPath(path, strokePaint)
             }
         }
@@ -2403,9 +2414,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 )
             )
 
-            val tailParams = LinearLayout.LayoutParams(dp(22), dp(10)).apply {
+            val tailParams = LinearLayout.LayoutParams(dp(38), dp(22)).apply {
                 gravity = if (incoming) Gravity.START else Gravity.END
-                if (incoming) marginStart = dp(34) else marginEnd = dp(34)
+                if (incoming) marginStart = dp(28) else marginEnd = dp(28)
                 topMargin = -dp(1)
             }
             addView(tail, tailParams)
@@ -2419,7 +2430,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         popup.setBackgroundDrawable(
             android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
         )
-        popup.elevation = dp(8).toFloat()
+        popup.elevation = dp(4).toFloat()
 
         val root = window.decorView
         val rootLocation = IntArray(2)
