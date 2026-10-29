@@ -2395,7 +2395,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
                 strokePaint.color = outlineColor
                 strokePaint.style = android.graphics.Paint.Style.STROKE
-                strokePaint.strokeWidth = dp(0.7f).toFloat()
+                strokePaint.strokeWidth = dp(1).toFloat()
                 canvas.drawPath(path, strokePaint)
             }
         }
