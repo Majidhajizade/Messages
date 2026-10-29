@@ -701,7 +701,7 @@ companion object {
                 dp(52)
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                bottomMargin = dp(18)
+                bottomMargin = dp(8)
             }
         )
 
@@ -4457,6 +4457,16 @@ private fun createSelectionActionBar(): View {
         selectedAddresses.clear()
         if (address != null) selectedAddresses.add(address)
 
+        homeTitle?.animate()?.cancel()
+        homeTitle?.visibility = View.VISIBLE
+        homeTitle?.animate()
+            ?.alpha(0f)
+            ?.setDuration(180L)
+            ?.withEndAction {
+                if (selectionMode) homeTitle?.visibility = View.INVISIBLE
+            }
+            ?.start()
+
         homeHeader?.visibility = View.GONE
         selectionHeader.visibility = View.VISIBLE
         homeBottomDock?.animate()?.cancel()
@@ -4673,6 +4683,13 @@ private fun createSelectionActionBar(): View {
 
         selectionHeader.visibility = View.GONE
         selectionActionBar.visibility = View.GONE
+        homeTitle?.animate()?.cancel()
+        homeTitle?.visibility = View.VISIBLE
+        homeTitle?.alpha = 0f
+        homeTitle?.animate()
+            ?.alpha(1f)
+            ?.setDuration(220L)
+            ?.start()
         homeHeader?.visibility = View.VISIBLE
         homeBottomDock?.animate()?.cancel()
         homeBottomDock?.visibility = View.VISIBLE
