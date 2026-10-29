@@ -2215,7 +2215,6 @@ companion object {
                     dp(34), dp(34), android.view.Gravity.CENTER
                 )
             )
-            setOnClickListener { closeSearch() }
         }
 
         val resultsTitle = android.widget.TextView(this).apply {
@@ -2445,6 +2444,7 @@ companion object {
         }
 
         backButton.setOnClickListener { closeSearch() }
+        backCapsule.setOnClickListener { closeSearch() }
 
         fun renderResults(query: String, requestGeneration: Int) {
             if (searchClosed.get()) return
