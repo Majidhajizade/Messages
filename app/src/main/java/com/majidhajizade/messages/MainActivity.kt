@@ -2147,7 +2147,7 @@ companion object {
 
         val resultsContainer = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(24))
+            setPadding(dp(16), dp(128), dp(16), dp(100))
         }
 
         val scrollView = android.widget.ScrollView(this).apply {
@@ -2192,28 +2192,13 @@ companion object {
             setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
         }
 
-        val fadeColor = if (isDarkMode) Color.BLACK else Color.WHITE
         val headerFade = android.view.View(this).apply {
-            background = android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(
-                    Color.argb(205, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
-                    Color.argb(105, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
-                    Color.TRANSPARENT
-                )
-            )
+            setBackgroundColor(Color.TRANSPARENT)
             isClickable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
         val bottomFade = android.view.View(this).apply {
-            background = android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
-                intArrayOf(
-                    Color.argb(200, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
-                    Color.argb(90, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
-                    Color.TRANSPARENT
-                )
-            )
+            setBackgroundColor(Color.TRANSPARENT)
             isClickable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
@@ -2237,7 +2222,7 @@ companion object {
                     dp(44),
                     android.view.Gravity.TOP
                 ).apply {
-                    topMargin = dp(48)
+                    topMargin = dp(36)
                     leftMargin = dp(24)
                     rightMargin = dp(24)
                 }
@@ -2258,6 +2243,13 @@ companion object {
         }
 
         root.addView(
+            scrollView,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+        root.addView(
             headerFade,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
@@ -2272,16 +2264,6 @@ companion object {
                 dp(180),
                 android.view.Gravity.BOTTOM
             )
-        )
-        root.addView(
-            scrollView,
-            android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-            ).apply {
-                topMargin = dp(128)
-                bottomMargin = dp(64)
-            }
         )
         root.addView(
             resultsHeader,
@@ -2317,7 +2299,7 @@ companion object {
                 backButton.layoutParams = params
             }
             (resultsTitle.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
-                params.topMargin = systemInsets.top + dp(48)
+                params.topMargin = systemInsets.top + dp(36)
                 resultsTitle.layoutParams = params
             }
             (headerFade.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
@@ -2329,8 +2311,8 @@ companion object {
                 bottomFade.layoutParams = params
             }
             (scrollView.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
-                params.topMargin = systemInsets.top + dp(128)
-                params.bottomMargin = dp(64) + bottomInset
+                params.topMargin = 0
+                params.bottomMargin = 0
                 scrollView.layoutParams = params
             }
             (searchRow.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
