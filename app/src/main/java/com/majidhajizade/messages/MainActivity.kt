@@ -2155,15 +2155,15 @@ companion object {
             addView(
                 resultsContainer,
                 android.widget.ScrollView.LayoutParams(
-                    android.widget.ScrollView.LayoutParams.MATCH_PARENT,
-                    android.widget.ScrollView.LayoutParams.WRAP_CONTENT
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                 )
             )
         }
 
         val searchInput = android.widget.EditText(this).apply {
             hint = "جست‌وجوی پیام‌ها"
-            singleLine = true
+            setSingleLine(true)
             textSize = 16f
             setPadding(dp(16), 0, dp(16), 0)
             background = android.graphics.drawable.GradientDrawable().apply {
