@@ -2168,8 +2168,8 @@ companion object {
             setPadding(dp(16), 0, dp(16), 0)
             background = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                cornerRadius = dp(28).toFloat()
-                setColor(if (isDarkMode) Color.rgb(38, 38, 42) else 0xFFF0F0F0.toInt())
+                cornerRadius = dp(22).toFloat()
+                setColor(Color.WHITE)
             }
             setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
             setHintTextColor(if (isDarkMode) 0xFFAAAAAA.toInt() else 0xFF777777.toInt())
@@ -2197,8 +2197,8 @@ companion object {
             background = android.graphics.drawable.GradientDrawable(
                 android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(
-                    Color.argb(228, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
-                    Color.argb(170, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
+                    Color.argb(205, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
+                    Color.argb(105, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
                     Color.TRANSPARENT
                 )
             )
@@ -2209,8 +2209,8 @@ companion object {
             background = android.graphics.drawable.GradientDrawable(
                 android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
                 intArrayOf(
-                    Color.argb(225, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
-                    Color.argb(125, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
+                    Color.argb(200, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
+                    Color.argb(90, Color.red(fadeColor), Color.green(fadeColor), Color.blue(fadeColor)),
                     Color.TRANSPARENT
                 )
             )
@@ -2237,7 +2237,7 @@ companion object {
                     dp(44),
                     android.view.Gravity.TOP
                 ).apply {
-                    topMargin = dp(56)
+                    topMargin = dp(48)
                     leftMargin = dp(24)
                     rightMargin = dp(24)
                 }
@@ -2251,7 +2251,7 @@ companion object {
                 searchInput,
                 android.widget.FrameLayout.LayoutParams(
                     android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                    dp(48),
+                    dp(40),
                     android.view.Gravity.CENTER
                 )
             )
@@ -2317,7 +2317,7 @@ companion object {
                 backButton.layoutParams = params
             }
             (resultsTitle.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
-                params.topMargin = systemInsets.top + dp(56)
+                params.topMargin = systemInsets.top + dp(48)
                 resultsTitle.layoutParams = params
             }
             (headerFade.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
