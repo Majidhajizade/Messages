@@ -2138,7 +2138,7 @@ companion object {
 
     private fun showSmsSearchPage() {
         val root = android.widget.FrameLayout(this).apply {
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            setBackgroundColor(if (isDarkMode) Color.BLACK else screenBackground)
             layoutParams = android.view.ViewGroup.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -2162,10 +2162,12 @@ companion object {
         }
 
         val searchInput = android.widget.EditText(this).apply {
-            hint = "جست‌وجوی پیام‌ها"
+            hint = "Search Messages"
             setSingleLine(true)
+            textDirection = View.TEXT_DIRECTION_LTR
+            gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
             textSize = 16f
-            setPadding(dp(16), 0, dp(16), 0)
+            setPadding(dp(16), 0, dp(52), 0)
             background = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 cornerRadius = dp(22).toFloat()
@@ -2179,7 +2181,7 @@ companion object {
                     else Color.argb(38, 0, 0, 0)
                 )
             }
-            elevation = dp(if (isDarkMode) 3 else 5).toFloat()
+            elevation = dp(if (isDarkMode) 2 else 3).toFloat()
             clipToOutline = true
             setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
             setHintTextColor(
@@ -2189,32 +2191,20 @@ companion object {
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
         }
 
-        val backButton = android.widget.ImageButton(this).apply {
-            contentDescription = "بازگشت"
-            setImageResource(R.drawable.ic_back_arrow)
-            setColorFilter(if (isDarkMode) Color.WHITE else Color.BLACK)
+        val clearButton = android.widget.TextView(this).apply {
+            text = "×"
+            textSize = 25f
+            gravity = android.view.Gravity.CENTER
+            setTextColor(if (isDarkMode) Color.WHITE else Color.rgb(80, 80, 85))
+            contentDescription = "Clear search text"
             background = null
-            scaleType = android.widget.ImageView.ScaleType.CENTER
-            setPadding(dp(4), dp(4), dp(4), dp(4))
-        }
-
-        val backCapsule = android.widget.FrameLayout(this).apply {
-            background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(
-                    if (isDarkMode) Color.rgb(38, 38, 42)
-                    else Color.argb(232, 255, 255, 255)
-                )
-                cornerRadius = dp(24).toFloat()
-            }
-            elevation = dp(if (isDarkMode) 2 else 3).toFloat()
-            clipChildren = false
-            clipToPadding = false
-            addView(
-                backButton,
-                android.widget.FrameLayout.LayoutParams(
-                    dp(34), dp(34), android.view.Gravity.CENTER
-                )
-            )
+            alpha = 0f
+            scaleX = 0f
+            scaleY = 0f
+            rotation = 45f
+            visibility = View.INVISIBLE
+            isClickable = true
+            isFocusable = true
         }
 
         val resultsTitle = android.widget.TextView(this).apply {
@@ -2227,7 +2217,7 @@ companion object {
         }
 
         val fadeBase = if (isDarkMode) {
-            Color.rgb(14, 14, 18)
+            Color.BLACK
         } else {
             Color.rgb(245, 247, 250)
         }
@@ -2256,42 +2246,8 @@ companion object {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
 
-        val bottomFade = android.view.View(this).apply {
-            background = android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(
-                    Color.TRANSPARENT,
-                    Color.argb(48, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
-                    Color.argb(142, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
-                    Color.argb(224, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase))
-                )
-            ).apply {
-                setColors(
-                    intArrayOf(
-                        Color.TRANSPARENT,
-                        Color.argb(48, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
-                        Color.argb(142, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
-                        Color.argb(224, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase))
-                    ),
-                    floatArrayOf(0f, 0.32f, 0.68f, 1f)
-                )
-            }
-            isClickable = false
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-
         val resultsHeader = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
-            addView(
-                backCapsule,
-                android.widget.FrameLayout.LayoutParams(
-                    dp(48), dp(48),
-                    android.view.Gravity.TOP or android.view.Gravity.START
-                ).apply {
-                    topMargin = dp(4)
-                    marginStart = dp(8)
-                }
-            )
             addView(
                 resultsTitle,
                 android.widget.FrameLayout.LayoutParams(
@@ -2317,6 +2273,15 @@ companion object {
                     android.view.Gravity.CENTER
                 )
             )
+            addView(
+                clearButton,
+                android.widget.FrameLayout.LayoutParams(
+                    dp(40), dp(40),
+                    android.view.Gravity.END or android.view.Gravity.CENTER_VERTICAL
+                ).apply {
+                    marginEnd = dp(5)
+                }
+            )
         }
 
         root.addView(
@@ -2332,14 +2297,6 @@ companion object {
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 dp(150),
                 android.view.Gravity.TOP
-            )
-        )
-        root.addView(
-            bottomFade,
-            android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(180),
-                android.view.Gravity.BOTTOM
             )
         )
         root.addView(
@@ -2371,10 +2328,6 @@ companion object {
                 params.height = systemInsets.top + dp(112)
                 resultsHeader.layoutParams = params
             }
-            (backCapsule.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
-                params.topMargin = systemInsets.top + dp(4)
-                backCapsule.layoutParams = params
-            }
             (resultsTitle.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
                 params.topMargin = systemInsets.top + dp(36)
                 resultsTitle.layoutParams = params
@@ -2382,10 +2335,6 @@ companion object {
             (headerFade.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
                 params.height = systemInsets.top + dp(150)
                 headerFade.layoutParams = params
-            }
-            (bottomFade.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
-                params.bottomMargin = bottomInset
-                bottomFade.layoutParams = params
             }
             (scrollView.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
                 params.topMargin = 0
@@ -2424,9 +2373,13 @@ companion object {
 
         val searchClosed = java.util.concurrent.atomic.AtomicBoolean(false)
 
+        var searchBackCallback: androidx.activity.OnBackPressedCallback? = null
+
         fun closeSearch() {
             if (searchClosed.get()) return
             searchClosed.set(true)
+            searchBackCallback?.remove()
+            searchBackCallback = null
             generation.incrementAndGet()
             pendingSearch?.let(handler::removeCallbacks)
             pendingSearch = null
@@ -2442,9 +2395,52 @@ companion object {
             window.decorView.systemUiVisibility =
                 if (isDarkMode) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         }
+        var clearButtonShowing = false
 
-        backButton.setOnClickListener { closeSearch() }
-        backCapsule.setOnClickListener { closeSearch() }
+        fun updateClearButton() {
+            val shouldShow = !searchInput.text.isNullOrEmpty()
+            if (shouldShow == clearButtonShowing) return
+
+            clearButtonShowing = shouldShow
+            clearButton.animate().cancel()
+
+            if (shouldShow) {
+                clearButton.visibility = View.VISIBLE
+                clearButton.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .rotation(0f)
+                    .setDuration(180L)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .start()
+            } else {
+                clearButton.animate()
+                    .alpha(0f)
+                    .scaleX(0f)
+                    .scaleY(0f)
+                    .rotation(45f)
+                    .setDuration(180L)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .withEndAction {
+                        if (!clearButtonShowing) {
+                            clearButton.visibility = View.INVISIBLE
+                        }
+                    }
+                    .start()
+            }
+        }
+
+        clearButton.setOnClickListener {
+            searchInput.text?.clear()
+        }
+
+        searchBackCallback = object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                closeSearch()
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, searchBackCallback!!)
 
         fun renderResults(query: String, requestGeneration: Int) {
             if (searchClosed.get()) return
@@ -2550,7 +2546,7 @@ companion object {
                         }
 
                         val bubbleColor = if (record.incoming) {
-                            if (isDarkMode) Color.rgb(48, 48, 55) else Color.rgb(236, 236, 236)
+                            if (isDarkMode) Color.rgb(58, 58, 62) else Color.rgb(236, 236, 236)
                         } else {
                             Color.rgb(50, 205, 50)
                         }
@@ -2774,6 +2770,7 @@ companion object {
                 count: Int
             ) {
                 if (searchClosed.get()) return
+                updateClearButton()
                 val thisGeneration = generation.incrementAndGet()
                 pendingSearch?.let(handler::removeCallbacks)
                 val query = s?.toString().orEmpty()
@@ -2795,7 +2792,6 @@ companion object {
         // صفحهٔ نتایج مستقیماً و بدون انیمیشن تبدیل دکمه باز می‌شود.
         setContentView(root)
         configureMainSystemBars()
-        backButton.setOnClickListener { closeSearch() }
         searchInput.requestFocus()
         loadSnapshot()
 
