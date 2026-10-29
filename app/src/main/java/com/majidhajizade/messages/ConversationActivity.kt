@@ -2236,8 +2236,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             textSize = 18f
             gravity = Gravity.CENTER
             includeFontPadding = false
-            elevation = dp(2).toFloat()
-            translationZ = 0f
+            elevation = dp(4).toFloat()
+            translationZ = dp(1).toFloat()
             contentDescription = "Message reaction: $reaction"
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -2315,7 +2315,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         emojis.forEach { emoji ->
             val item = TextView(this).apply {
                 text = emoji
-                textSize = 25f
+                textSize = 27f
+                alpha = 1f
+                paint.alpha = 255
+                paint.colorFilter = null
+                typeface = android.graphics.Typeface.DEFAULT
                 gravity = Gravity.CENTER
                 includeFontPadding = false
                 isClickable = true
@@ -2347,54 +2351,32 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             capsule.addView(item, LinearLayout.LayoutParams(dp(38), dp(42)))
         }
 
-        // Two small glass-colored dots lead into a rounded, curved tail.
+        // Two small shadowed dots below the reaction capsule.
         val tail = object : View(this) {
             private val fillPaint = android.graphics.Paint(
                 android.graphics.Paint.ANTI_ALIAS_FLAG
             )
-            private val strokePaint = android.graphics.Paint(
-                android.graphics.Paint.ANTI_ALIAS_FLAG
-            )
+
+            init {
+                // Software rendering ensures subtle shadows on both dots.
+                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            }
 
             override fun onDraw(canvas: android.graphics.Canvas) {
                 super.onDraw(canvas)
 
-                val w = width.toFloat()
-                val h = height.toFloat()
-
                 fillPaint.color = surfaceColor
                 fillPaint.style = android.graphics.Paint.Style.FILL
+                fillPaint.setShadowLayer(
+                    dp(2).toFloat(),
+                    0f,
+                    dp(1).toFloat(),
+                    Color.argb(85, 0, 0, 0)
+                )
 
-                // Small bubbles before the main tail.
+                // Keep only the two small decorative dots.
                 canvas.drawCircle(dp(5).toFloat(), dp(4).toFloat(), dp(2).toFloat(), fillPaint)
                 canvas.drawCircle(dp(13).toFloat(), dp(9).toFloat(), dp(3).toFloat(), fillPaint)
-
-                val path = android.graphics.Path().apply {
-                    moveTo(dp(18).toFloat(), dp(7).toFloat())
-                    cubicTo(
-                        dp(24).toFloat(), dp(8).toFloat(),
-                        w * 0.72f, h * 0.68f,
-                        w * 0.82f, h * 0.84f
-                    )
-                    cubicTo(
-                        w * 0.91f, h * 0.94f,
-                        w * 0.98f, h * 0.94f,
-                        w - dp(2).toFloat(), h - dp(2).toFloat()
-                    )
-                    cubicTo(
-                        w * 0.72f, h * 0.88f,
-                        w * 0.58f, h * 0.63f,
-                        dp(18).toFloat(), dp(7).toFloat()
-                    )
-                    close()
-                }
-
-                canvas.drawPath(path, fillPaint)
-
-                strokePaint.color = outlineColor
-                strokePaint.style = android.graphics.Paint.Style.STROKE
-                strokePaint.strokeWidth = dp(1).toFloat()
-                canvas.drawPath(path, strokePaint)
             }
         }
 
