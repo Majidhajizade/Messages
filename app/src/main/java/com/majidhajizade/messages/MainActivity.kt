@@ -2169,18 +2169,53 @@ companion object {
             background = android.graphics.drawable.GradientDrawable().apply {
                 shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                 cornerRadius = dp(22).toFloat()
-                setColor(Color.WHITE)
+                setColor(
+                    if (isDarkMode) Color.rgb(38, 38, 42)
+                    else Color.WHITE
+                )
+                setStroke(
+                    dp(1),
+                    if (isDarkMode) Color.argb(75, 255, 255, 255)
+                    else Color.argb(38, 0, 0, 0)
+                )
             }
+            elevation = dp(if (isDarkMode) 3 else 5).toFloat()
+            clipToOutline = true
             setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
-            setHintTextColor(if (isDarkMode) 0xFFAAAAAA.toInt() else 0xFF777777.toInt())
+            setHintTextColor(
+                if (isDarkMode) 0xFFB7B7BE.toInt()
+                else 0xFF777777.toInt()
+            )
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
         }
 
         val backButton = android.widget.ImageButton(this).apply {
             contentDescription = "بازگشت"
-            setImageResource(R.drawable.ic_back_custom)
+            setImageResource(R.drawable.ic_back_arrow)
+            setColorFilter(if (isDarkMode) Color.WHITE else Color.BLACK)
             background = null
-            scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            scaleType = android.widget.ImageView.ScaleType.CENTER
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+        }
+
+        val backCapsule = android.widget.FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(
+                    if (isDarkMode) Color.rgb(38, 38, 42)
+                    else Color.argb(232, 255, 255, 255)
+                )
+                cornerRadius = dp(24).toFloat()
+            }
+            elevation = dp(if (isDarkMode) 2 else 3).toFloat()
+            clipChildren = false
+            clipToPadding = false
+            addView(
+                backButton,
+                android.widget.FrameLayout.LayoutParams(
+                    dp(34), dp(34), android.view.Gravity.CENTER
+                )
+            )
+            setOnClickListener { closeSearch() }
         }
 
         val resultsTitle = android.widget.TextView(this).apply {
@@ -2192,13 +2227,56 @@ companion object {
             setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
         }
 
+        val fadeBase = if (isDarkMode) {
+            Color.rgb(14, 14, 18)
+        } else {
+            Color.rgb(245, 247, 250)
+        }
+
         val headerFade = android.view.View(this).apply {
-            setBackgroundColor(Color.TRANSPARENT)
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(
+                    Color.argb(224, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                    Color.argb(158, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                    Color.argb(66, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                    Color.TRANSPARENT
+                )
+            ).apply {
+                setColors(
+                    intArrayOf(
+                        Color.argb(224, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                        Color.argb(158, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                        Color.argb(66, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                        Color.TRANSPARENT
+                    ),
+                    floatArrayOf(0f, 0.42f, 0.76f, 1f)
+                )
+            }
             isClickable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
+
         val bottomFade = android.view.View(this).apply {
-            setBackgroundColor(Color.TRANSPARENT)
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(
+                    Color.TRANSPARENT,
+                    Color.argb(48, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                    Color.argb(142, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                    Color.argb(224, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase))
+                )
+            ).apply {
+                setColors(
+                    intArrayOf(
+                        Color.TRANSPARENT,
+                        Color.argb(48, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                        Color.argb(142, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase)),
+                        Color.argb(224, Color.red(fadeBase), Color.green(fadeBase), Color.blue(fadeBase))
+                    ),
+                    floatArrayOf(0f, 0.32f, 0.68f, 1f)
+                )
+            }
             isClickable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
@@ -2206,7 +2284,7 @@ companion object {
         val resultsHeader = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
             addView(
-                backButton,
+                backCapsule,
                 android.widget.FrameLayout.LayoutParams(
                     dp(48), dp(48),
                     android.view.Gravity.TOP or android.view.Gravity.START
@@ -2294,9 +2372,9 @@ companion object {
                 params.height = systemInsets.top + dp(112)
                 resultsHeader.layoutParams = params
             }
-            (backButton.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
+            (backCapsule.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
                 params.topMargin = systemInsets.top + dp(4)
-                backButton.layoutParams = params
+                backCapsule.layoutParams = params
             }
             (resultsTitle.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { params ->
                 params.topMargin = systemInsets.top + dp(36)
