@@ -2263,6 +2263,7 @@ companion object {
         }
 
         val searchRow = android.widget.FrameLayout(this).apply {
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
             setPadding(dp(16), dp(8), dp(16), dp(8))
             setBackgroundColor(Color.TRANSPARENT)
             addView(
@@ -2276,12 +2277,14 @@ companion object {
             addView(
                 clearButton,
                 android.widget.FrameLayout.LayoutParams(
-                    dp(40), dp(40),
-                    android.view.Gravity.END or android.view.Gravity.CENTER_VERTICAL
+                    dp(44), dp(44),
+                    android.view.Gravity.RIGHT or android.view.Gravity.CENTER_VERTICAL
                 ).apply {
-                    marginEnd = dp(5)
+                    rightMargin = dp(5)
                 }
             )
+            clearButton.bringToFront()
+            clearButton.translationZ = dp(8).toFloat()
         }
 
         root.addView(
@@ -2788,6 +2791,7 @@ companion object {
 
             override fun afterTextChanged(s: android.text.Editable?) = Unit
         })
+        updateClearButton()
 
         // صفحهٔ نتایج مستقیماً و بدون انیمیشن تبدیل دکمه باز می‌شود.
         setContentView(root)
