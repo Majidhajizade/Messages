@@ -2289,11 +2289,15 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         bubble: View,
         incoming: Boolean
     ) {
-        if (isFinishing || isDestroyed || !anchor.isAttachedToWindow) return
+        if (isFinishing || isDestroyed ||
+            !anchor.isAttachedToWindow ||
+            !bubble.isAttachedToWindow
+        ) return
 
         val emojis = listOf("❤️", "😂", "👍", "👎", "😮", "😢", "🙏")
         val dark = isDarkThemeEnabled()
         val surfaceColor = if (dark) Color.rgb(43, 43, 49) else Color.WHITE
+        val outlineColor = if (dark) Color.rgb(75, 75, 83) else Color.rgb(225, 225, 230)
 
         val capsule = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -2301,15 +2305,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             setPadding(dp(7), dp(4), dp(7), dp(4))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(28).toFloat()
+                cornerRadius = dp(30).toFloat()
                 setColor(surfaceColor)
-                setStroke(
-                    dp(1),
-                    if (dark) Color.rgb(75, 75, 83)
-                    else Color.rgb(225, 225, 230)
-                )
+                setStroke(dp(1), outlineColor)
             }
-            elevation = dp(9).toFloat()
+            elevation = dp(8).toFloat()
         }
 
         val popup = android.widget.PopupWindow(this)
@@ -2346,10 +2346,47 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 }
             }
 
-            capsule.addView(
-                item,
-                LinearLayout.LayoutParams(dp(38), dp(42))
+            capsule.addView(item, LinearLayout.LayoutParams(dp(38), dp(42)))
+        }
+
+        // Curved tail connected visually to the capsule.
+        val tail = object : View(this) {
+            private val fillPaint = android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG
             )
+            private val strokePaint = android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG
+            )
+
+            override fun onDraw(canvas: android.graphics.Canvas) {
+                super.onDraw(canvas)
+
+                val w = width.toFloat()
+                val h = height.toFloat()
+                val path = android.graphics.Path().apply {
+                    moveTo(dp(2).toFloat(), 0f)
+                    cubicTo(
+                        w * 0.28f, h * 0.05f,
+                        w * 0.34f, h * 0.62f,
+                        w * 0.50f, h * 0.84f
+                    )
+                    cubicTo(
+                        w * 0.66f, h * 0.62f,
+                        w * 0.72f, h * 0.05f,
+                        w - dp(2).toFloat(), 0f
+                    )
+                    close()
+                }
+
+                fillPaint.color = surfaceColor
+                fillPaint.style = android.graphics.Paint.Style.FILL
+                canvas.drawPath(path, fillPaint)
+
+                strokePaint.color = outlineColor
+                strokePaint.style = android.graphics.Paint.Style.STROKE
+                strokePaint.strokeWidth = dp(1).toFloat()
+                canvas.drawPath(path, strokePaint)
+            }
         }
 
         val content = LinearLayout(this).apply {
@@ -2357,6 +2394,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false
             clipToPadding = false
+
             addView(
                 capsule,
                 LinearLayout.LayoutParams(
@@ -2365,26 +2403,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 )
             )
 
-            val tail = object : View(this@ConversationActivity) {
-                private val paint = android.graphics.Paint(
-                    android.graphics.Paint.ANTI_ALIAS_FLAG
-                )
-
-                override fun onDraw(canvas: android.graphics.Canvas) {
-                    super.onDraw(canvas)
-                    paint.color = surfaceColor
-                    paint.style = android.graphics.Paint.Style.FILL
-                    val path = android.graphics.Path().apply {
-                        moveTo(0f, 0f)
-                        lineTo(width.toFloat(), 0f)
-                        lineTo(width / 2f, height.toFloat())
-                        close()
-                    }
-                    canvas.drawPath(path, paint)
-                }
+            val tailParams = LinearLayout.LayoutParams(dp(22), dp(10)).apply {
+                gravity = if (incoming) Gravity.START else Gravity.END
+                if (incoming) marginStart = dp(34) else marginEnd = dp(34)
+                topMargin = -dp(1)
             }
-
-            addView(tail, LinearLayout.LayoutParams(dp(18), dp(8)))
+            addView(tail, tailParams)
         }
 
         popup.contentView = content
@@ -2395,13 +2419,16 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         popup.setBackgroundDrawable(
             android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
         )
-        popup.elevation = dp(9).toFloat()
+        popup.elevation = dp(8).toFloat()
 
         val root = window.decorView
         val rootLocation = IntArray(2)
-        val anchorLocation = IntArray(2)
+        val bubbleLocation = IntArray(2)
+        val messagesLocation = IntArray(2)
+
         root.getLocationOnScreen(rootLocation)
-        anchor.getLocationOnScreen(anchorLocation)
+        bubble.getLocationOnScreen(bubbleLocation)
+        messagesContainer.getLocationOnScreen(messagesLocation)
 
         content.measure(
             View.MeasureSpec.makeMeasureSpec(
@@ -2417,15 +2444,43 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val popupWidth = content.measuredWidth
         val popupHeight = content.measuredHeight
         val maxX = (root.width - popupWidth - dp(8)).coerceAtLeast(dp(8))
+
+        // Center the picker over the actual message bubble, not the text view.
         val x = (
-            anchorLocation[0] - rootLocation[0] +
-                anchor.width / 2 - popupWidth / 2
+            bubbleLocation[0] - rootLocation[0] +
+                bubble.width / 2 - popupWidth / 2
         ).coerceIn(dp(8), maxX)
-        val y = (
-            anchorLocation[1] - rootLocation[1] - popupHeight - dp(5)
-        ).coerceAtLeast(dp(8))
+
+        val bubbleTop = bubbleLocation[1] - rootLocation[1]
+        val aboveY = bubbleTop - popupHeight - dp(4)
+        val messageAreaTop = messagesLocation[1] - rootLocation[1]
+
+        // Avoid overlapping the contact header for the first visible message.
+        val y = if (aboveY < messageAreaTop - dp(2)) {
+            bubbleTop + bubble.height + dp(6)
+        } else {
+            aboveY
+        }.coerceAtLeast(dp(8))
 
         popup.showAtLocation(root, Gravity.TOP or Gravity.START, x, y)
+
+        content.alpha = 0f
+        content.scaleX = 0.92f
+        content.scaleY = 0.92f
+        content.pivotX = if (incoming) {
+            dp(34).toFloat()
+        } else {
+            content.measuredWidth - dp(34).toFloat()
+        }
+        content.pivotY = content.measuredHeight.toFloat()
+
+        content.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(160L)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
     }
 
     private fun addMessage(
