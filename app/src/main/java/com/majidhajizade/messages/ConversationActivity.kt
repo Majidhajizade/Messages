@@ -2273,11 +2273,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         bubble.post {
             if (badge.parent !== messageLayer) return@post
-            badge.x = if (incoming) {
-                bubble.x + bubble.width - dp(20)
-            } else {
-                bubble.x - dp(8)
-            }
+            badge.x = bubble.x + bubble.width - dp(28)
             badge.y = bubble.y - dp(13)
             badge.bringToFront()
         }
@@ -2297,8 +2293,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         val emojis = listOf("❤️", "😂", "👍", "👎", "😮", "😢", "🙏")
         val dark = isDarkThemeEnabled()
-        val surfaceColor = if (dark) Color.argb(226, 43, 43, 49) else Color.argb(222, 255, 255, 255)
-        val outlineColor = if (dark) Color.argb(105, 150, 150, 165) else Color.argb(115, 255, 255, 255)
+        val surfaceColor = if (dark) Color.rgb(43, 43, 49) else Color.WHITE
+        val outlineColor = if (dark) Color.argb(115, 150, 150, 165) else Color.rgb(232, 234, 239)
 
         val capsule = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -2306,7 +2302,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             setPadding(dp(7), dp(4), dp(7), dp(4))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(30).toFloat()
+                cornerRadius = dp(100).toFloat()
                 setColor(surfaceColor)
                 setStroke(dp(1), outlineColor)
             }
