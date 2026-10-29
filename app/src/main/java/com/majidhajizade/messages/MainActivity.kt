@@ -757,13 +757,13 @@ companion object {
         ).apply {
             leftMargin = -dp(20)
             rightMargin = 0
-            topMargin = dp(72) - homeTopInset
+            topMargin = -homeTopInset
         })
 
         // Re-align after layout/inset changes so the banner starts at screen top.
         rootFrame.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             val bannerParams = pullBanner.layoutParams as? FrameLayout.LayoutParams
-            val desiredTop = dp(72) - homeTopInset
+            val desiredTop = -homeTopInset
             if (bannerParams != null && bannerParams.topMargin != desiredTop) {
                 bannerParams.topMargin = desiredTop
                 pullBanner.layoutParams = bannerParams
@@ -771,7 +771,7 @@ companion object {
         }
         rootFrame.post {
             val bannerParams = pullBanner.layoutParams as? FrameLayout.LayoutParams
-            val desiredTop = dp(72) - homeTopInset
+            val desiredTop = -homeTopInset
             if (bannerParams != null && bannerParams.topMargin != desiredTop) {
                 bannerParams.topMargin = desiredTop
                 pullBanner.layoutParams = bannerParams
@@ -3354,7 +3354,7 @@ companion object {
             setTextColor(secondaryThemeText)
             maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
-            setPadding(0, dp(4), 0, 0)
+            setPadding(0, dp(1), 0, 0)
             gravity = Gravity.START
             textAlignment = View.TEXT_ALIGNMENT_TEXT_START
             textDirection = View.TEXT_DIRECTION_FIRST_STRONG
@@ -3395,7 +3395,7 @@ companion object {
 
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
-            translationX = -dp(22).toFloat()
+            translationX = -dp(30).toFloat()
             textSize = 11f
             setTextColor(
                 if (isDarkMode) Color.rgb(205, 205, 212)
