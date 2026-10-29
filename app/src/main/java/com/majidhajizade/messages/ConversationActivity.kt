@@ -2236,8 +2236,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             textSize = 18f
             gravity = Gravity.CENTER
             includeFontPadding = false
-            elevation = dp(8).toFloat()
-            translationZ = dp(2).toFloat()
+            elevation = dp(2).toFloat()
+            translationZ = 0f
             contentDescription = "Message reaction: $reaction"
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -2306,8 +2306,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 setColor(surfaceColor)
                 setStroke(dp(1), outlineColor)
             }
-            elevation = dp(9).toFloat()
-            translationZ = dp(2).toFloat()
+            elevation = 0f
+            translationZ = 0f
         }
 
         val popup = android.widget.PopupWindow(this)
