@@ -4048,6 +4048,7 @@ companion object {
                     setColor(blue)
                 }
                 contentDescription = "Unread message"
+                tag = "unread_indicator"
                 elevation = dp(5).toFloat()
             }
 
@@ -4058,7 +4059,7 @@ companion object {
                     dp(11),
                     Gravity.CENTER_VERTICAL or Gravity.LEFT
                 ).apply {
-                    leftMargin = -dp(5)
+                    leftMargin = -dp(13)
                 }
             )
         }
@@ -4103,19 +4104,38 @@ companion object {
             textDirection = View.TEXT_DIRECTION_FIRST_STRONG
         }
 
+        val previewStartsWithNumber =
+            body.trimStart().firstOrNull()?.isDigit() == true
+
+        val previewIsPersian =
+            !previewStartsWithNumber &&
+            body.any { it in '\u0600'..'\u06FF' }
+
+        val previewIsLtr = !previewIsPersian
+
         val preview = TextView(this).apply {
-            translationX = -dp(4).toFloat()
+            translationX = if (previewIsPersian) {
+                dp(6).toFloat()
+            } else {
+                -dp(4).toFloat()
+            }
             text = if (isChatLocked) "Chat Locked" else body
             textSize = 15f
-            setTextColor(
-                if (isUnread) blue else secondaryThemeText
-            )
+            setTextColor(secondaryThemeText)
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             setPadding(0, dp(1), 0, 0)
-            gravity = Gravity.END
-            textAlignment = View.TEXT_ALIGNMENT_VIEW_END
-            textDirection = View.TEXT_DIRECTION_FIRST_STRONG
+            gravity = if (previewIsLtr) Gravity.START else Gravity.END
+            textAlignment = if (previewIsLtr) {
+                View.TEXT_ALIGNMENT_VIEW_START
+            } else {
+                View.TEXT_ALIGNMENT_VIEW_END
+            }
+            textDirection = if (previewIsLtr) {
+                View.TEXT_DIRECTION_LTR
+            } else {
+                View.TEXT_DIRECTION_RTL
+            }
         }
 
         textContainer.addView(
@@ -4581,6 +4601,13 @@ companion object {
                     }
 
                     if (!longPressed && !moved) {
+                        foreground
+                            .findViewWithTag<View>("unread_indicator")
+                            ?.animate()
+                            ?.alpha(0f)
+                            ?.setDuration(220L)
+                            ?.start()
+
                         openConversation(address)
                     }
 
