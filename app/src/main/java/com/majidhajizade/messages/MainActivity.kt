@@ -44,6 +44,9 @@ import androidx.core.view.ViewCompat
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
     private fun configureMainSystemBars() {
+        window.setBackgroundDrawable(
+            android.graphics.drawable.ColorDrawable(screenBackground)
+        )
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         window.statusBarColor = Color.TRANSPARENT
