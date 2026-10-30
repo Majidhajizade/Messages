@@ -901,6 +901,25 @@ companion object {
         var pullStartScrollY = 0
         var pullDistance = 0f
         var pulling = false
+        var bottomFadeHiddenForOverscroll = false
+        var bottomFadeRestoreAlpha = 1f
+
+        fun updateBottomFadeForOverscroll(hidden: Boolean) {
+            if (hidden && !bottomFadeHiddenForOverscroll) {
+                bottomFadeRestoreAlpha = bottomFade.alpha
+                bottomFade.animate().cancel()
+                bottomFade.alpha = 0f
+                bottomFadeHiddenForOverscroll = true
+            } else if (!hidden && bottomFadeHiddenForOverscroll) {
+                bottomFadeHiddenForOverscroll = false
+                bottomFade.animate().cancel()
+                bottomFade.animate()
+                    .alpha(bottomFadeRestoreAlpha)
+                    .setDuration(220L)
+                    .start()
+            }
+        }
+
         val pullThreshold = dp(76).toFloat()
         val maxPull = dp(136).toFloat()
 
@@ -944,6 +963,11 @@ companion object {
                 MotionEvent.ACTION_MOVE -> {
                     val dy = event.rawY - pullStartY
                     val dx = event.rawX - pullStartX
+
+                    val pullingAtTop = messagesScroll.scrollY <= dp(2) &&
+                        dy > dp(12) &&
+                        dy > kotlin.math.abs(dx) * 1.2f
+                    updateBottomFadeForOverscroll(pullingAtTop)
 
                     if (showingArchivedChats) {
                         if (messagesScroll.scrollY <= dp(2) &&
@@ -1012,6 +1036,7 @@ companion object {
                 }
 
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    updateBottomFadeForOverscroll(false)
                     if (!pulling) {
                         false
                     } else {
