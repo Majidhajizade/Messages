@@ -9,6 +9,14 @@
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
+    <style name="ConversationPredictiveBackTheme" parent="@style/AppTheme">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
     <style name="SplashTheme" parent="@style/AppTheme">
         <item name="android:windowBackground">@drawable/splash_background</item>
     </style>

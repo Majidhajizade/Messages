@@ -34,6 +34,7 @@
         <activity
             android:name=".ConversationActivity"
             android:exported="true"
+            android:theme="@style/ConversationPredictiveBackTheme"
             android:windowSoftInputMode="adjustResize">
 
             <intent-filter>

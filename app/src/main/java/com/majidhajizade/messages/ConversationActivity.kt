@@ -19,6 +19,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Build
+import android.window.BackEvent
+import android.window.OnBackAnimationCallback
+import android.window.OnBackInvokedDispatcher
 import android.provider.Telephony
 import android.telephony.SmsManager
 import android.telephony.PhoneNumberUtils
@@ -51,6 +54,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private var chatUnlockedForCurrentVisit = false
     private var hasActivityResumed = false
     private var skipNextResumeReload = false
+
+    private var predictiveBackRoot: View? = null
+    private var predictiveBackCallback: OnBackAnimationCallback? = null
+    private var predictiveBackDistance = 0f
+    private var predictiveBackCornerRadius = 0f
+    private var predictiveBackCornerAnimator: android.animation.ValueAnimator? = null
+
 
 
     private lateinit var messagesContainer: LinearLayout
@@ -217,7 +227,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private fun initializeConversation() {
         if (conversationInitialized || isFinishing) return
         conversationInitialized = true
-        setContentView(createScreen())
+        val conversationRoot = createScreen()
+        setContentView(conversationRoot)
+        installConversationPredictiveBack(conversationRoot)
 
         val filter = IntentFilter("com.majidhajizade.messages.SMS_SENT")
         val deliveredFilter = IntentFilter(SmsDeliveredReceiver.ACTION_DELIVERED_UI)
@@ -254,6 +266,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private fun showConversationSecurityGate(onUnlocked: () -> Unit) {
         if (securityGateShowing || isFinishing) return
         securityGateShowing = true
+        removeConversationPredictiveBack()
+        predictiveBackRoot = null
         setContentView(android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.WHITE)
         })
@@ -279,6 +293,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     }
 
     override fun onDestroy() {
+        removeConversationPredictiveBack()
+
         pendingSmsReload?.let {
             smsObserverHandler.removeCallbacks(it)
         }
@@ -383,7 +399,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             !securityGateShowing
         ) {
             showConversationSecurityGate {
-                setContentView(createScreen())
+                val conversationRoot = createScreen()
+                setContentView(conversationRoot)
+                installConversationPredictiveBack(conversationRoot)
                 loadConversation()
                 ensureSmsContentObserver()
             }
@@ -716,12 +734,134 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             android.graphics.PixelFormat.TRANSLUCENT
     }
 
+
+    private fun installConversationPredictiveBack(root: View) {
+        predictiveBackRoot = root
+
+        if (Build.VERSION.SDK_INT < 34 || predictiveBackCallback != null) {
+            return
+        }
+
+        val callback = object : OnBackAnimationCallback {
+            override fun onBackStarted(event: BackEvent) {
+                val target = predictiveBackRoot ?: return
+                if (securityGateShowing || !target.isAttachedToWindow) return
+
+                target.animate().cancel()
+                target.translationX = 0f
+                target.scaleX = 1f
+                target.scaleY = 1f
+                predictiveBackCornerAnimator?.cancel()
+                predictiveBackCornerRadius = 0f
+                target.invalidateOutline()
+
+                predictiveBackDistance =
+                    if (event.swipeEdge == BackEvent.EDGE_LEFT) {
+                        dp(56).toFloat()
+                    } else {
+                        -dp(56).toFloat()
+                    }
+
+                target.pivotX = target.width / 2f
+                target.pivotY = target.height / 2f
+            }
+
+            override fun onBackProgressed(event: BackEvent) {
+                val target = predictiveBackRoot ?: return
+                if (securityGateShowing || !target.isAttachedToWindow) return
+
+                val progress = event.progress.coerceIn(0f, 1f)
+                val eased = 1f - (1f - progress) * (1f - progress)
+
+                target.translationX = predictiveBackDistance * eased
+                val scale = 1f - (0.075f * eased)
+                target.scaleX = scale
+                target.scaleY = scale
+
+                predictiveBackCornerRadius = dp(30).toFloat() * eased
+                target.invalidateOutline()
+                target.invalidate()
+            }
+
+            override fun onBackCancelled() {
+                val target = predictiveBackRoot ?: return
+                target.animate().cancel()
+                target.animate()
+                    .translationX(0f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(220L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+
+                predictiveBackCornerAnimator?.cancel()
+                predictiveBackCornerAnimator =
+                    android.animation.ValueAnimator.ofFloat(
+                        predictiveBackCornerRadius,
+                        0f
+                    ).apply {
+                        duration = 220L
+                        interpolator = DecelerateInterpolator()
+                        addUpdateListener { animator ->
+                            predictiveBackCornerRadius =
+                                animator.animatedValue as Float
+                            target.invalidateOutline()
+                        }
+                        start()
+                    }
+            }
+
+            override fun onBackInvoked() {
+                if (securityGateShowing) return
+                finish()
+            }
+        }
+
+        predictiveBackCallback = callback
+        window.onBackInvokedDispatcher.registerOnBackInvokedCallback(
+            OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+            callback
+        )
+    }
+
+    private fun removeConversationPredictiveBack() {
+        if (Build.VERSION.SDK_INT >= 34) {
+            predictiveBackCallback?.let { callback ->
+                window.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(
+                    callback
+                )
+            }
+        }
+        predictiveBackCornerAnimator?.cancel()
+        predictiveBackCornerAnimator = null
+        predictiveBackCornerRadius = 0f
+
+        predictiveBackCallback = null
+        predictiveBackRoot = null
+    }
+
     private fun createScreen(): View {
         val darkTheme = isDarkThemeEnabled()
         val root = android.widget.FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
             background = createChatWallpaper(darkTheme)
+
+            outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(
+                    view: View,
+                    outline: android.graphics.Outline
+                ) {
+                    outline.setRoundRect(
+                        0,
+                        0,
+                        view.width,
+                        view.height,
+                        predictiveBackCornerRadius
+                    )
+                }
+            }
+            clipToOutline = true
         }
 
         // لایه محوشونده بالای صفحه، با حفظ تم روشن و تاریک
