@@ -18,6 +18,7 @@ import android.os.Bundle
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 import android.provider.Telephony
+import android.telephony.PhoneNumberUtils
 import android.app.role.RoleManager
 import android.view.Gravity
 import android.view.MotionEvent
@@ -1342,6 +1343,8 @@ companion object {
         )
 
         val conversations = mutableMapOf<String, ConversationData>()
+        val unreadAddresses = mutableSetOf<String>()
+        val readAtCache = mutableMapOf<String, Long>()
         val archivedAddresses = getSharedPreferences(PREFS, MODE_PRIVATE)
             .getStringSet("archived_conversations", emptySet())
             .orEmpty()
@@ -1364,14 +1367,6 @@ companion object {
                     if (!hiddenWordSearch && address in hiddenAddresses) continue
                 }
 
-                if (conversations.containsKey(address)) {
-                    continue
-                }
-
-                val body = it.getString(
-                    it.getColumnIndexOrThrow(Telephony.Sms.BODY)
-                ) ?: ""
-
                 val date = it.getLong(
                     it.getColumnIndexOrThrow(Telephony.Sms.DATE)
                 )
@@ -1383,6 +1378,24 @@ companion object {
                 val isRead = it.getInt(
                     it.getColumnIndexOrThrow(Telephony.Sms.READ)
                 ) != 0
+
+                val readAt = readAtCache.getOrPut(address) {
+                    getConversationReadAt(address)
+                }
+
+                if (
+                    type == Telephony.Sms.MESSAGE_TYPE_INBOX &&
+                    !isRead &&
+                    date > readAt
+                ) {
+                    unreadAddresses.add(address)
+                }
+
+                if (conversations.containsKey(address)) continue
+
+                val body = it.getString(
+                    it.getColumnIndexOrThrow(Telephony.Sms.BODY)
+                ) ?: ""
 
                 conversations[address] = ConversationData(
                     address,
@@ -1491,8 +1504,7 @@ companion object {
                     it.address,
                     it.body,
                     it.date,
-                    it.type,
-                    it.isRead
+                    unreadAddresses.contains(it.address)
                 )
             }
 
@@ -3809,15 +3821,31 @@ companion object {
         )
     }
 
+    private fun getConversationReadAt(address: String): Long {
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val prefix = "conversation_read_at:"
+        var latestReadAt = 0L
+
+        for ((key, value) in prefs.all) {
+            if (!key.startsWith(prefix)) continue
+
+            val savedAddress = key.removePrefix(prefix)
+            if (PhoneNumberUtils.compare(savedAddress, address)) {
+                val timestamp = value as? Long ?: continue
+                if (timestamp > latestReadAt) latestReadAt = timestamp
+            }
+        }
+
+        return latestReadAt
+    }
+
     private fun addConversation(
         address: String,
         body: String,
         date: Long,
-        type: Int,
-        isRead: Boolean
+        hasUnread: Boolean
     ) {
-        val isUnread =
-            type == Telephony.Sms.MESSAGE_TYPE_INBOX && !isRead
+        val isUnread = hasUnread
 
         val actionLayer = FrameLayout(this).apply {
             tag = address
@@ -4670,6 +4698,9 @@ companion object {
             setAnimation(R.raw.passcode_lock)
             repeatCount = 0
             scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            setColorFilter(
+                if (isDarkMode) Color.WHITE else Color.rgb(35, 35, 38)
+            )
             contentDescription = "Hide selected chats"
             setPadding(dp(12), dp(12), dp(12), dp(12))
             isClickable = true
@@ -4677,6 +4708,9 @@ companion object {
             setOnClickListener {
                 if (!isAnimating) {
                     setAnimation(R.raw.passcode_lock_close)
+                    setColorFilter(
+                        if (isDarkMode) Color.WHITE else Color.rgb(35, 35, 38)
+                    )
                     repeatCount = 0
                     progress = 0f
                     removeAllAnimatorListeners()

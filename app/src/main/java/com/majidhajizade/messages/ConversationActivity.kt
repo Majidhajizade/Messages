@@ -385,6 +385,14 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private fun markConversationMessagesRead() {
         if (!::phone.isInitialized) return
 
+        getSharedPreferences("messages_settings", MODE_PRIVATE)
+            .edit()
+            .putLong(
+                "conversation_read_at:$phone",
+                System.currentTimeMillis()
+            )
+            .apply()
+
         if (checkSelfPermission(Manifest.permission.READ_SMS) !=
             PackageManager.PERMISSION_GRANTED
         ) return
