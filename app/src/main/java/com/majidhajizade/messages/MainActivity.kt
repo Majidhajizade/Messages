@@ -3952,7 +3952,7 @@ companion object {
         val contactFrame = FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
-            translationX = dp(10).toFloat()
+            translationX = dp(14).toFloat()
             layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply {
                 rightMargin = dp(10)
             }
@@ -4042,13 +4042,7 @@ companion object {
         }
 
         if (isUnread) {
-            val unreadIndicator = TextView(this).apply {
-                text = "✓"
-                textSize = 8f
-                gravity = Gravity.CENTER
-                includeFontPadding = false
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.WHITE)
+            val unreadIndicator = View(this).apply {
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(blue)
@@ -4060,8 +4054,8 @@ companion object {
             contactFrame.addView(
                 unreadIndicator,
                 FrameLayout.LayoutParams(
-                    dp(13),
-                    dp(13),
+                    dp(11),
+                    dp(11),
                     Gravity.CENTER_VERTICAL or Gravity.LEFT
                 ).apply {
                     leftMargin = -dp(5)
@@ -4096,7 +4090,7 @@ companion object {
         val textContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutDirection = View.LAYOUT_DIRECTION_LOCALE
-            translationX = dp(10).toFloat()
+            translationX = dp(14).toFloat()
         }
 
         val name = TextView(this).apply {
@@ -4110,6 +4104,7 @@ companion object {
         }
 
         val preview = TextView(this).apply {
+            translationX = -dp(4).toFloat()
             text = if (isChatLocked) "Chat Locked" else body
             textSize = 15f
             setTextColor(
@@ -4152,7 +4147,7 @@ companion object {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.TOP or Gravity.END
             layoutDirection = View.LAYOUT_DIRECTION_LTR
-            translationX = -dp(7).toFloat()
+            translationX = -dp(15).toFloat()
         }
 
         val pinned = getPinnedNumbers().contains(address)
@@ -4230,7 +4225,7 @@ companion object {
                     dateText.lineHeight,
                     Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    rightMargin = dp(10)
+                    rightMargin = dp(6)
                 }
             )
 
@@ -4354,7 +4349,7 @@ companion object {
                     dateText.lineHeight,
                     Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    rightMargin = dp(10)
+                    rightMargin = dp(6)
                 }
             )
 
