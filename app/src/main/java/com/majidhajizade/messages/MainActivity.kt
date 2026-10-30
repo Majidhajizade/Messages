@@ -2493,6 +2493,10 @@ companion object {
                         }
                     }
                     .sortedByDescending { it.date }
+                    .let { sorted ->
+                        if (hiddenWordSearch) sorted.distinctBy { it.address }
+                        else sorted
+                    }
                     .take(100)
                     .toList()
 
@@ -2502,6 +2506,159 @@ companion object {
                     ) return@runOnUiThread
 
                     resultsContainer.removeAllViews()
+
+                    if (hiddenWordSearch) {
+                        val heading = android.widget.TextView(this).apply {
+                            text = "Hidden chats"
+                            textSize = 20f
+                            setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
+                            setPadding(dp(4), dp(8), dp(4), dp(14))
+                            typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        }
+
+                        resultsContainer.addView(
+                            heading,
+                            android.widget.LinearLayout.LayoutParams(
+                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                            )
+                        )
+
+                        val card = android.widget.LinearLayout(this).apply {
+                            orientation = android.widget.LinearLayout.VERTICAL
+                            setPadding(dp(8), dp(6), dp(8), dp(6))
+                            background = android.graphics.drawable.GradientDrawable().apply {
+                                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                                cornerRadius = dp(20).toFloat()
+                                setColor(
+                                    if (isDarkMode) Color.rgb(38, 38, 42)
+                                    else Color.rgb(247, 247, 249)
+                                )
+                                setStroke(
+                                    dp(1),
+                                    if (isDarkMode) Color.rgb(65, 65, 70)
+                                    else Color.rgb(230, 230, 234)
+                                )
+                            }
+                        }
+
+                        if (matches.isEmpty()) {
+                            card.addView(
+                                android.widget.TextView(this).apply {
+                                    text = "No hidden chats"
+                                    textSize = 14f
+                                    gravity = android.view.Gravity.CENTER
+                                    setTextColor(
+                                        if (isDarkMode) Color.LTGRAY else Color.DKGRAY
+                                    )
+                                    setPadding(dp(12), dp(22), dp(12), dp(22))
+                                }
+                            )
+                        }
+
+                        matches.forEachIndexed { index, record ->
+                            val displayName = record.title.ifBlank {
+                                record.address
+                            }
+
+                            val row = android.widget.LinearLayout(this).apply {
+                                orientation = android.widget.LinearLayout.HORIZONTAL
+                                gravity = android.view.Gravity.CENTER_VERTICAL
+                                setPadding(dp(10), dp(10), dp(10), dp(10))
+                                isClickable = true
+                                isFocusable = true
+                                setOnClickListener {
+                                    try {
+                                        openConversation(record.address)
+                                    } catch (_: Exception) {
+                                        android.widget.Toast.makeText(
+                                            this@MainActivity,
+                                            "باز کردن گفتگو ناموفق بود",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            }
+
+                            val avatar = android.widget.TextView(this).apply {
+                                text = displayName.firstOrNull()?.toString() ?: "?"
+                                textSize = 18f
+                                gravity = android.view.Gravity.CENTER
+                                setTextColor(Color.WHITE)
+                                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                                background = android.graphics.drawable.GradientDrawable().apply {
+                                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                                    setColor(avatarColor(displayName))
+                                }
+                            }
+
+                            row.addView(
+                                avatar,
+                                android.widget.LinearLayout.LayoutParams(
+                                    dp(46),
+                                    dp(46)
+                                ).apply {
+                                    marginEnd = dp(14)
+                                }
+                            )
+
+                            val nameView = android.widget.TextView(this).apply {
+                                text = displayName
+                                textSize = 15f
+                                maxLines = 1
+                                ellipsize = android.text.TextUtils.TruncateAt.END
+                                gravity = android.view.Gravity.CENTER_VERTICAL
+                                setTextColor(
+                                    if (isDarkMode) Color.WHITE else Color.BLACK
+                                )
+                            }
+
+                            row.addView(
+                                nameView,
+                                android.widget.LinearLayout.LayoutParams(
+                                    0,
+                                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                                    1f
+                                )
+                            )
+
+                            card.addView(
+                                row,
+                                android.widget.LinearLayout.LayoutParams(
+                                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                                )
+                            )
+
+                            if (index < matches.lastIndex) {
+                                card.addView(
+                                    android.view.View(this).apply {
+                                        setBackgroundColor(
+                                            if (isDarkMode) Color.rgb(65, 65, 70)
+                                            else Color.rgb(230, 230, 234)
+                                        )
+                                    },
+                                    android.widget.LinearLayout.LayoutParams(
+                                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                        dp(1)
+                                    ).apply {
+                                        marginStart = dp(58)
+                                        marginEnd = dp(8)
+                                    }
+                                )
+                            }
+                        }
+
+                        resultsContainer.addView(
+                            card,
+                            android.widget.LinearLayout.LayoutParams(
+                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                            )
+                        )
+
+                        return@runOnUiThread
+                    }
 
                     if (matches.isEmpty()) {
                         resultsContainer.addView(
