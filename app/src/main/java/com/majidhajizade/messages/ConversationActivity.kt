@@ -382,6 +382,64 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         )
     }
 
+    private fun markConversationMessagesRead() {
+        if (!::phone.isInitialized) return
+
+        if (checkSelfPermission(Manifest.permission.READ_SMS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return
+
+        try {
+            val projection = arrayOf(
+                Telephony.Sms._ID,
+                Telephony.Sms.ADDRESS
+            )
+
+            contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                projection,
+                "${Telephony.Sms.TYPE} = ? AND " +
+                    "${Telephony.Sms.READ} = 0",
+                arrayOf(
+                    Telephony.Sms.MESSAGE_TYPE_INBOX.toString()
+                ),
+                null
+            )?.use { cursor ->
+                val idIndex = cursor.getColumnIndexOrThrow(
+                    Telephony.Sms._ID
+                )
+                val addressIndex = cursor.getColumnIndexOrThrow(
+                    Telephony.Sms.ADDRESS
+                )
+
+                while (cursor.moveToNext()) {
+                    val address = cursor.getString(addressIndex) ?: continue
+
+                    if (!PhoneNumberUtils.compare(address, phone)) {
+                        continue
+                    }
+
+                    val values = ContentValues().apply {
+                        put(Telephony.Sms.READ, 1)
+                    }
+
+                    contentResolver.update(
+                        Telephony.Sms.CONTENT_URI,
+                        values,
+                        "${Telephony.Sms._ID} = ?",
+                        arrayOf(cursor.getString(idIndex))
+                    )
+                }
+            }
+        } catch (error: Exception) {
+            Log.e(
+                "ConversationActivity",
+                "Failed to mark conversation as read",
+                error
+            )
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         hasActivityResumed = true
@@ -402,6 +460,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 val conversationRoot = createScreen()
                 setContentView(conversationRoot)
                 installConversationPredictiveBack(conversationRoot)
+                markConversationMessagesRead()
                 loadConversation()
                 ensureSmsContentObserver()
             }
@@ -416,6 +475,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             checkSelfPermission(Manifest.permission.READ_SMS) ==
                 PackageManager.PERMISSION_GRANTED
         ) {
+            markConversationMessagesRead()
+
             if (skipNextResumeReload) {
                 skipNextResumeReload = false
             } else {

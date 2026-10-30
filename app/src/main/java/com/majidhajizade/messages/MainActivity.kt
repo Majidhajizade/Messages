@@ -4055,11 +4055,11 @@ companion object {
             contactFrame.addView(
                 unreadIndicator,
                 FrameLayout.LayoutParams(
-                    dp(11),
-                    dp(11),
+                    dp(9),
+                    dp(9),
                     Gravity.CENTER_VERTICAL or Gravity.LEFT
                 ).apply {
-                    leftMargin = -dp(13)
+                    leftMargin = -dp(11)
                 }
             )
         }
@@ -4114,10 +4114,10 @@ companion object {
         val previewIsLtr = !previewIsPersian
 
         val preview = TextView(this).apply {
-            translationX = if (previewIsPersian) {
-                dp(6).toFloat()
-            } else {
-                -dp(4).toFloat()
+            translationX = when {
+                previewStartsWithNumber -> dp(1).toFloat()
+                previewIsPersian -> dp(6).toFloat()
+                else -> -dp(4).toFloat()
             }
             text = if (isChatLocked) "Chat Locked" else body
             textSize = 15f
