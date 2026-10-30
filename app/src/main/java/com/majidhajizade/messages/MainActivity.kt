@@ -141,6 +141,57 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     private val meshFloatingAvatars = linkedMapOf<String, View>()
     private var meshFloatingContainer: LinearLayout? = null
     private var isMainActivityResumed = false
+    private var smsContentObserver: android.database.ContentObserver? = null
+    private val smsRefreshHandler =
+        android.os.Handler(android.os.Looper.getMainLooper())
+    private var pendingSmsRefresh: Runnable? = null
+
+    private fun registerSmsObserver() {
+        if (smsContentObserver != null) return
+
+        smsContentObserver = object : android.database.ContentObserver(
+            smsRefreshHandler
+        ) {
+            override fun onChange(selfChange: Boolean) {
+                super.onChange(selfChange)
+
+                pendingSmsRefresh?.let {
+                    smsRefreshHandler.removeCallbacks(it)
+                }
+
+                val refresh = Runnable {
+                    if (
+                        isMainActivityResumed &&
+                        !isFinishing &&
+                        ::messagesContainer.isInitialized
+                    ) {
+                        loadMessages()
+                    }
+                }
+
+                pendingSmsRefresh = refresh
+                smsRefreshHandler.postDelayed(refresh, 250L)
+            }
+        }
+
+        contentResolver.registerContentObserver(
+            Telephony.Sms.CONTENT_URI,
+            true,
+            smsContentObserver!!
+        )
+    }
+
+    private fun unregisterSmsObserver() {
+        pendingSmsRefresh?.let {
+            smsRefreshHandler.removeCallbacks(it)
+        }
+        pendingSmsRefresh = null
+
+        smsContentObserver?.let {
+            contentResolver.unregisterContentObserver(it)
+        }
+        smsContentObserver = null
+    }
     private val pendingMeshChatRequests = mutableSetOf<String>()
     private val outgoingMeshChatRequests = mutableSetOf<String>()
     private var selectedMeshId: String? = null
@@ -355,6 +406,7 @@ companion object {
             == PackageManager.PERMISSION_GRANTED
         ) {
             loadMessages()
+            registerSmsObserver()
 
             if (shouldRestoreHomeScroll &&
                 ::messagesScroll.isInitialized
@@ -1277,7 +1329,8 @@ companion object {
             Telephony.Sms.ADDRESS,
             Telephony.Sms.BODY,
             Telephony.Sms.DATE,
-            Telephony.Sms.TYPE
+            Telephony.Sms.TYPE,
+            Telephony.Sms.READ
         )
 
         val cursor: Cursor? = contentResolver.query(
@@ -1327,11 +1380,16 @@ companion object {
                     it.getColumnIndexOrThrow(Telephony.Sms.TYPE)
                 )
 
+                val isRead = it.getInt(
+                    it.getColumnIndexOrThrow(Telephony.Sms.READ)
+                ) != 0
+
                 conversations[address] = ConversationData(
                     address,
                     body,
                     date,
-                    type
+                    type,
+                    isRead
                 )
             }
         }
@@ -1433,7 +1491,8 @@ companion object {
                     it.address,
                     it.body,
                     it.date,
-                    it.type
+                    it.type,
+                    it.isRead
                 )
             }
 
@@ -3754,8 +3813,12 @@ companion object {
         address: String,
         body: String,
         date: Long,
-        type: Int
+        type: Int,
+        isRead: Boolean
     ) {
+        val isUnread =
+            type == Telephony.Sms.MESSAGE_TYPE_INBOX && !isRead
+
         val actionLayer = FrameLayout(this).apply {
             tag = address
             clipChildren = false
@@ -3881,7 +3944,7 @@ companion object {
             clipChildren = false
             clipToPadding = false
             background = null
-            setPadding(dp(4), dp(8), dp(4), dp(8))
+            setPadding(dp(2), dp(8), dp(4), dp(8))
             clipToOutline = false
             elevation = 0f
         }
@@ -3889,9 +3952,9 @@ companion object {
         val contactFrame = FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
-            translationX = dp(4).toFloat()
-            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply {
-                rightMargin = dp(12)
+            translationX = 0f
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply {
+                rightMargin = dp(10)
             }
         }
 
@@ -3913,7 +3976,7 @@ companion object {
             }
             contactFrame.addView(
                 contact,
-                FrameLayout.LayoutParams(dp(44), dp(44))
+                FrameLayout.LayoutParams(dp(40), dp(40))
             )
         } else {
             val avatarName = contactName?.trim().orEmpty().ifEmpty { address.trim() }
@@ -3936,7 +3999,7 @@ companion object {
             }
             contactFrame.addView(
                 contact,
-                FrameLayout.LayoutParams(dp(44), dp(44))
+                FrameLayout.LayoutParams(dp(40), dp(40))
             )
         }
 
@@ -3975,6 +4038,34 @@ companion object {
                     dp(30),
                     Gravity.CENTER
                 )
+            )
+        }
+
+        if (isUnread) {
+            val unreadIndicator = TextView(this).apply {
+                text = "✓"
+                textSize = 8f
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(blue)
+                }
+                contentDescription = "Unread message"
+                elevation = dp(5).toFloat()
+            }
+
+            contactFrame.addView(
+                unreadIndicator,
+                FrameLayout.LayoutParams(
+                    dp(13),
+                    dp(13),
+                    Gravity.CENTER_VERTICAL or Gravity.LEFT
+                ).apply {
+                    leftMargin = -dp(5)
+                }
             )
         }
 
@@ -4020,7 +4111,9 @@ companion object {
         val preview = TextView(this).apply {
             text = if (isChatLocked) "Chat Locked" else body
             textSize = 15f
-            setTextColor(secondaryThemeText)
+            setTextColor(
+                if (isUnread) blue else secondaryThemeText
+            )
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             setPadding(0, dp(1), 0, 0)
@@ -4120,6 +4213,24 @@ companion object {
                 )
             )
 
+            dateCapsule.addView(
+                ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_right)
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    setColorFilter(
+                        if (isDarkMode) Color.rgb(190, 190, 198)
+                        else Color.rgb(130, 130, 138)
+                    )
+                    contentDescription = "Conversation date"
+                },
+                LinearLayout.LayoutParams(
+                    dateText.lineHeight,
+                    dateText.lineHeight
+                ).apply {
+                    leftMargin = dp(2)
+                }
+            )
+
             dateText.minWidth = dp(44)
 
             metaContainer.addView(
@@ -4212,16 +4323,48 @@ companion object {
                 }
             )
         } else {
-            metaContainer.addView(
+            val dateLine = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutDirection = View.LAYOUT_DIRECTION_LTR
+            }
+
+            dateLine.addView(
                 dateText,
                 LinearLayout.LayoutParams(dp(54), dp(22))
+            )
+
+            dateLine.addView(
+                ImageView(this).apply {
+                    setImageResource(R.drawable.ic_right)
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    setColorFilter(
+                        if (isDarkMode) Color.rgb(190, 190, 198)
+                        else Color.rgb(130, 130, 138)
+                    )
+                    contentDescription = "Conversation date"
+                },
+                LinearLayout.LayoutParams(
+                    dateText.lineHeight,
+                    dateText.lineHeight
+                ).apply {
+                    leftMargin = dp(2)
+                }
+            )
+
+            metaContainer.addView(
+                dateLine,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    dp(22)
+                )
             )
         }
 
         foreground.addView(
             metaContainer,
             LinearLayout.LayoutParams(
-                if (pinned) dp(88) else dp(54),
+                if (pinned) dp(88) else dp(70),
                 dp(52)
             ).apply {
                 leftMargin = dp(6)
@@ -5570,6 +5713,7 @@ private fun createSelectionActionBar(): View {
         }
 
         isMainActivityResumed = false
+        unregisterSmsObserver()
         super.onPause()
     }
 
@@ -5596,7 +5740,8 @@ private fun createSelectionActionBar(): View {
         val address: String,
         val body: String,
         val date: Long,
-        val type: Int
+        val type: Int,
+        val isRead: Boolean
     )
 
     private fun dp(value: Int): Int {
