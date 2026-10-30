@@ -4157,7 +4157,6 @@ companion object {
 
         val dateText = TextView(this).apply {
             text = formatShortDate(date)
-            translationX = -dp(30).toFloat()
             textSize = 11f
             setTextColor(
                 if (isDarkMode) Color.rgb(205, 205, 212)
@@ -4171,11 +4170,7 @@ companion object {
         }
 
         if (pinned) {
-            val dateCapsule = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                layoutDirection = View.LAYOUT_DIRECTION_LTR
-                setPadding(dp(5), 0, dp(5), 0)
+            val dateCapsule = FrameLayout(this).apply {
                 background = GradientDrawable().apply {
                     setColor(
                         if (isDarkMode) Color.rgb(38, 38, 42)
@@ -4200,17 +4195,22 @@ companion object {
                     )
                     contentDescription = "Pinned"
                 },
-                LinearLayout.LayoutParams(dp(12), dp(12)).apply {
-                    rightMargin = dp(6)
+                FrameLayout.LayoutParams(dp(12), dp(12), Gravity.CENTER_VERTICAL or Gravity.START).apply {
+                    leftMargin = dp(5)
                 }
             )
 
+            dateText.minWidth = dp(44)
+
             dateCapsule.addView(
                 dateText,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    dp(20)
-                )
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    dp(20),
+                    Gravity.CENTER_VERTICAL or Gravity.END
+                ).apply {
+                    rightMargin = dp(6)
+                }
             )
 
             dateCapsule.addView(
@@ -4223,20 +4223,19 @@ companion object {
                     )
                     contentDescription = "Conversation date"
                 },
-                LinearLayout.LayoutParams(
+                FrameLayout.LayoutParams(
                     dateText.lineHeight,
-                    dateText.lineHeight
+                    dateText.lineHeight,
+                    Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    leftMargin = dp(2)
+                    rightMargin = dp(4)
                 }
             )
-
-            dateText.minWidth = dp(44)
 
             metaContainer.addView(
                 dateCapsule,
                 LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.MATCH_PARENT,
                     dp(24)
                 )
             )
@@ -4323,19 +4322,23 @@ companion object {
                 }
             )
         } else {
-            val dateLine = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
+            val dateLine = FrameLayout(this).apply {
                 layoutDirection = View.LAYOUT_DIRECTION_LTR
             }
 
             dateLine.addView(
                 dateText,
-                LinearLayout.LayoutParams(dp(54), dp(22))
+                FrameLayout.LayoutParams(
+                    dp(54),
+                    dp(22),
+                    Gravity.CENTER_VERTICAL or Gravity.END
+                ).apply {
+                    rightMargin = dp(6)
+                }
             )
 
             dateLine.addView(
-                ImageView(this).apply {
+                ImageView(this@MainActivity).apply {
                     setImageResource(R.drawable.ic_right)
                     scaleType = ImageView.ScaleType.CENTER_INSIDE
                     setColorFilter(
@@ -4344,18 +4347,19 @@ companion object {
                     )
                     contentDescription = "Conversation date"
                 },
-                LinearLayout.LayoutParams(
+                FrameLayout.LayoutParams(
                     dateText.lineHeight,
-                    dateText.lineHeight
+                    dateText.lineHeight,
+                    Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    leftMargin = dp(2)
+                    rightMargin = dp(4)
                 }
             )
 
             metaContainer.addView(
                 dateLine,
                 LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.MATCH_PARENT,
                     dp(22)
                 )
             )
