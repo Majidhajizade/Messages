@@ -1053,9 +1053,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             clipChildren = false
             clipToPadding = false
             isFillViewport = true
-            overScrollMode = View.OVER_SCROLL_NEVER
 
-            setBackgroundColor(Color.TRANSPARENT)
+            background = createChatWallpaper(darkTheme)
         }
 
         messagesContainer = LinearLayout(this).apply {

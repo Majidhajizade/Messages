@@ -647,8 +647,7 @@ companion object {
         }
         messagesScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
-            overScrollMode = View.OVER_SCROLL_NEVER
-            setBackgroundColor(Color.TRANSPARENT)
+            setBackgroundColor(homeBackground)
 
             isVerticalScrollBarEnabled = false
             isScrollbarFadingEnabled = false
