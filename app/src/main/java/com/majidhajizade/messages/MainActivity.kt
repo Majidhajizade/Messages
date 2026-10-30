@@ -3952,7 +3952,7 @@ companion object {
         val contactFrame = FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
-            translationX = dp(7).toFloat()
+            translationX = dp(10).toFloat()
             layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply {
                 rightMargin = dp(10)
             }
@@ -4096,7 +4096,7 @@ companion object {
         val textContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutDirection = View.LAYOUT_DIRECTION_LOCALE
-            translationX = dp(7).toFloat()
+            translationX = dp(10).toFloat()
         }
 
         val name = TextView(this).apply {
@@ -4152,7 +4152,7 @@ companion object {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.TOP or Gravity.END
             layoutDirection = View.LAYOUT_DIRECTION_LTR
-            translationX = -dp(4).toFloat()
+            translationX = -dp(7).toFloat()
         }
 
         val pinned = getPinnedNumbers().contains(address)
@@ -4230,7 +4230,7 @@ companion object {
                     dateText.lineHeight,
                     Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    rightMargin = dp(8)
+                    rightMargin = dp(10)
                 }
             )
 
@@ -4354,7 +4354,7 @@ companion object {
                     dateText.lineHeight,
                     Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    rightMargin = dp(8)
+                    rightMargin = dp(10)
                 }
             )
 
