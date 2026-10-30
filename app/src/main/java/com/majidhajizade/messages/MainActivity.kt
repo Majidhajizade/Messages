@@ -1256,13 +1256,20 @@ companion object {
             .getStringSet("hidden_conversations", emptySet())
             .orEmpty()
 
+        val hideChatsEnabled = AppSecurity.isHiddenChatsEnabled(this)
+        val hiddenWordSearch = hideChatsEnabled &&
+            AppSecurity.isHiddenChatsWord(this, smsSearchQuery.trim())
+
         cursor?.use {
             while (it.moveToNext()) {
                 val address = it.getString(
                     it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
                 ) ?: "Unknown"
 
-                if (smsSearchQuery.isBlank() && address in hiddenAddresses) continue
+                if (hideChatsEnabled) {
+                    if (hiddenWordSearch && address !in hiddenAddresses) continue
+                    if (!hiddenWordSearch && address in hiddenAddresses) continue
+                }
 
                 if (conversations.containsKey(address)) {
                     continue
@@ -1292,7 +1299,7 @@ companion object {
         // گفتگوهای Mesh تا زمان فعال‌سازی مجدد نمایش داده نمی‌شوند.
 
         val searchQuery = smsSearchQuery.trim()
-        if (searchQuery.isNotEmpty()) {
+        if (searchQuery.isNotEmpty() && !hiddenWordSearch) {
             val matchingAddresses = mutableSetOf<String>()
             val searchProjection = arrayOf(
                 Telephony.Sms.ADDRESS,
@@ -1336,16 +1343,18 @@ companion object {
         val hasArchivedConversations =
             conversations.keys.any { it in archivedAddresses }
 
-        if (showingArchivedChats) {
-            conversations.keys.retainAll(archivedAddresses)
-        } else {
-            archivedAddresses.forEach { conversations.remove(it) }
+        if (!hiddenWordSearch) {
+            if (showingArchivedChats) {
+                conversations.keys.retainAll(archivedAddresses)
+            } else {
+                archivedAddresses.forEach { conversations.remove(it) }
 
-            val archiveRowEnabled = getSharedPreferences(PREFS, MODE_PRIVATE)
-                .getBoolean("archived_chats_row_enabled", false)
+                val archiveRowEnabled = getSharedPreferences(PREFS, MODE_PRIVATE)
+                    .getBoolean("archived_chats_row_enabled", false)
 
-            if (archiveRowEnabled && hasArchivedConversations) {
-                addArchivedChatsRow()
+                if (archiveRowEnabled && hasArchivedConversations) {
+                    addArchivedChatsRow()
+                }
             }
         }
 
@@ -2456,11 +2465,32 @@ companion object {
             searchExecutor.execute {
                 if (searchClosed.get() || generation.get() != requestGeneration) return@execute
 
+                val hideChatsEnabled = AppSecurity.isHiddenChatsEnabled(this)
+                val hiddenWordSearch = hideChatsEnabled &&
+                    AppSecurity.isHiddenChatsWord(this, q)
+
+                val hiddenAddresses = getSharedPreferences(PREFS, MODE_PRIVATE)
+                    .getStringSet("hidden_conversations", emptySet())
+                    .orEmpty()
+
                 val matches = records.asSequence()
                     .filter { record ->
-                        record.address.contains(q, ignoreCase = true) ||
-                            record.title.contains(q, ignoreCase = true) ||
-                            record.body.contains(q, ignoreCase = true)
+                        val isHidden = record.address in hiddenAddresses
+
+                        if (hideChatsEnabled && hiddenWordSearch) {
+                            isHidden
+                        } else {
+                            val normalMatch =
+                                record.address.contains(q, ignoreCase = true) ||
+                                record.title.contains(q, ignoreCase = true) ||
+                                record.body.contains(q, ignoreCase = true)
+
+                            if (hideChatsEnabled && isHidden) {
+                                false
+                            } else {
+                                normalMatch
+                            }
+                        }
                     }
                     .sortedByDescending { it.date }
                     .take(100)
@@ -3390,6 +3420,7 @@ companion object {
         if (isSettingsPageVisible) {
             isSettingsPageVisible = false
             setContentView(createHomeScreen())
+            loadMessages()
             updateMeshStatus()
             return
         }

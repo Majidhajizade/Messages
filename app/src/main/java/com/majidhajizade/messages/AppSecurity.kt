@@ -51,6 +51,66 @@ object AppSecurity {
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    private const val HIDE_CHATS_WORD_SALT = "hide_chats_word_salt"
+    private const val HIDE_CHATS_WORD_HASH = "hide_chats_word_hash"
+    private const val HIDE_CHATS_ENABLED = "hide_chats_enabled"
+
+    private fun normalizeHiddenWord(word: String): String =
+        word.trim().lowercase(java.util.Locale.ROOT)
+
+    fun hasHiddenChatsWord(context: Context): Boolean {
+        val p = prefs(context)
+        return !p.getString(HIDE_CHATS_WORD_SALT, null).isNullOrBlank() &&
+            !p.getString(HIDE_CHATS_WORD_HASH, null).isNullOrBlank()
+    }
+
+    fun isHiddenChatsEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(HIDE_CHATS_ENABLED, false)
+
+    fun setHiddenChatsEnabled(context: Context, enabled: Boolean) {
+        if (enabled && !hasHiddenChatsWord(context)) return
+        prefs(context).edit()
+            .putBoolean(HIDE_CHATS_ENABLED, enabled)
+            .apply()
+    }
+
+    fun setHiddenChatsWord(context: Context, word: String): Boolean {
+        val normalized = normalizeHiddenWord(word)
+        if (normalized.length < 3) return false
+
+        val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }
+        val hash = deriveHash(normalized, salt)
+
+        prefs(context).edit()
+            .putString(
+                HIDE_CHATS_WORD_SALT,
+                Base64.encodeToString(salt, Base64.NO_WRAP)
+            )
+            .putString(
+                HIDE_CHATS_WORD_HASH,
+                Base64.encodeToString(hash, Base64.NO_WRAP)
+            )
+            .apply()
+
+        return true
+    }
+
+    fun isHiddenChatsWord(context: Context, word: String): Boolean {
+        val normalized = normalizeHiddenWord(word)
+        if (normalized.isEmpty()) return false
+
+        val p = prefs(context)
+        val saltValue = p.getString(HIDE_CHATS_WORD_SALT, null) ?: return false
+        val hashValue = p.getString(HIDE_CHATS_WORD_HASH, null) ?: return false
+
+        return runCatching {
+            val salt = Base64.decode(saltValue, Base64.NO_WRAP)
+            val expected = Base64.decode(hashValue, Base64.NO_WRAP)
+            val actual = deriveHash(normalized, salt)
+            MessageDigest.isEqual(actual, expected)
+        }.getOrDefault(false)
+    }
+
     fun isEnabled(context: Context) =
         prefs(context).getBoolean(PIN_ENABLED, false)
 
@@ -1260,6 +1320,64 @@ object AppSecurity {
             Toast.makeText(
                 activity,
                 if (value) "Auto-lock enabled" else "Auto-lock disabled",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        addSection("Hide chats")
+
+        addActionRow(
+            "Set / change hidden word",
+            "Choose a private word to open hidden chats"
+        ) {
+            val input = EditText(activity).apply {
+                hint = "Hidden word"
+                singleLine = true
+                inputType = InputType.TYPE_CLASS_TEXT or
+                    InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }
+
+            AlertDialog.Builder(activity)
+                .setTitle("Hidden word")
+                .setMessage("Enter a new word. The word is stored as a salted hash.")
+                .setView(input)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save") { _, _ ->
+                    val saved = setHiddenChatsWord(
+                        activity,
+                        input.text.toString()
+                    )
+
+                    if (saved) {
+                        Toast.makeText(
+                            activity,
+                            "Hidden word saved",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        dialog.dismiss()
+                        showSettings(activity)
+                    } else {
+                        Toast.makeText(
+                            activity,
+                            "Word must contain at least 3 characters",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+                .show()
+        }
+
+        addToggleRow(
+            "Enable hidden chats",
+            "Hide selected chats from the normal chat list and search",
+            isHiddenChatsEnabled(activity),
+            enabled = hasHiddenChatsWord(activity)
+        ) { value ->
+            setHiddenChatsEnabled(activity, value)
+            Toast.makeText(
+                activity,
+                if (value) "Hidden chats enabled"
+                else "Hidden chats disabled",
                 Toast.LENGTH_SHORT
             ).show()
         }
