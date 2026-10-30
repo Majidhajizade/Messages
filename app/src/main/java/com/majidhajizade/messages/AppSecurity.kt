@@ -297,7 +297,7 @@ object AppSecurity {
         }
 
         val backgroundColor =
-            if (isDarkTheme) Color.rgb(20, 29, 38) else Color.WHITE
+            if (isDarkTheme) Color.BLACK else Color.WHITE
         val keyColor =
             if (isDarkTheme) Color.rgb(39, 53, 66) else Color.rgb(245, 245, 245)
         val primaryTextColor = if (isDarkTheme) Color.WHITE else Color.BLACK
@@ -526,6 +526,7 @@ object AppSecurity {
                         else -> dp(32)
                     }
                     iconDrawable.setBounds(0, 0, iconSize, iconSize)
+                    iconDrawable.setTint(primaryTextColor)
                     compoundDrawablePadding = dp(2)
                     setCompoundDrawables(null, iconDrawable, null, null)
                     translationY = when (label) {

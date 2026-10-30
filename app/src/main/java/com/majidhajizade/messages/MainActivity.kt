@@ -3884,6 +3884,7 @@ companion object {
         }
 
         val contactName = getContactName(address)
+        val isChatLocked = AppSecurity.isChatLocked(this, address)
         val isUnsavedNumber = contactName.isNullOrBlank() &&
             address.any { it.isDigit() }
 
@@ -3927,6 +3928,44 @@ companion object {
             )
         }
 
+        if (isChatLocked) {
+            val lockOverlay = FrameLayout(this).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.argb(145, 0, 0, 0))
+                }
+                isClickable = false
+                importantForAccessibility =
+                    View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }
+
+            val lockIcon = ImageView(this).apply {
+                setImageResource(R.drawable.lock_keyhole)
+                scaleType = ImageView.ScaleType.CENTER_INSIDE
+                setColorFilter(Color.WHITE)
+                contentDescription = "Chat Locked"
+                setPadding(dp(5), dp(5), dp(5), dp(5))
+            }
+
+            lockOverlay.addView(
+                lockIcon,
+                FrameLayout.LayoutParams(
+                    dp(24),
+                    dp(24),
+                    Gravity.CENTER
+                )
+            )
+
+            contactFrame.addView(
+                lockOverlay,
+                FrameLayout.LayoutParams(
+                    dp(30),
+                    dp(30),
+                    Gravity.CENTER
+                )
+            )
+        }
+
         val selectionOverlay = android.widget.ImageView(this).apply {
             setImageResource(R.drawable.check)
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
@@ -3967,7 +4006,7 @@ companion object {
         }
 
         val preview = TextView(this).apply {
-            text = body
+            text = if (isChatLocked) "Chat Locked" else body
             textSize = 15f
             setTextColor(secondaryThemeText)
             maxLines = 1
