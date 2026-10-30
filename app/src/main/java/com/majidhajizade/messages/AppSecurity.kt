@@ -278,10 +278,34 @@ object AppSecurity {
         val density = activity.resources.displayMetrics.density
         fun dp(value: Int): Int = (value * density + 0.5f).toInt()
 
-        val backgroundColor = Color.rgb(20, 29, 38)
-        val keyColor = Color.rgb(39, 53, 66)
+        val themePrefs = activity.getSharedPreferences(
+            "messages_settings", Context.MODE_PRIVATE
+        )
+        val systemDark = (activity.resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+        val isDarkTheme = when (themePrefs.getString("theme_mode", null)) {
+            "day" -> false
+            "night" -> true
+            "system" -> systemDark
+            else -> if (themePrefs.contains("dark_mode")) {
+                themePrefs.getBoolean("dark_mode", false)
+            } else {
+                systemDark
+            }
+        }
+
+        val backgroundColor =
+            if (isDarkTheme) Color.rgb(20, 29, 38) else Color.WHITE
+        val keyColor =
+            if (isDarkTheme) Color.rgb(39, 53, 66) else Color.rgb(245, 245, 245)
+        val primaryTextColor = if (isDarkTheme) Color.WHITE else Color.BLACK
         val accentColor = Color.rgb(51, 144, 236)
-        val secondaryColor = Color.rgb(174, 190, 203)
+        val secondaryColor =
+            if (isDarkTheme) Color.rgb(174, 190, 203) else Color.rgb(90, 90, 90)
+        val keyStrokeColor =
+            if (isDarkTheme) Color.rgb(57, 73, 87) else Color.rgb(220, 220, 220)
 
         val root = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -326,7 +350,7 @@ object AppSecurity {
             text = "Messages"
             textSize = 27f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
+            setTextColor(primaryTextColor)
             gravity = Gravity.CENTER
         }
 
@@ -394,7 +418,7 @@ object AppSecurity {
                     text = "•"
                     textSize = 30f
                     typeface = android.graphics.Typeface.DEFAULT
-                    setTextColor(Color.WHITE)
+                    setTextColor(primaryTextColor)
                     gravity = Gravity.CENTER
                     alpha = 0f
                     scaleX = 0.5f
@@ -483,7 +507,7 @@ object AppSecurity {
                 }
                 textSize = if (label == "BACKSPACE" ||
                     label == "FINGERPRINT") 15f else 25f
-                setTextColor(Color.WHITE)
+                setTextColor(primaryTextColor)
                 gravity = Gravity.CENTER
 
                 val iconDrawable = when (label) {
@@ -522,7 +546,7 @@ object AppSecurity {
                     GradientDrawable().apply {
                         shape = GradientDrawable.OVAL
                         setColor(keyColor)
-                        setStroke(dp(1), Color.rgb(57, 73, 87))
+                        setStroke(dp(1), keyStrokeColor)
                     }
                 }
                 isClickable = true
@@ -759,11 +783,19 @@ object AppSecurity {
             }
         }
 
+        fun setPasscodeMode(show: Boolean) {
+            title.text = if (show) "Messages" else "Messages Locked"
+            subtitle.visibility = if (show) View.VISIBLE else View.GONE
+            pinDots.visibility = if (show) View.VISIBLE else View.GONE
+            keypad.visibility = if (show) View.VISIBLE else View.GONE
+        }
+
         startBiometricAuth = {
             if (biometricAvailable && !biometricPromptStarted &&
                 !unlockInProgress && !unlockFinished
             ) {
                 biometricPromptStarted = true
+                setPasscodeMode(false)
                 val signal = CancellationSignal()
                 fingerprintCancellationSignal = signal
                 try {
@@ -797,6 +829,7 @@ object AppSecurity {
                                 if (!cancelledByPin && !unlockFinished &&
                                     !unlockInProgress && !activity.isFinishing
                                 ) {
+                                    setPasscodeMode(true)
                                     Toast.makeText(
                                         activity, errString, Toast.LENGTH_SHORT
                                     ).show()
@@ -808,6 +841,7 @@ object AppSecurity {
                 } catch (e: SecurityException) {
                     biometricPromptStarted = false
                     fingerprintCancellationSignal = null
+                    setPasscodeMode(true)
                     Toast.makeText(
                         activity,
                         "Fingerprint authentication is unavailable",
@@ -824,6 +858,35 @@ object AppSecurity {
         dialog.setContentView(root)
         dialog.setCancelable(false)
         dialog.setCanceledOnTouchOutside(false)
+
+        var biometricBackPressed = false
+        dialog.setOnKeyListener { _, keyCode, event ->
+            if (keyCode != android.view.KeyEvent.KEYCODE_BACK) {
+                false
+            } else if (
+                event.action == android.view.KeyEvent.ACTION_DOWN &&
+                biometricPromptStarted
+            ) {
+                biometricBackPressed = true
+
+                val cancellation = fingerprintCancellationSignal
+                fingerprintCancellationSignal = null
+                biometricPromptStarted = false
+
+                setPasscodeMode(true)
+                cancellation?.cancel()
+                true
+            } else if (
+                event.action == android.view.KeyEvent.ACTION_UP &&
+                biometricBackPressed
+            ) {
+                biometricBackPressed = false
+                true
+            } else {
+                false
+            }
+        }
+
         dialog.show()
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -862,8 +925,8 @@ object AppSecurity {
 
             WindowInsetsControllerCompat(this, decorView).apply {
                 // Dark lock-screen background: use light system-bar icons.
-                isAppearanceLightStatusBars = false
-                isAppearanceLightNavigationBars = false
+                isAppearanceLightStatusBars = !isDarkTheme
+                isAppearanceLightNavigationBars = !isDarkTheme
                 show(WindowInsetsCompat.Type.systemBars())
             }
 
