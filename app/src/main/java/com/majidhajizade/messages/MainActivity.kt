@@ -3952,7 +3952,7 @@ companion object {
         val contactFrame = FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
-            translationX = 0f
+            translationX = -dp(3).toFloat()
             layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)).apply {
                 rightMargin = dp(10)
             }
@@ -4096,6 +4096,7 @@ companion object {
         val textContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutDirection = View.LAYOUT_DIRECTION_LOCALE
+            translationX = -dp(3).toFloat()
         }
 
         val name = TextView(this).apply {
@@ -4209,7 +4210,7 @@ companion object {
                     dp(20),
                     Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    rightMargin = dp(6)
+                    rightMargin = dp(11)
                 }
             )
 
@@ -4228,7 +4229,7 @@ companion object {
                     dateText.lineHeight,
                     Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    rightMargin = dp(4)
+                    rightMargin = dp(8)
                 }
             )
 
@@ -4333,7 +4334,7 @@ companion object {
                     dp(22),
                     Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    rightMargin = dp(6)
+                    rightMargin = dp(11)
                 }
             )
 
@@ -4352,7 +4353,7 @@ companion object {
                     dateText.lineHeight,
                     Gravity.CENTER_VERTICAL or Gravity.END
                 ).apply {
-                    rightMargin = dp(4)
+                    rightMargin = dp(8)
                 }
             )
 
