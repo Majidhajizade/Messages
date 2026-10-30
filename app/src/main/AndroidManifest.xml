@@ -28,7 +28,8 @@
         android:label="Messages"
         android:icon="@drawable/app_icon"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        android:enableOnBackInvokedCallback="true">
 
         <activity
             android:name=".ConversationActivity"

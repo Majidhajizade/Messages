@@ -115,6 +115,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     private lateinit var messagesContainer: LinearLayout
     private var smsSearchQuery: String = ""
     private lateinit var messagesScroll: android.widget.ScrollView
+    private var homeScrollYBeforePause = 0
+    private var shouldRestoreHomeScroll = false
     private var showingArchivedChats = false
     private var archivedAvatarView: View? = null
     private var archivedChatsRowView: View? = null
@@ -353,6 +355,16 @@ companion object {
             == PackageManager.PERMISSION_GRANTED
         ) {
             loadMessages()
+
+            if (shouldRestoreHomeScroll &&
+                ::messagesScroll.isInitialized
+            ) {
+                val restoreY = homeScrollYBeforePause
+                messagesScroll.post {
+                    messagesScroll.scrollTo(0, restoreY)
+                    shouldRestoreHomeScroll = false
+                }
+            }
         } else {
             requestPermissions(
                 arrayOf(
@@ -5552,6 +5564,11 @@ private fun createSelectionActionBar(): View {
 
 
     override fun onPause() {
+        if (::messagesScroll.isInitialized) {
+            homeScrollYBeforePause = messagesScroll.scrollY
+            shouldRestoreHomeScroll = true
+        }
+
         isMainActivityResumed = false
         super.onPause()
     }
