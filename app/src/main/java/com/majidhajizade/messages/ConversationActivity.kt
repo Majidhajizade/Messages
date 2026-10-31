@@ -685,100 +685,131 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 return
             }
 
-            // Telegram-style TYPE_TEXT bubble geometry.
-            val radius = dp(22).toFloat()
-                .coerceAtMost((height - padding) / 2f)
-                .coerceAtMost(width / 2f)
-            val smallRadius = dp(6).toFloat()
-            val tailInset = dp(8).toFloat()
-            val topTailRadius = if (groupPosition == 3) {
-                smallRadius.coerceAtMost(height / 2f)
+            // Textra-style stretchable message bubble paths.
+            // Reference size: 42 x 38; horizontal anchors: 23 incoming / 19 outgoing.
+            val density = resources.displayMetrics.density
+            val referenceWidth = 42f * density
+            val referenceHeight = 38f * density
+
+            // Scale down narrow/short bubbles to keep the path inside its bounds.
+            // Wider/taller bubbles retain Textra's stretch-anchor behavior.
+            val scaleX = (width / referenceWidth).coerceAtMost(1f)
+            val scaleY = (height / referenceHeight).coerceAtMost(1f)
+            val stretchX = (width - referenceWidth).coerceAtLeast(0f)
+            val stretchY = (height - referenceHeight).coerceAtLeast(0f)
+            val anchorX = if (incomingMessage) 23f else 19f
+
+            fun pxX(x: Float): Float =
+                left + x * density * scaleX +
+                    if (x > anchorX) stretchX else 0f
+
+            fun pxY(y: Float): Float =
+                top + y * density * scaleY +
+                    if (y > 18f) stretchY else 0f
+
+            // Position 3 is the last bubble in a group: keep its joined top corner small.
+            val compactTopCorner = groupPosition == 3
+
+            if (incomingMessage) {
+                if (compactTopCorner) {
+                    path.moveTo(pxX(6f), pxY(6f))
+                    path.cubicTo(
+                        pxX(6f), pxY(2.5f),
+                        pxX(8.5f), pxY(0f),
+                        pxX(12f), pxY(0f)
+                    )
+                    path.lineTo(pxX(22f), pxY(0f))
+                } else {
+                    path.moveTo(pxX(6f), pxY(18f))
+                    path.cubicTo(
+                        pxX(6f), pxY(8.5f),
+                        pxX(12.5f), pxY(0f),
+                        pxX(22f), pxY(0f)
+                    )
+                }
+
+                path.lineTo(pxX(24.5f), pxY(0f))
+                path.cubicTo(
+                    pxX(34f), pxY(0f),
+                    pxX(42f), pxY(7.5f),
+                    pxX(42f), pxY(18f)
+                )
+                path.lineTo(pxX(42f), pxY(20f))
+                path.cubicTo(
+                    pxX(42f), pxY(29.5f),
+                    pxX(34.5f), pxY(38f),
+                    pxX(24.5f), pxY(38f)
+                )
+                path.lineTo(pxX(22f), pxY(38f))
+                path.cubicTo(
+                    pxX(18.4f), pxY(38f),
+                    pxX(15.4f), pxY(36.7f),
+                    pxX(12.5f), pxY(34.5f)
+                )
+                path.cubicTo(
+                    pxX(9f), pxY(36.6f),
+                    pxX(4.9f), pxY(37.9f),
+                    pxX(0f), pxY(38f)
+                )
+                path.cubicTo(
+                    pxX(3.9f), pxY(36.4f),
+                    pxX(6.2f), pxY(33f),
+                    pxX(6f), pxY(29f)
+                )
+                path.lineTo(
+                    pxX(6f),
+                    pxY(if (compactTopCorner) 6f else 18f)
+                )
             } else {
-                radius
-            }
+                if (compactTopCorner) {
+                    path.moveTo(pxX(36f), pxY(6f))
+                    path.cubicTo(
+                        pxX(36f), pxY(2.5f),
+                        pxX(33.5f), pxY(0f),
+                        pxX(30f), pxY(0f)
+                    )
+                    path.lineTo(pxX(20f), pxY(0f))
+                } else {
+                    path.moveTo(pxX(36f), pxY(18f))
+                    path.cubicTo(
+                        pxX(36f), pxY(8.5f),
+                        pxX(29.5f), pxY(0f),
+                        pxX(20f), pxY(0f)
+                    )
+                }
 
-            if (!incomingMessage) {
-                // Outgoing: rounded body with a lower-right tail.
-                path.moveTo(right - dp(3), bottom - padding)
-                path.lineTo(left + padding + radius, bottom - padding)
-
-                rect.set(
-                    left + padding,
-                    bottom - padding - radius * 2f,
-                    left + padding + radius * 2f,
-                    bottom - padding
+                path.lineTo(pxX(17.5f), pxY(0f))
+                path.cubicTo(
+                    pxX(8f), pxY(0f),
+                    pxX(0f), pxY(7.5f),
+                    pxX(0f), pxY(18f)
                 )
-                path.arcTo(rect, 90f, 90f, false)
-
-                path.lineTo(left + padding, top + padding + radius)
-
-                rect.set(
-                    left + padding,
-                    top + padding,
-                    left + padding + radius * 2f,
-                    top + padding + radius * 2f
+                path.lineTo(pxX(0f), pxY(20f))
+                path.cubicTo(
+                    pxX(0f), pxY(29.5f),
+                    pxX(7.5f), pxY(38f),
+                    pxX(17.5f), pxY(38f)
                 )
-                path.arcTo(rect, 180f, 90f, false)
-
-                path.lineTo(right - tailInset - topTailRadius, top + padding)
-                rect.set(
-                    right - tailInset - topTailRadius * 2f,
-                    top + padding,
-                    right - tailInset,
-                    top + padding + topTailRadius * 2f
+                path.lineTo(pxX(20f), pxY(38f))
+                path.cubicTo(
+                    pxX(23.6f), pxY(38f),
+                    pxX(26.6f), pxY(36.7f),
+                    pxX(29.5f), pxY(34.5f)
                 )
-                path.arcTo(rect, 270f, 90f, false)
-
-                path.lineTo(right - tailInset, bottom - padding - smallRadius - dp(3))
-
-                rect.set(
-                    right - tailInset,
-                    bottom - padding - smallRadius * 2f - dp(9),
-                    right - dp(7) + smallRadius * 2f,
-                    bottom - padding - dp(1)
+                path.cubicTo(
+                    pxX(33f), pxY(36.6f),
+                    pxX(37.1f), pxY(37.9f),
+                    pxX(42f), pxY(38f)
                 )
-                path.arcTo(rect, 180f, -83f, false)
-            } else {
-                // Incoming: mirrored Telegram-style lower-left tail.
-                path.moveTo(left + dp(3), bottom - padding)
-                path.lineTo(right - padding - radius, bottom - padding)
-
-                rect.set(
-                    right - padding - radius * 2f,
-                    bottom - padding - radius * 2f,
-                    right - padding,
-                    bottom - padding
+                path.cubicTo(
+                    pxX(38.1f), pxY(36.4f),
+                    pxX(35.8f), pxY(33f),
+                    pxX(36f), pxY(29f)
                 )
-                path.arcTo(rect, 90f, -90f, false)
-
-                path.lineTo(right - padding, top + padding + radius)
-
-                rect.set(
-                    right - padding - radius * 2f,
-                    top + padding,
-                    right - padding,
-                    top + padding + radius * 2f
+                path.lineTo(
+                    pxX(36f),
+                    pxY(if (compactTopCorner) 6f else 18f)
                 )
-                path.arcTo(rect, 0f, -90f, false)
-
-                path.lineTo(left + tailInset + topTailRadius, top + padding)
-                rect.set(
-                    left + tailInset,
-                    top + padding,
-                    left + tailInset + topTailRadius * 2f,
-                    top + padding + topTailRadius * 2f
-                )
-                path.arcTo(rect, 270f, -90f, false)
-
-                path.lineTo(left + tailInset, bottom - padding - smallRadius - dp(3))
-
-                rect.set(
-                    left + dp(7) - smallRadius * 2f,
-                    bottom - padding - smallRadius * 2f - dp(9),
-                    left + dp(8),
-                    bottom - padding - dp(1)
-                )
-                path.arcTo(rect, 0f, 83f, false)
             }
 
             path.close()
