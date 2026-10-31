@@ -3042,8 +3042,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 } else {
                     Gravity.END or Gravity.CENTER_VERTICAL
                 }
-                marginStart = if (incoming) dp(2) else 0
-                marginEnd = if (incoming) 0 else dp(2)
+                marginStart = 0
+                marginEnd = 0
             }
             // حباب در جای فعلی می‌ماند؛ ساعت بالاتر از آن رسم می‌شود.
             messageLayer.addView(
@@ -3107,9 +3107,23 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     itemTime.animate().cancel()
                     itemBubble.translationX = resistedDx
 
-                    // ساعت و حباب دقیقاً به یک اندازه حرکت می‌کنند
-                    // تا فاصلهٔ اولیهٔ آن‌ها هنگام کشیدن ثابت بماند.
-                    itemTime.translationX = resistedDx
+                    // موقعیت ساعت را از مختصات واقعی حباب در همان لایه محاسبه کن.
+                    // ساعت همیشه ۲dp بیرون لبهٔ نزدیک به فضای خالی کنار حباب می‌ماند.
+                    val gap = dp(2).toFloat()
+                    val bubbleLeft = itemBubble.left.toFloat() + resistedDx
+                    val bubbleRight = itemBubble.right.toFloat() + resistedDx
+                    val bubbleCenter = (itemBubble.left + itemBubble.right) / 2f
+                    val layerCenter = layer.width / 2f
+
+                    val targetTimeLeft = if (bubbleCenter > layerCenter) {
+                        // حباب در نیمهٔ راست است؛ ساعت در سمت چپ آن قرار می‌گیرد.
+                        bubbleLeft - itemTime.width.toFloat() - gap
+                    } else {
+                        // حباب در نیمهٔ چپ است؛ ساعت در سمت راست آن قرار می‌گیرد.
+                        bubbleRight + gap
+                    }
+
+                    itemTime.translationX = targetTimeLeft - itemTime.left.toFloat()
                     itemTime.alpha = alpha
                     itemTime.bringToFront()
                 }
