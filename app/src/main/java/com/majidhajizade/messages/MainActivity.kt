@@ -3917,53 +3917,6 @@ companion object {
             }
         )
 
-        val actionBackground = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            if (isDarkMode) visibility = View.GONE
-        }
-
-        val callAction = TextView(this).apply {
-            text = "Call"
-            textSize = 16f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = solidDrawable(Color.TRANSPARENT, 0f)
-        }
-
-        val deleteAction = TextView(this).apply {
-            text = "Delete"
-            textSize = 16f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = solidDrawable(Color.TRANSPARENT, 0f)
-        }
-
-        actionBackground.addView(
-            callAction,
-            LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                1f
-            )
-        )
-
-        actionBackground.addView(
-            deleteAction,
-            LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                1f
-            )
-        )
-
-        actionLayer.addView(
-            actionBackground,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                dp(76)
-            )
-        )
         archivePanel.bringToFront()
 
         val foreground = LinearLayout(this).apply {
@@ -4456,8 +4409,6 @@ companion object {
             actionLayer,
             foreground,
             address,
-            callAction,
-            deleteAction,
             selectionOverlay,
             archivePanel
         )
@@ -4481,8 +4432,6 @@ companion object {
         container: FrameLayout,
         foreground: View,
         address: String,
-        callAction: TextView,
-        deleteAction: TextView,
         selectionOverlay: android.widget.ImageView,
         archivePanel: View
     ) {
