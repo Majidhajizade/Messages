@@ -3112,14 +3112,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     val gap = dp(2).toFloat()
                     val bubbleLeft = itemBubble.left.toFloat() + resistedDx
                     val bubbleRight = itemBubble.right.toFloat() + resistedDx
-                    val bubbleCenter = (itemBubble.left + itemBubble.right) / 2f
-                    val layerCenter = layer.width / 2f
-
-                    val targetTimeLeft = if (bubbleCenter > layerCenter) {
-                        // حباب در نیمهٔ راست است؛ ساعت در سمت چپ آن قرار می‌گیرد.
+                    val targetTimeLeft = if (incoming) {
+                        // پیام دریافتی: ساعت بیرونِ لبهٔ چپ حباب.
                         bubbleLeft - itemTime.width.toFloat() - gap
                     } else {
-                        // حباب در نیمهٔ چپ است؛ ساعت در سمت راست آن قرار می‌گیرد.
+                        // پیام ارسالی: ساعت بیرونِ لبهٔ راست حباب.
                         bubbleRight + gap
                     }
 
