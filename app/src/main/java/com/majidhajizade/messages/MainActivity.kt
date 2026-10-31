@@ -488,7 +488,7 @@ companion object {
     }
 
     private fun createHomeScreen(): View {
-        val homeBackground = if (isDarkMode) Color.BLACK else Color.rgb(248, 248, 255)
+        val homeBackground = if (isDarkMode) Color.BLACK else Color.rgb(250, 250, 250)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(homeBackground)
