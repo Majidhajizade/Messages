@@ -124,6 +124,10 @@ class NewMessageActivity : Activity() {
         setContentView(root)
         installSheetDragGestures(sheet)
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            root.post { root.requestApplyInsets() }
+        }
+
         root.post {
             val statusInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 window.decorView.rootWindowInsets
@@ -154,16 +158,20 @@ class NewMessageActivity : Activity() {
         // بازکردن خودکار کیبورد برای نوشتن پیام؛
         // اگر صفحه با شماره مشخص باز شده باشد، رفتار قبلی حفظ می‌شود.
         if (intent.getStringExtra("phone").isNullOrBlank()) {
-            messageInput.post {
-                messageInput.requestFocus()
-                val imm = getSystemService(
-                    android.content.Context.INPUT_METHOD_SERVICE
-                ) as android.view.inputmethod.InputMethodManager
-                imm.showSoftInput(
-                    messageInput,
-                    android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
-                )
-            }
+            sheet.postDelayed({
+                if (!isFinishing && !closing) {
+                    messageInput.requestFocus()
+
+                    val imm = getSystemService(
+                        android.content.Context.INPUT_METHOD_SERVICE
+                    ) as android.view.inputmethod.InputMethodManager
+
+                    imm.showSoftInput(
+                        messageInput,
+                        android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
+                    )
+                }
+            }, 500L)
         }
 
         // Preserve the existing direct-open behavior if a phone was supplied.
