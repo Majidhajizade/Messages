@@ -124,12 +124,10 @@ class NewMessageActivity : Activity() {
         setContentView(root)
         installSheetDragGestures(sheet)
 
-        var imeWasVisible = false
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val imeBottom = insets.getInsets(
                 androidx.core.view.WindowInsetsCompat.Type.ime()
             ).bottom
-            val imeVisible = imeBottom > 0
 
             if (view.paddingBottom != imeBottom) {
                 view.setPadding(
@@ -140,9 +138,39 @@ class NewMessageActivity : Activity() {
                 )
             }
 
-            imeWasVisible = imeVisible
             insets
         }
+
+        androidx.core.view.ViewCompat.setWindowInsetsAnimationCallback(
+            root,
+            object : androidx.core.view.WindowInsetsAnimationCompat.Callback(
+                androidx.core.view.WindowInsetsAnimationCompat.Callback.DISPATCH_MODE_CONTINUE_ON_SUBTREE
+            ) {
+                override fun onPrepare(
+                    animation: androidx.core.view.WindowInsetsAnimationCompat
+                ) {
+                    super.onPrepare(animation)
+                    if (
+                        (animation.typeMask and
+                            androidx.core.view.WindowInsetsCompat.Type.ime()) != 0
+                    ) {
+                        root.setBackgroundColor(Color.WHITE)
+                    }
+                }
+
+                override fun onEnd(
+                    animation: androidx.core.view.WindowInsetsAnimationCompat
+                ) {
+                    super.onEnd(animation)
+                    if (
+                        (animation.typeMask and
+                            androidx.core.view.WindowInsetsCompat.Type.ime()) != 0
+                    ) {
+                        root.setBackgroundColor(Color.TRANSPARENT)
+                    }
+                }
+            }
+        )
 
         root.post {
             androidx.core.view.ViewCompat.requestApplyInsets(root)
