@@ -2404,28 +2404,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     }
 
                     if (endIndex < rows.size) {
-                        // نمایش صفحه پس از اولین دسته، بدون انتظار برای تمام پیام‌ها.
-                        if (hideUntilInitialPosition) {
-                            scrollView.post {
-                                if (generation != conversationLoadGeneration ||
-                                    isFinishing || isDestroyed
-                                ) {
-                                    return@post
-                                }
-
-                                // اگر گفتگو از ابتدا در انتها بوده، انتهای محتوای فعلی حفظ شود.
-                                if (conversationWasAtBottom) {
-                                    scrollView.scrollTo(
-                                        0,
-                                        (messagesContainer.height - scrollView.height)
-                                            .coerceAtLeast(0)
-                                    )
-                                }
-
-                                scrollView.visibility = View.VISIBLE
-                            }
-                        }
-
+                        // Keep the initial conversation hidden until all batches are
+                        // rendered, preventing visible auto-scrolling while history grows.
                         scrollView.postOnAnimation {
                             renderBatch(endIndex)
                         }
@@ -2657,11 +2637,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     scrollView.requestLayout()
                 }
 
-                if (appendOnly) {
-                    renderBatch(0)
-                } else {
-                    renderInitialLatestBatch()
-                }
+                renderBatch(0)
             }
         }, "conversation-sms-loader").start()
     }
