@@ -73,6 +73,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private lateinit var contactNameRow: LinearLayout
 
     private val blue = Color.rgb(0, 122, 255)
+    private val premiumBlue = Color.rgb(0, 95, 220)
+    private val simOneGreen = Color.rgb(11, 218, 81)
+
+    private var selectedSmsSlot = 0
+    private var hasExplicitSmsSlot = false
+    private var sendButtonView: ImageButton? = null
+    private var simColorAnimator: ValueAnimator? = null
     private val secondaryText = Color.rgb(110, 110, 115)
 
     private lateinit var phone: String
@@ -163,6 +170,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        getSharedPreferences("messages_settings", MODE_PRIVATE).apply {
+            selectedSmsSlot = getInt("selected_sms_slot", 0).coerceIn(0, 1)
+            hasExplicitSmsSlot = getBoolean("selected_sms_slot_explicit", false)
+        }
+
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
         // اجازه نمایش پس‌زمینه در محدوده نوار وضعیت
@@ -284,6 +297,15 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == 3004) {
+            if (
+                grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
+            ) {
+                toggleSmsSubscription()
+            }
+            return
+        }
 
         // Mesh موقتاً غیرفعال است؛ مجوزهای نزدیک‌برد باعث شروع آن نمی‌شوند.
     }
@@ -635,10 +657,17 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             } else {
                 android.graphics.LinearGradient(
                     left, top, right, bottom,
-                    intArrayOf(
-                        android.graphics.Color.rgb(50, 205, 50),
-                        android.graphics.Color.rgb(50, 205, 50)
-                    ),
+                    if (selectedSmsSlot == 1) {
+                        intArrayOf(
+                            Color.rgb(0, 122, 255),
+                            Color.rgb(0, 95, 220)
+                        )
+                    } else {
+                        intArrayOf(
+                            Color.rgb(50, 205, 50),
+                            Color.rgb(50, 205, 50)
+                        )
+                    },
                     null,
                     android.graphics.Shader.TileMode.CLAMP
                 )
@@ -1541,20 +1570,26 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         val send = ImageButton(this).apply {
+            sendButtonView = this
             setImageResource(R.drawable.ic_send_arrow)
             contentDescription = "Send"
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(9), dp(9), dp(9), dp(9))
             background = GradientDrawable().apply {
-                setColor(Color.rgb(11, 218, 81))
+                setColor(sendButtonColor())
                 shape = GradientDrawable.OVAL
-                setStroke(dp(2), Color.rgb(11, 218, 81))
+                setStroke(dp(2), sendButtonColor())
             }
 
             elevation = dp(1).toFloat()
 
             setOnClickListener {
                 sendMessage()
+            }
+
+            setOnLongClickListener {
+                toggleSmsSubscription()
+                true
             }
         }
 
@@ -3513,6 +3548,148 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         return blocked.contains(phone.trim())
     }
 
+    private fun sendButtonColor(): Int =
+        if (selectedSmsSlot == 1) premiumBlue else simOneGreen
+
+    @Suppress("MissingPermission")
+    private fun activeSmsSubscriptions():
+        List<android.telephony.SubscriptionInfo> {
+        check(
+            checkSelfPermission(Manifest.permission.READ_PHONE_STATE) ==
+                PackageManager.PERMISSION_GRANTED
+        ) { "Phone-state permission is required to select a SIM." }
+
+        return android.telephony.SubscriptionManager
+            .from(this)
+            .activeSubscriptionInfoList
+            ?.toList()
+            ?: emptyList()
+    }
+
+    private fun toggleSmsSubscription() {
+        if (
+            checkSelfPermission(Manifest.permission.READ_PHONE_STATE) !=
+                PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.READ_PHONE_STATE),
+                3004
+            )
+            return
+        }
+
+        val active = try {
+            activeSmsSubscriptions()
+        } catch (_: Exception) {
+            return
+        }
+
+        // اگر سیم‌کارت ۲ موجود نیست، هیچ انتخاب یا رنگی را تغییر نده.
+        if (active.none { it.simSlotIndex == 1 }) return
+
+        val targetSlot = if (selectedSmsSlot == 1) 0 else 1
+
+        // سیم‌کارت مقصد هم باید واقعاً فعال باشد.
+        if (active.none { it.simSlotIndex == targetSlot }) return
+
+        if (targetSlot == selectedSmsSlot && hasExplicitSmsSlot) return
+
+        selectedSmsSlot = targetSlot
+        hasExplicitSmsSlot = true
+
+        getSharedPreferences("messages_settings", MODE_PRIVATE)
+            .edit()
+            .putInt("selected_sms_slot", selectedSmsSlot)
+            .putBoolean("selected_sms_slot_explicit", true)
+            .apply()
+
+        animateSendButtonColor()
+        if (::messagesContainer.isInitialized) {
+            refreshOutgoingBubbleColors(messagesContainer)
+        }
+
+        sendButtonView?.performHapticFeedback(
+            android.view.HapticFeedbackConstants.CONTEXT_CLICK
+        )
+    }
+
+    @Suppress("MissingPermission")
+    private fun resolveSmsManager(): SmsManager {
+        // تا پیش از انتخاب دستی، رفتار پیش‌فرض فعلی برنامه حفظ می‌شود.
+        if (!hasExplicitSmsSlot) return SmsManager.getDefault()
+
+        val active = activeSmsSubscriptions()
+        val subscription = active.firstOrNull {
+            it.simSlotIndex == selectedSmsSlot
+        } ?: throw IllegalStateException(
+            if (selectedSmsSlot == 1) {
+                "SIM 2 is no longer available. No message was sent."
+            } else {
+                "SIM 1 is no longer available. No message was sent."
+            }
+        )
+
+        return SmsManager.getSmsManagerForSubscriptionId(
+            subscription.subscriptionId
+        )
+    }
+
+    private fun animateSendButtonColor() {
+        val button = sendButtonView ?: return
+        val background = button.background as? GradientDrawable ?: return
+
+        simColorAnimator?.cancel()
+
+        val fromColor = if (selectedSmsSlot == 1) simOneGreen else premiumBlue
+        val toColor = sendButtonColor()
+
+        simColorAnimator = ValueAnimator.ofArgb(fromColor, toColor).apply {
+            duration = 420L
+            interpolator = android.view.animation
+                .PathInterpolator(0.22f, 1f, 0.36f, 1f)
+
+            addUpdateListener { animator ->
+                val color = animator.animatedValue as Int
+                background.setColor(color)
+                background.setStroke(dp(2), color)
+            }
+
+            start()
+        }
+
+        button.animate().cancel()
+        button.animate()
+            .scaleX(1.12f)
+            .scaleY(1.12f)
+            .translationZ(dp(5).toFloat())
+            .setDuration(150L)
+            .withEndAction {
+                button.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .translationZ(dp(1).toFloat())
+                    .setDuration(260L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+            .start()
+    }
+
+    private fun refreshOutgoingBubbleColors(view: View) {
+        if (
+            view.contentDescription == "outgoing_message_bubble" &&
+            view.background is MessageBubbleDrawable
+        ) {
+            view.invalidate()
+        }
+
+        if (view is android.view.ViewGroup) {
+            for (index in 0 until view.childCount) {
+                refreshOutgoingBubbleColors(view.getChildAt(index))
+            }
+        }
+    }
+
     private fun sendMessage() {
         val message = messageInput.text.toString().trim()
 
@@ -3613,7 +3790,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         isRetry: Boolean
     ) {
         val normalizedPhone = normalizePhoneNumber(phone)
-        val smsManager = SmsManager.getDefault()
+        val smsManager = resolveSmsManager()
         val parts = smsManager.divideMessage(message)
         val attemptCode = (System.nanoTime() and 0x3fffffffL).toInt()
         val attemptId = if (isRetry) "$messageId-$attemptCode" else messageId
