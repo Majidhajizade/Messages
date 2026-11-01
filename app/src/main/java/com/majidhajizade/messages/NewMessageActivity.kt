@@ -244,7 +244,7 @@ class NewMessageActivity : Activity() {
             TextView(this).apply {
                 text = "To:"
                 textSize = 16f
-                typeface = Typeface.DEFAULT_MEDIUM
+                typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 setTextColor(Color.rgb(45, 45, 50))
                 gravity = Gravity.CENTER_VERTICAL
             },
@@ -274,7 +274,7 @@ class NewMessageActivity : Activity() {
 
         selectedName = TextView(this).apply {
             textSize = 16f
-            typeface = Typeface.DEFAULT_MEDIUM
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             setTextColor(Color.rgb(0, 122, 255))
             gravity = Gravity.CENTER_VERTICAL
             maxLines = 1
