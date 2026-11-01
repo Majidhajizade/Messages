@@ -143,6 +143,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 savedSentMessageIds.add(messageId)
             ) {
                 saveSentMessage(sentMessage, messageId)
+            } else if (!attemptSucceeded && sentMessage != null) {
+                saveFailedMessage(sentMessage, messageId)
             }
 
             val errorText = if (attemptSucceeded) {
@@ -2021,62 +2023,110 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     ) {
         val wrapper = messagesContainer.findViewWithTag<LinearLayout>(messageId)
             ?: return
-
         val bubble = wrapper.findViewWithTag<LinearLayout>("message_bubble")
             ?: return
+        val layer = wrapper.findViewWithTag<android.widget.FrameLayout>(
+            "message_layer"
+        )
 
         wrapper.findViewWithTag<View>("sending_icon")?.let {
             (it.parent as? android.view.ViewGroup)?.removeView(it)
         }
 
+        val icon = wrapper.findViewWithTag<TextView>("failed_icon")
+        val label = wrapper.findViewWithTag<TextView>("failed_label")
+
         if (success) {
-            wrapper.findViewWithTag<View>("failed_icon")?.let {
-                (it.parent as? android.view.ViewGroup)?.removeView(it)
+            listOfNotNull(icon, label).forEach { view ->
+                view.animate().cancel()
+                view.animate()
+                    .alpha(0f)
+                    .setDuration(220L)
+                    .withEndAction {
+                        (view.parent as? android.view.ViewGroup)
+                            ?.removeView(view)
+                    }
+                    .start()
             }
 
-
+            bubble.animate().cancel()
+            bubble.animate()
+                .translationX(0f)
+                .setDuration(260L)
+                .setInterpolator(
+                    android.view.animation.DecelerateInterpolator()
+                )
+                .start()
             return
         }
 
-        if (wrapper.findViewWithTag<View>("failed_icon") != null) {
-            return
-        }
+        bubble.animate().cancel()
+        bubble.translationX = -dp(26).toFloat()
 
-        val icon = TextView(this).apply {
-            tag = "failed_icon"
-            text = "!"
-            textSize = 13f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-            contentDescription = "Tap to retry sending"
-            isClickable = true
-            isFocusable = true
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.RED)
+        if (icon == null && layer != null) {
+            val failureIcon = TextView(this).apply {
+                tag = "failed_icon"
+                text = "!"
+                textSize = 13f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                contentDescription = "Tap to retry sending"
+                isClickable = true
+                isFocusable = true
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.RED)
+                }
+                setOnClickListener {
+                    if (isEnabled) retryFailedMessage(messageId)
+                }
             }
-            setOnClickListener {
-                retryFailedMessage(messageId)
-            }
-        }
 
-        val metaRow = wrapper.findViewWithTag<LinearLayout>("message_meta_row")
-        if (metaRow != null) {
-            metaRow.addView(
-                icon,
-                LinearLayout.LayoutParams(dp(18), dp(18)).apply {
-                    leftMargin = dp(3)
+            layer.addView(
+                failureIcon,
+                android.widget.FrameLayout.LayoutParams(
+                    dp(18),
+                    dp(18),
+                    Gravity.END or Gravity.CENTER_VERTICAL
+                ).apply {
+                    marginEnd = dp(3)
                 }
             )
+
+            failureIcon.alpha = 0f
+            failureIcon.animate()
+                .alpha(1f)
+                .setDuration(180L)
+                .start()
         } else {
-            bubble.addView(
-                icon,
-                LinearLayout.LayoutParams(dp(22), dp(22)).apply {
-                    gravity = Gravity.CENTER_VERTICAL
-                    setMargins(dp(8), 0, dp(7), 0)
-                }
+            icon?.isEnabled = true
+        }
+
+        if (label == null) {
+            val failureLabel = TextView(this).apply {
+                tag = "failed_label"
+                text = "Not Delivered"
+                textSize = 11f
+                setTextColor(Color.RED)
+                gravity = Gravity.END
+                includeFontPadding = false
+                setPadding(0, dp(2), dp(3), dp(1))
+            }
+
+            wrapper.addView(
+                failureLabel,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
             )
+
+            failureLabel.alpha = 0f
+            failureLabel.animate()
+                .alpha(1f)
+                .setDuration(180L)
+                .start()
         }
     }
 
@@ -2087,6 +2137,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             ?: return
         val failedIcon = wrapper.findViewWithTag<View>("failed_icon")
             ?: return
+
+        if (!failedIcon.isEnabled) return
+
         val message = messageBodyText(
             bubble.findViewWithTag<View>("message_body")
         ).orEmpty()
@@ -2112,8 +2165,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             return
         }
 
-        // Remove the retry button while this one manual attempt is in progress.
-        (failedIcon.parent as? android.view.ViewGroup)?.removeView(failedIcon)
+        // Keep failure indicators visible during retry.
+        failedIcon.isEnabled = false
+        failedIcon.alpha = 1f
 
         try {
             sendSmsAttempt(messageId, message, true)
@@ -2189,7 +2243,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val body: String,
         val date: Long,
         val incoming: Boolean,
-        val delivered: Boolean
+        val delivered: Boolean,
+        val failed: Boolean
     )
 
     private fun loadConversation(appendOnly: Boolean = false) {
@@ -2322,9 +2377,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     while (cursor.moveToNext()) {
                         val body = cursor.getString(bodyIndex) ?: ""
                         val date = cursor.getLong(dateIndex)
+                        val smsType = cursor.getInt(typeIndex)
                         val incoming =
-                            cursor.getInt(typeIndex) ==
-                                Telephony.Sms.MESSAGE_TYPE_INBOX
+                            smsType == Telephony.Sms.MESSAGE_TYPE_INBOX
+                        val failed =
+                            smsType == Telephony.Sms.MESSAGE_TYPE_FAILED
                         val rowId = cursor.getString(idIndex)
 
                         rows.add(
@@ -2333,7 +2390,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                                 body = body,
                                 date = date,
                                 incoming = incoming,
-                                delivered = !incoming && rowId in deliveredRows
+                                delivered = !incoming && rowId in deliveredRows,
+                                failed = failed
                             )
                         )
                     }
@@ -2394,11 +2452,25 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                             }
                         }
 
+                        if (row.failed) {
+                            getSharedPreferences(
+                                "messages_settings",
+                                MODE_PRIVATE
+                            ).edit()
+                                .putString(
+                                    "sms_row_for_message_${row.rowId}",
+                                    row.rowId
+                                )
+                                .apply()
+                        }
+
                         addMessage(
                             body = row.body,
                             date = row.date,
                             incoming = row.incoming,
                             delivered = row.delivered,
+                            messageId = if (row.failed) row.rowId else null,
+                            failed = row.failed,
                             smsRowId = row.rowId
                         )
                     }
@@ -2983,6 +3055,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         incoming: Boolean,
         messageId: String? = null,
         delivered: Boolean = false,
+        failed: Boolean = false,
         smsRowId: String? = null
     ) {
         val reactionKey = reactionPreferenceKey(
@@ -3316,6 +3389,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         if (emojiAssetPath == null) {
             // ساعت بیرون حباب می‌ماند و با کشیدن پیام آشکار می‌شود.
             val messageLayer = android.widget.FrameLayout(this).apply {
+                tag = "message_layer"
                 clipChildren = false
                 clipToPadding = false
             }
@@ -3391,6 +3465,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     if (!row.getGlobalVisibleRect(rect)) continue
 
                     val itemBubble = row.findViewWithTag<LinearLayout>("message_bubble") ?: continue
+                    if (row.findViewWithTag<View>("failed_icon") != null) continue
                     if (itemBubble.contentDescription != expectedSide) continue
                     val layer = itemBubble.parent as? android.widget.FrameLayout ?: continue
                     val itemTime = layer.findViewWithTag<TextView>("message_time") ?: continue
@@ -3659,6 +3734,14 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         messagesContainer.addView(wrapper)
 
+        if (failed && messageId != null) {
+            wrapper.post {
+                if (wrapper.isAttachedToWindow) {
+                    updateMessageStatus(messageId, false)
+                }
+            }
+        }
+
         if (stickToBottom) {
             // پس از اندازه‌گیری نهایی حباب، اسکرول را تنظیم کن؛
             // پیام‌های بلند ممکن است در چند مرحله اندازه‌گیری شوند.
@@ -3727,6 +3810,36 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
     }
 
+    private fun saveFailedMessage(message: String, messageId: String) {
+        val prefs = getSharedPreferences("messages_settings", MODE_PRIVATE)
+        val existingRowId = prefs.getString(
+            "sms_row_for_message_$messageId",
+            null
+        )
+
+        if (existingRowId != null) return
+
+        val values = ContentValues().apply {
+            put(Telephony.Sms.ADDRESS, phone)
+            put(Telephony.Sms.BODY, message)
+            put(Telephony.Sms.DATE, System.currentTimeMillis())
+            put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_FAILED)
+            put(Telephony.Sms.READ, 1)
+        }
+
+        val rowId = try {
+            contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
+                ?.lastPathSegment
+        } catch (e: Exception) {
+            Log.e("MessagesSms", "Failed to save failed SMS row", e)
+            null
+        } ?: return
+
+        prefs.edit()
+            .putString("sms_row_for_message_$messageId", rowId)
+            .apply()
+    }
+
     private fun saveSentMessage(message: String, messageId: String) {
         val values = ContentValues().apply {
             put(Telephony.Sms.ADDRESS, phone)
@@ -3736,18 +3849,33 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             put(Telephony.Sms.READ, 1)
         }
 
+        val prefs = getSharedPreferences("messages_settings", MODE_PRIVATE)
+        val existingRowId = prefs.getString(
+            "sms_row_for_message_$messageId",
+            null
+        )
+
         val rowId = try {
-            contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
-                ?.lastPathSegment
+            if (existingRowId != null) {
+                val updated = contentResolver.update(
+                    Telephony.Sms.CONTENT_URI,
+                    values,
+                    "${Telephony.Sms._ID} = ?",
+                    arrayOf(existingRowId)
+                )
+                if (updated > 0) existingRowId else null
+            } else {
+                contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
+                    ?.lastPathSegment
+            }
         } catch (e: Exception) {
             Log.e("MessagesSms", "Failed to save sent SMS row", e)
             null
         } ?: run {
-            Log.e("MessagesSms", "SMS row insert returned no row ID")
+            Log.e("MessagesSms", "SMS row save returned no row ID")
             return
         }
 
-        val prefs = getSharedPreferences("messages_settings", MODE_PRIVATE)
         prefs.edit()
             .putString("sms_row_for_message_$messageId", rowId)
             .apply()
@@ -4005,6 +4133,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         } catch (e: Exception) {
             updateMessageStatus(messageId, false)
+            saveFailedMessage(message, messageId)
 
             Toast.makeText(
                 this,
