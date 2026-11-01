@@ -2494,7 +2494,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                         return
                     }
 
-                    val startIndex = (endExclusive - 32).coerceAtLeast(0)
+                    val startIndex = (endExclusive - 128).coerceAtLeast(0)
                     val oldHeight = messagesContainer.height
                     val firstChildIndex = messagesContainer.childCount
 
