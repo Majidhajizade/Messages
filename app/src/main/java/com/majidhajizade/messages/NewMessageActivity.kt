@@ -122,6 +122,7 @@ class NewMessageActivity : Activity() {
         )
 
         setContentView(root)
+        installSheetDragGestures(sheet)
 
         root.post {
             val statusInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -150,6 +151,21 @@ class NewMessageActivity : Activity() {
             }
         }
 
+        // بازکردن خودکار کیبورد برای نوشتن پیام؛
+        // اگر صفحه با شماره مشخص باز شده باشد، رفتار قبلی حفظ می‌شود.
+        if (intent.getStringExtra("phone").isNullOrBlank()) {
+            messageInput.post {
+                messageInput.requestFocus()
+                val imm = getSystemService(
+                    android.content.Context.INPUT_METHOD_SERVICE
+                ) as android.view.inputmethod.InputMethodManager
+                imm.showSoftInput(
+                    messageInput,
+                    android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT
+                )
+            }
+        }
+
         // Preserve the existing direct-open behavior if a phone was supplied.
         intent.getStringExtra("phone")?.trim()
             ?.takeIf { it.isNotEmpty() }
@@ -161,20 +177,7 @@ class NewMessageActivity : Activity() {
     private fun buildHeader() {
         val header = FrameLayout(this)
 
-        val back = ImageView(this).apply {
-            setImageResource(R.drawable.ic_back_arrow)
-            contentDescription = "Close"
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            setOnClickListener { closeSheet() }
-        }
-
-        header.addView(
-            back,
-            FrameLayout.LayoutParams(dp(44), dp(48), Gravity.START or Gravity.CENTER_VERTICAL)
-        )
-
-        header.addView(
+         header.addView(
             TextView(this).apply {
                 text = "New Message"
                 textSize = 20f
@@ -190,13 +193,11 @@ class NewMessageActivity : Activity() {
         )
 
         // Soft white circular close button, aligned with the title.
-        val closeButton = TextView(this).apply {
-            text = "×"
-            textSize = 27f
-            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            setTextColor(Color.rgb(75, 75, 82))
-            gravity = Gravity.CENTER
+        val closeButton = ImageView(this).apply {
+            setImageResource(R.drawable.ic_cross_custom)
             contentDescription = "Close sheet"
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(10), dp(10), dp(10), dp(10))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.WHITE)
@@ -313,7 +314,7 @@ class NewMessageActivity : Activity() {
         )
 
         val chooseContact = ImageButton(this).apply {
-            setImageResource(R.drawable.telegram_compose_plus)
+            setImageResource(R.drawable.ic_plus_chat)
             contentDescription = "Choose contact"
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(9), dp(9), dp(9), dp(9))
@@ -351,21 +352,7 @@ class NewMessageActivity : Activity() {
             setPadding(0, dp(5), 0, dp(5))
         }
 
-        val addContact = ImageButton(this).apply {
-            setImageResource(R.drawable.ic_plus_chat)
-            contentDescription = "Choose contact"
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dp(9), dp(9), dp(9), dp(9))
-            background = null
-            setOnClickListener { pickContact() }
-        }
-
-        composer.addView(
-            addContact,
-            LinearLayout.LayoutParams(dp(40), dp(40))
-        )
-
-        val messageCapsule = LinearLayout(this).apply {
+         val messageCapsule = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = pill(Color.rgb(245, 245, 248), 25)
@@ -434,6 +421,85 @@ class NewMessageActivity : Activity() {
                 topMargin = dp(8)
             }
         )
+    }
+
+    private fun installSheetDragGestures(view: View) {
+        var startRawY = 0f
+        var startTranslationY = 0f
+        var draggingDown = false
+
+        val dragListener = View.OnTouchListener { touched, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    startRawY = event.rawY
+                    startTranslationY = sheet.translationY
+                    draggingDown = true
+                    false
+                }
+
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    if (!draggingDown) {
+                        false
+                    } else {
+                        val deltaY = event.rawY - startRawY
+                        if (deltaY > dp(4)) {
+                            sheet.translationY =
+                                (startTranslationY + deltaY).coerceAtLeast(0f)
+                        }
+                        false
+                    }
+                }
+
+                android.view.MotionEvent.ACTION_UP -> {
+                    if (draggingDown) {
+                        val deltaY = event.rawY - startRawY
+                        draggingDown = false
+
+                        if (deltaY > sheet.height * 0.22f) {
+                            closeSheet()
+                        } else {
+                            sheet.animate()
+                                .translationY(0f)
+                                .setDuration(220L)
+                                .setInterpolator(
+                                    android.view.animation.DecelerateInterpolator()
+                                )
+                                .start()
+                        }
+                    }
+                    false
+                }
+
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    draggingDown = false
+                    sheet.animate()
+                        .translationY(0f)
+                        .setDuration(180L)
+                        .start()
+                    false
+                }
+
+                else -> false
+            }
+        }
+
+        fun attachRecursively(target: View) {
+            // کنترل‌های ورودی و دکمه‌ها باید همچنان لمس عادی داشته باشند.
+            if (target !is EditText &&
+                target !is ImageButton &&
+                target !is ImageView
+            ) {
+                target.setOnTouchListener(dragListener)
+            }
+
+            if (target is ViewGroup) {
+                for (i in 0 until target.childCount) {
+                    attachRecursively(target.getChildAt(i))
+                }
+            }
+        }
+
+        attachRecursively(view)
     }
 
     private fun pickContact() {
