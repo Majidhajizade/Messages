@@ -158,6 +158,13 @@ class NewMessageActivity : Activity() {
                     }
                 }
 
+                override fun onProgress(
+                    insets: androidx.core.view.WindowInsetsCompat,
+                    runningAnimations: MutableList<androidx.core.view.WindowInsetsAnimationCompat>
+                ): androidx.core.view.WindowInsetsCompat {
+                    return insets
+                }
+
                 override fun onEnd(
                     animation: androidx.core.view.WindowInsetsAnimationCompat
                 ) {
