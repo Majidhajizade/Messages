@@ -74,7 +74,7 @@ class NewMessageActivity : Activity() {
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.WHITE
         window.setSoftInputMode(
-            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
         )
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
@@ -124,8 +124,28 @@ class NewMessageActivity : Activity() {
         setContentView(root)
         installSheetDragGestures(sheet)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            root.post { root.requestApplyInsets() }
+        var imeWasVisible = false
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val imeBottom = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.ime()
+            ).bottom
+            val imeVisible = imeBottom > 0
+
+            if (view.paddingBottom != imeBottom) {
+                view.setPadding(
+                    view.paddingLeft,
+                    view.paddingTop,
+                    view.paddingRight,
+                    imeBottom
+                )
+            }
+
+            imeWasVisible = imeVisible
+            insets
+        }
+
+        root.post {
+            androidx.core.view.ViewCompat.requestApplyInsets(root)
         }
 
         root.post {
