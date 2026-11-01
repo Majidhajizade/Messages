@@ -2568,14 +2568,18 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                                 messagesContainer.height - oldHeight
                             ).coerceAtLeast(0)
 
-                            // جبران ارتفاع با موقعیت فعلی؛ اسکرول کاربر حفظ می‌شود.
+                            // فقط ارتفاع اضافه‌شده را جبران کن تا پیام‌های قابل مشاهده
+                            // هنگام آماده‌سازی تاریخچه در جای خود باقی بمانند.
                             scrollView.scrollTo(
                                 0,
                                 scrollView.scrollY + addedHeight
                             )
 
-                            // اگر پیام قبلی در این دسته بارگذاری شده، جای آن را بازیابی کن.
-                            restoreConversationScrollAnchor()
+                            // وقتی گفتگو در انتها بوده، Anchor نباید دوباره
+                            // موقعیت اسکرول را تغییر دهد.
+                            if (!conversationWasAtBottom) {
+                                restoreConversationScrollAnchor()
+                            }
 
                             if (startIndex > 0) {
                                 scrollView.postOnAnimation {
