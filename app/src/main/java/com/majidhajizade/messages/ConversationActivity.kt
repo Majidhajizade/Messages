@@ -2134,6 +2134,48 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private var isPopulatingConversation = false
     private var conversationLoadGeneration = 0
     private var conversationScrollRestoreY = 0
+    private var conversationScrollAnchorRowId: String? = null
+    private var conversationScrollAnchorOffset = 0
+
+    private fun captureConversationScrollAnchor() {
+        conversationScrollAnchorRowId = null
+        if (scrollView.height <= 0) return
+
+        val viewportTop = scrollView.scrollY
+        val viewportBottom = viewportTop + scrollView.height
+
+        for (index in 0 until messagesContainer.childCount) {
+            val child = messagesContainer.getChildAt(index)
+            val tag = child.tag as? String ?: continue
+
+            if (!tag.startsWith("sms_row:")) continue
+            if (child.bottom <= viewportTop || child.top >= viewportBottom) continue
+
+            conversationScrollAnchorRowId = tag.removePrefix("sms_row:")
+            conversationScrollAnchorOffset = child.top - viewportTop
+            return
+        }
+    }
+
+    private fun restoreConversationScrollAnchor(): Boolean {
+        val rowId = conversationScrollAnchorRowId ?: return false
+        val expectedTag = "sms_row:$rowId"
+
+        for (index in 0 until messagesContainer.childCount) {
+            val child = messagesContainer.getChildAt(index)
+            if (child.tag == expectedTag) {
+                scrollView.scrollTo(
+                    0,
+                    (child.top - conversationScrollAnchorOffset).coerceAtLeast(0)
+                )
+                conversationScrollAnchorRowId = null
+                conversationScrollAnchorOffset = 0
+                return true
+            }
+        }
+
+        return false
+    }
     private var conversationWasAtBottom = true
     private var isAppendingConversation = false
     private val loadedSmsRowIds = mutableSetOf<String>()
@@ -2168,6 +2210,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 scrollView.height + scrollView.scrollY >=
                     messagesContainer.height -
                     (96 * resources.displayMetrics.density).toInt()
+
+            if (conversationWasAtBottom) {
+                conversationScrollAnchorRowId = null
+            } else {
+                captureConversationScrollAnchor()
+            }
         }
 
         isPopulatingConversation = true
@@ -2421,7 +2469,185 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     }
                 }
 
-                renderBatch(0)
+                fun finishStageLoading() {
+                    if (generation != conversationLoadGeneration ||
+                        isFinishing || isDestroyed
+                    ) {
+                        return
+                    }
+
+                    scrollView.visibility = View.VISIBLE
+                    playAllLargeEmojiAnimations()
+                    isAppendingConversation = false
+                    isPopulatingConversation = false
+                }
+
+                fun prependOlder(endExclusive: Int) {
+                    if (generation != conversationLoadGeneration ||
+                        isFinishing || isDestroyed
+                    ) {
+                        return
+                    }
+
+                    if (endExclusive <= 0) {
+                        finishStageLoading()
+                        return
+                    }
+
+                    val startIndex = (endExclusive - 32).coerceAtLeast(0)
+                    val oldHeight = messagesContainer.height
+                    val firstChildIndex = messagesContainer.childCount
+
+                    // وضعیت انتهای فعلی گفتگو را موقتاً نگه می‌داریم.
+                    val savedLastMessageDate = lastMessageDate
+                    val savedLastTimeView = lastTimeView
+                    val savedLastDateHeaderKey = lastDateHeaderKey
+                    val savedLastMessageBubbleDrawable = lastMessageBubbleDrawable
+                    val savedLastBubbleIncoming = lastBubbleIncoming
+                    val savedLastBubbleDate = lastBubbleDate
+                    val savedLastBubbleDayKey = lastBubbleDayKey
+
+                    // مرز زمانی دسته قدیمی‌تر با اولین پیام موجود.
+                    val boundary = rows[endExclusive]
+                    lastMessageDate = boundary.date
+                    lastDateHeaderKey = dayKeyFormatter.format(Date(boundary.date))
+
+                    // گروه حباب نباید از مرز دو دسته عبور کند.
+                    lastMessageBubbleDrawable = null
+                    lastBubbleIncoming = null
+                    lastBubbleDate = null
+                    lastBubbleDayKey = null
+
+                    for (index in startIndex until endExclusive) {
+                        val row = rows[index]
+
+                        if (row.rowId in loadedSmsRowIds) continue
+
+                        addMessage(
+                            body = row.body,
+                            date = row.date,
+                            incoming = row.incoming,
+                            delivered = row.delivered,
+                            smsRowId = row.rowId
+                        )
+                    }
+
+                    // نماهای تازه ساخته‌شده را به ابتدای گفتگو منتقل می‌کنیم.
+                    val addedViews = ArrayList<View>()
+
+                    while (messagesContainer.childCount > firstChildIndex) {
+                        val child = messagesContainer.getChildAt(firstChildIndex)
+                        messagesContainer.removeViewAt(firstChildIndex)
+                        addedViews.add(child)
+                    }
+
+                    for (view in addedViews.asReversed()) {
+                        messagesContainer.addView(view, 0)
+                    }
+
+                    // وضعیت پیام‌های جدیدتر را بازیابی می‌کنیم.
+                    lastMessageDate = savedLastMessageDate
+                    lastTimeView = savedLastTimeView
+                    lastDateHeaderKey = savedLastDateHeaderKey
+                    lastMessageBubbleDrawable = savedLastMessageBubbleDrawable
+                    lastBubbleIncoming = savedLastBubbleIncoming
+                    lastBubbleDate = savedLastBubbleDate
+                    lastBubbleDayKey = savedLastBubbleDayKey
+
+                    messagesContainer.requestLayout()
+
+                    scrollView.post {
+                        messagesContainer.post {
+                            if (generation != conversationLoadGeneration ||
+                                isFinishing || isDestroyed
+                            ) {
+                                return@post
+                            }
+
+                            val addedHeight = (
+                                messagesContainer.height - oldHeight
+                            ).coerceAtLeast(0)
+
+                            // جبران ارتفاع با موقعیت فعلی؛ اسکرول کاربر حفظ می‌شود.
+                            scrollView.scrollTo(
+                                0,
+                                scrollView.scrollY + addedHeight
+                            )
+
+                            // اگر پیام قبلی در این دسته بارگذاری شده، جای آن را بازیابی کن.
+                            restoreConversationScrollAnchor()
+
+                            if (startIndex > 0) {
+                                scrollView.postOnAnimation {
+                                    prependOlder(startIndex)
+                                }
+                            } else {
+                                finishStageLoading()
+                            }
+                        }
+                    }
+                }
+
+                fun renderInitialLatestBatch() {
+                    if (generation != conversationLoadGeneration ||
+                        isFinishing || isDestroyed
+                    ) {
+                        return
+                    }
+
+                    val firstIndex = (rows.size - 32).coerceAtLeast(0)
+
+                    for (index in firstIndex until rows.size) {
+                        val row = rows[index]
+
+                        if (row.rowId in loadedSmsRowIds) continue
+
+                        addMessage(
+                            body = row.body,
+                            date = row.date,
+                            incoming = row.incoming,
+                            delivered = row.delivered,
+                            smsRowId = row.rowId
+                        )
+                    }
+
+                    scrollView.post {
+                        if (generation != conversationLoadGeneration ||
+                            isFinishing || isDestroyed
+                        ) {
+                            return@post
+                        }
+
+                        val maxY = (
+                            messagesContainer.height - scrollView.height
+                        ).coerceAtLeast(0)
+
+                        if (conversationWasAtBottom) {
+                            scrollView.scrollTo(0, maxY)
+                        } else if (!restoreConversationScrollAnchor()) {
+                            scrollView.scrollTo(
+                                0,
+                                conversationScrollRestoreY.coerceAtMost(maxY)
+                            )
+                        }
+
+                        scrollView.visibility = View.VISIBLE
+
+                        if (firstIndex > 0) {
+                            scrollView.postOnAnimation {
+                                prependOlder(firstIndex)
+                            }
+                        } else {
+                            finishStageLoading()
+                        }
+                    }
+                }
+
+                if (appendOnly) {
+                    renderBatch(0)
+                } else {
+                    renderInitialLatestBatch()
+                }
             }
         }, "conversation-sms-loader").start()
     }
@@ -2797,8 +3023,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         val dayKey = dayKeyFormatter.format(Date(date))
         val previousDate = lastMessageDate
         val startsNewTimeGroup = previousDate != null &&
-            date > previousDate &&
-            date - previousDate > 3 * 60 * 60 * 1000L
+            kotlin.math.abs(date - previousDate) > 3 * 60 * 60 * 1000L
 
         if (dayKey != lastDateHeaderKey || startsNewTimeGroup) {
             val dateHeader = TextView(this).apply {
@@ -2831,7 +3056,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         val closeToPrevious = previousDate != null &&
-            date - previousDate < 60_000L
+            kotlin.math.abs(date - previousDate) < 60_000L
 
 
         val bubble = LinearLayout(this).apply {
@@ -3081,6 +3306,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
             if (messageId != null) {
                 tag = messageId
+            } else if (smsRowId != null) {
+                tag = "sms_row:$smsRowId"
             }
         }
 
