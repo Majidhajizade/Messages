@@ -1051,7 +1051,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     setColor(
                         if (isDarkThemeEnabled())
                             Color.rgb(38, 38, 42)
-                        else Color.argb(232, 255, 255, 255)
+                        else Color.argb(105, 255, 255, 255)
                     )
                     cornerRadius = dp(24).toFloat()
                 }
@@ -1062,7 +1062,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         if (!darkTheme) {
             backCapsule.background =
                 android.graphics.drawable.GradientDrawable().apply {
-                    setColor(Color.argb(232, 255, 255, 255))
+                    setColor(Color.argb(105, 255, 255, 255))
                     cornerRadius = dp(24).toFloat()
                 }
             backCapsule.elevation = dp(3).toFloat()
@@ -1207,7 +1207,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     setColor(
                         if (isDarkThemeEnabled())
                             Color.rgb(38, 38, 42)
-                        else Color.argb(232, 255, 255, 255)
+                        else Color.argb(105, 255, 255, 255)
                     )
                     cornerRadius = dp(17).toFloat()
                 }
@@ -1218,7 +1218,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         if (!darkTheme) {
             contactNameGlass.background =
                 android.graphics.drawable.GradientDrawable().apply {
-                    setColor(Color.argb(232, 255, 255, 255))
+                    setColor(Color.argb(105, 255, 255, 255))
                     cornerRadius = dp(17).toFloat()
                 }
             contactNameGlass.elevation = dp(3).toFloat()
@@ -1269,7 +1269,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     setColor(
                         if (isDarkThemeEnabled())
                             Color.rgb(38, 38, 42)
-                        else Color.argb(232, 255, 255, 255)
+                        else Color.argb(105, 255, 255, 255)
                     )
                     cornerRadius = dp(24).toFloat()
                 }
@@ -1280,7 +1280,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         if (!darkTheme) {
             moreCapsule.background =
                 android.graphics.drawable.GradientDrawable().apply {
-                    setColor(Color.argb(232, 255, 255, 255))
+                    setColor(Color.argb(105, 255, 255, 255))
                     cornerRadius = dp(24).toFloat()
                 }
             moreCapsule.elevation = dp(3).toFloat()
@@ -1369,12 +1369,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             background = android.graphics.drawable.GradientDrawable(
                 android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(
-                    Color.argb(190, 255, 255, 255),
-                    Color.argb(175, 255, 255, 255),
-                    Color.argb(145, 255, 255, 255),
+                    Color.argb(85, 255, 255, 255),
+                    Color.argb(72, 255, 255, 255),
+                    Color.argb(55, 255, 255, 255),
                     Color.argb(105, 255, 255, 255),
-                    Color.argb(65, 255, 255, 255),
-                    Color.argb(30, 255, 255, 255),
+                    Color.argb(18, 255, 255, 255),
+                    Color.argb(7, 255, 255, 255),
                     Color.TRANSPARENT
                 )
             )
@@ -1617,7 +1617,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     setColor(
                         if (isDarkThemeEnabled())
                             Color.rgb(38, 38, 42)
-                        else Color.argb(232, 255, 255, 255)
+                        else Color.argb(105, 255, 255, 255)
                     )
                     cornerRadius = dp(28).toFloat()
                 }
