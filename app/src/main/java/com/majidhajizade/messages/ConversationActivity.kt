@@ -267,6 +267,19 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         loadConversation()
+
+        // Send the draft supplied by the New Message sheet once the chat UI is ready.
+        val initialMessage = intent.getStringExtra("initial_message")?.trim()
+        if (!initialMessage.isNullOrEmpty()) {
+            intent.removeExtra("initial_message")
+            messageInput.setText(initialMessage)
+            messageInput.post {
+                if (!isFinishing && ::messageInput.isInitialized) {
+                    sendMessage()
+                }
+            }
+        }
+
         skipNextResumeReload = !hasActivityResumed &&
             checkSelfPermission(Manifest.permission.READ_SMS) ==
                 PackageManager.PERMISSION_GRANTED
