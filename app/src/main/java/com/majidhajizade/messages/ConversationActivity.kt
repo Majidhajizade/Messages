@@ -2495,7 +2495,10 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     }
 
                     val startIndex = (endExclusive - 128).coerceAtLeast(0)
-                    val oldHeight = messagesContainer.height
+
+                    // موقعیت پیام قابل مشاهده را قبل از افزودن تاریخچه ثبت کن.
+                    captureConversationScrollAnchor()
+
                     val firstChildIndex = messagesContainer.childCount
 
                     // وضعیت انتهای فعلی گفتگو را موقتاً نگه می‌داریم.
@@ -2564,22 +2567,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                                 return@post
                             }
 
-                            val addedHeight = (
-                                messagesContainer.height - oldHeight
-                            ).coerceAtLeast(0)
-
-                            // فقط ارتفاع اضافه‌شده را جبران کن تا پیام‌های قابل مشاهده
-                            // هنگام آماده‌سازی تاریخچه در جای خود باقی بمانند.
-                            scrollView.scrollTo(
-                                0,
-                                scrollView.scrollY + addedHeight
-                            )
-
-                            // وقتی گفتگو در انتها بوده، Anchor نباید دوباره
-                            // موقعیت اسکرول را تغییر دهد.
-                            if (!conversationWasAtBottom) {
-                                restoreConversationScrollAnchor()
-                            }
+                            // موقعیت پیام قبلی را بدون پرش و بدون اسکرول اضافی
+                            // پس از آماده‌شدن این دسته بازیابی کن.
+                            restoreConversationScrollAnchor()
 
                             if (startIndex > 0) {
                                 scrollView.postOnAnimation {
