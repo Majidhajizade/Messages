@@ -1357,6 +1357,103 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             )
         )
 
+        // Live backdrop blur for the light-mode chat header.
+        // The message list is sampled behind the header and blurred on API 31+.
+        val backdropBlur = object : View(this) {
+            private var snapshot: android.graphics.Bitmap? = null
+            private var snapshotCanvas: android.graphics.Canvas? = null
+            private val blurRadius = dp(18).toFloat()
+            private val blurPaint = android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG or
+                    android.graphics.Paint.FILTER_BITMAP_FLAG
+            ).apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setRenderEffect(
+                        android.graphics.RenderEffect.createBlurEffect(
+                            blurRadius,
+                            blurRadius,
+                            android.graphics.Shader.TileMode.CLAMP
+                        )
+                    )
+                }
+            }
+
+            override fun onDraw(canvas: android.graphics.Canvas) {
+                super.onDraw(canvas)
+
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+                    width <= 0 || height <= 0 ||
+                    !scrollView.isLaidOut
+                ) return
+
+                val padding = blurRadius.toInt().coerceAtLeast(1)
+                val bitmapWidth = width + padding * 2
+                val bitmapHeight = height + padding * 2
+
+                if (snapshot == null ||
+                    snapshot!!.width != bitmapWidth ||
+                    snapshot!!.height != bitmapHeight
+                ) {
+                    snapshot?.recycle()
+                    snapshot = android.graphics.Bitmap.createBitmap(
+                        bitmapWidth,
+                        bitmapHeight,
+                        android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    snapshotCanvas = android.graphics.Canvas(snapshot!!)
+                }
+
+                val bitmap = snapshot ?: return
+                val captureCanvas = snapshotCanvas ?: return
+
+                bitmap.eraseColor(Color.TRANSPARENT)
+                captureCanvas.save()
+                captureCanvas.translate(
+                    padding.toFloat() - scrollView.left,
+                    padding.toFloat() - scrollView.top
+                )
+                scrollView.draw(captureCanvas)
+                captureCanvas.restore()
+
+                canvas.drawBitmap(
+                    bitmap,
+                    -padding.toFloat(),
+                    -padding.toFloat(),
+                    blurPaint
+                )
+            }
+
+            override fun onDetachedFromWindow() {
+                snapshot?.recycle()
+                snapshot = null
+                snapshotCanvas = null
+                super.onDetachedFromWindow()
+            }
+        }.apply {
+            isClickable = false
+            isFocusable = false
+            visibility = if (
+                !darkTheme && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            ) View.VISIBLE else View.GONE
+        }
+
+        root.addView(
+            backdropBlur,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                dp(150)
+            ).apply {
+                gravity = Gravity.TOP
+            }
+        )
+
+        scrollView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            backdropBlur.invalidate()
+        }
+        messagesContainer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            backdropBlur.invalidate()
+        }
+
         root.addView(
             topFade,
             android.widget.FrameLayout.LayoutParams(
@@ -1439,6 +1536,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         scrollView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+            backdropBlur.invalidate()
             if (scrollY != oldScrollY) {
                 val maxY =
                     (messagesContainer.height - scrollView.height).coerceAtLeast(0)
