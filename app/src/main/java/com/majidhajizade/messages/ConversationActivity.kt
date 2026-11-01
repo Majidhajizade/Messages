@@ -2194,8 +2194,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     private fun loadConversation(appendOnly: Boolean = false) {
         val generation = ++conversationLoadGeneration
-        val hideUntilInitialPosition = !appendOnly &&
-            messagesContainer.childCount == 0
+        val hideUntilInitialPosition = !appendOnly
 
         if (hideUntilInitialPosition) {
             scrollView.visibility = View.INVISIBLE
@@ -2605,36 +2604,57 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                         )
                     }
 
-                    scrollView.post {
-                        if (generation != conversationLoadGeneration ||
-                            isFinishing || isDestroyed
-                        ) {
-                            return@post
-                        }
+                    val initialPositionObserver =
+                        object : android.view.ViewTreeObserver.OnPreDrawListener {
+                            override fun onPreDraw(): Boolean {
+                                if (generation != conversationLoadGeneration ||
+                                    isFinishing || isDestroyed
+                                ) {
+                                    scrollView.viewTreeObserver
+                                        .takeIf { it.isAlive }
+                                        ?.removeOnPreDrawListener(this)
+                                    return true
+                                }
 
-                        val maxY = (
-                            messagesContainer.height - scrollView.height
-                        ).coerceAtLeast(0)
+                                if (scrollView.height <= 0) {
+                                    return true
+                                }
 
-                        if (conversationWasAtBottom) {
-                            scrollView.scrollTo(0, maxY)
-                        } else if (!restoreConversationScrollAnchor()) {
-                            scrollView.scrollTo(
-                                0,
-                                conversationScrollRestoreY.coerceAtMost(maxY)
-                            )
-                        }
+                                scrollView.viewTreeObserver
+                                    .takeIf { it.isAlive }
+                                    ?.removeOnPreDrawListener(this)
 
-                        scrollView.visibility = View.VISIBLE
+                                val maxY = (
+                                    messagesContainer.height - scrollView.height
+                                ).coerceAtLeast(0)
 
-                        if (firstIndex > 0) {
-                            scrollView.postOnAnimation {
-                                prependOlder(firstIndex)
+                                if (conversationWasAtBottom) {
+                                    scrollView.scrollTo(0, maxY)
+                                } else if (!restoreConversationScrollAnchor()) {
+                                    scrollView.scrollTo(
+                                        0,
+                                        conversationScrollRestoreY.coerceAtMost(maxY)
+                                    )
+                                }
+
+                                scrollView.visibility = View.VISIBLE
+
+                                if (firstIndex > 0) {
+                                    scrollView.postOnAnimation {
+                                        prependOlder(firstIndex)
+                                    }
+                                } else {
+                                    finishStageLoading()
+                                }
+
+                                return true
                             }
-                        } else {
-                            finishStageLoading()
                         }
-                    }
+
+                    scrollView.viewTreeObserver.addOnPreDrawListener(
+                        initialPositionObserver
+                    )
+                    scrollView.requestLayout()
                 }
 
                 if (appendOnly) {
