@@ -1317,207 +1317,290 @@ companion object {
         return rootFrame
     }
 
-    private fun loadMessages() {
-        messagesContainer.removeAllViews()
-        archivedAvatarView = null
-        archivedChatsRowView = null
-        rowViews.clear()
-        selectionOverlays.clear()
-        selectionDragHandles.clear()
+    private var messagesLoadGeneration = 0
 
-        val projection = arrayOf(
-            Telephony.Sms._ID,
-            Telephony.Sms.ADDRESS,
-            Telephony.Sms.BODY,
-            Telephony.Sms.DATE,
-            Telephony.Sms.TYPE,
-            Telephony.Sms.READ
-        )
+    fun loadMessages() {
+        // هر بارگذاری جدید، نتیجه بارگذاری قبلی را بی‌اعتبار می‌کند.
+        val generation = ++messagesLoadGeneration
+        val queryText = smsSearchQuery.trim()
+        val showingArchivedSnapshot = showingArchivedChats
 
-        val cursor: Cursor? = contentResolver.query(
-            Telephony.Sms.CONTENT_URI,
-            projection,
-            null,
-            null,
-            "${Telephony.Sms.DATE} DESC"
-        )
+        Thread({
+            try {
+                val projection = arrayOf(
+                    Telephony.Sms._ID,
+                    Telephony.Sms.ADDRESS,
+                    Telephony.Sms.BODY,
+                    Telephony.Sms.DATE,
+                    Telephony.Sms.TYPE,
+                    Telephony.Sms.READ
+                )
 
-        val conversations = mutableMapOf<String, ConversationData>()
-        val unreadAddresses = mutableSetOf<String>()
-        val readAtCache = mutableMapOf<String, Long>()
-        val archivedAddresses = getSharedPreferences(PREFS, MODE_PRIVATE)
-            .getStringSet("archived_conversations", emptySet())
-            .orEmpty()
-        val hiddenAddresses = getSharedPreferences(PREFS, MODE_PRIVATE)
-            .getStringSet("hidden_conversations", emptySet())
-            .orEmpty()
+                val conversations =
+                    mutableMapOf<String, ConversationData>()
+                val unreadAddresses = mutableSetOf<String>()
 
-        val hideChatsEnabled = AppSecurity.isHiddenChatsEnabled(this)
-        val hiddenWordSearch = hideChatsEnabled &&
-            AppSecurity.isHiddenChatsWord(this, smsSearchQuery.trim())
+                val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
 
-        cursor?.use {
-            while (it.moveToNext()) {
-                val address = it.getString(
-                    it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
-                ) ?: "Unknown"
-
-                if (hideChatsEnabled) {
-                    if (hiddenWordSearch && address !in hiddenAddresses) continue
-                    if (!hiddenWordSearch && address in hiddenAddresses) continue
+                // زمان‌های خوانده‌شدن فقط یک‌بار از تنظیمات استخراج می‌شوند.
+                val readAtEntries = prefs.all.entries.mapNotNull { entry ->
+                    val prefix = "conversation_read_at:"
+                    if (!entry.key.startsWith(prefix)) {
+                        null
+                    } else {
+                        val storedAddress = entry.key.removePrefix(prefix)
+                        val timestamp = entry.value as? Long
+                        if (timestamp != null) {
+                            storedAddress to timestamp
+                        } else {
+                            null
+                        }
+                    }
                 }
 
-                val date = it.getLong(
-                    it.getColumnIndexOrThrow(Telephony.Sms.DATE)
-                )
+                val readAtCache = mutableMapOf<String, Long>()
+                val matchingAddresses = mutableSetOf<String>()
+                val archivedAddresses =
+                    prefs.getStringSet(
+                        "archived_conversations",
+                        emptySet()
+                    ).orEmpty().toSet()
 
-                val type = it.getInt(
-                    it.getColumnIndexOrThrow(Telephony.Sms.TYPE)
-                )
+                val hiddenAddresses =
+                    prefs.getStringSet(
+                        "hidden_conversations",
+                        emptySet()
+                    ).orEmpty().toSet()
 
-                val isRead = it.getInt(
-                    it.getColumnIndexOrThrow(Telephony.Sms.READ)
-                ) != 0
+                val hideChatsEnabled =
+                    AppSecurity.isHiddenChatsEnabled(this)
 
-                val readAt = readAtCache.getOrPut(address) {
-                    getConversationReadAt(address)
+                val hiddenWordSearch = hideChatsEnabled &&
+                    AppSecurity.isHiddenChatsWord(this, queryText)
+
+                contentResolver.query(
+                    Telephony.Sms.CONTENT_URI,
+                    projection,
+                    null,
+                    null,
+                    "${Telephony.Sms.DATE} DESC"
+                )?.use { cursor ->
+                    val addressIndex =
+                        cursor.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
+                    val bodyIndex =
+                        cursor.getColumnIndexOrThrow(Telephony.Sms.BODY)
+                    val dateIndex =
+                        cursor.getColumnIndexOrThrow(Telephony.Sms.DATE)
+                    val typeIndex =
+                        cursor.getColumnIndexOrThrow(Telephony.Sms.TYPE)
+                    val readIndex =
+                        cursor.getColumnIndexOrThrow(Telephony.Sms.READ)
+
+                    while (cursor.moveToNext()) {
+                        val address =
+                            cursor.getString(addressIndex) ?: "Unknown"
+
+                        if (hideChatsEnabled) {
+                            if (
+                                hiddenWordSearch &&
+                                address !in hiddenAddresses
+                            ) continue
+
+                            if (
+                                !hiddenWordSearch &&
+                                address in hiddenAddresses
+                            ) continue
+                        }
+
+                        // جست‌وجوی شماره و متن هم‌زمان با خواندن پیامک‌ها.
+                        if (queryText.isNotEmpty() && !hiddenWordSearch) {
+                            val searchBody =
+                                cursor.getString(bodyIndex) ?: ""
+
+                            if (
+                                address.contains(queryText, ignoreCase = true) ||
+                                searchBody.contains(queryText, ignoreCase = true)
+                            ) {
+                                matchingAddresses.add(address)
+                            }
+                        }
+
+                        val date = cursor.getLong(dateIndex)
+                        val type = cursor.getInt(typeIndex)
+                        val isRead = cursor.getInt(readIndex) != 0
+
+                        val readAt = readAtCache.getOrPut(address) {
+                            readAtEntries.asSequence()
+                                .filter {
+                                    android.telephony.PhoneNumberUtils.compare(
+                                        it.first,
+                                        address
+                                    )
+                                }
+                                .maxOfOrNull { it.second } ?: 0L
+                        }
+
+                        if (
+                            type == Telephony.Sms.MESSAGE_TYPE_INBOX &&
+                            !isRead &&
+                            date > readAt
+                        ) {
+                            unreadAddresses.add(address)
+                        }
+
+                        // کوئری بر اساس تاریخ نزولی است؛ اولین پیام هر
+                        // شماره، آخرین پیام آن گفتگو خواهد بود.
+                        if (!conversations.containsKey(address)) {
+                            val body =
+                                cursor.getString(bodyIndex) ?: ""
+
+                            conversations[address] = ConversationData(
+                                address,
+                                body,
+                                date,
+                                type,
+                                isRead
+                            )
+                        }
+                    }
                 }
 
                 if (
-                    type == Telephony.Sms.MESSAGE_TYPE_INBOX &&
-                    !isRead &&
-                    date > readAt
+                    queryText.isNotEmpty() &&
+                    !hiddenWordSearch
                 ) {
-                    unreadAddresses.add(address)
-                }
+                    // جست‌وجوی نام مخاطب حفظ می‌شود.
+                    val contactNameCache = mutableMapOf<String, String>()
 
-                if (conversations.containsKey(address)) continue
+                    conversations.keys.forEach { address ->
+                        val name = contactNameCache.getOrPut(address) {
+                            getContactName(address).orEmpty()
+                        }
 
-                val body = it.getString(
-                    it.getColumnIndexOrThrow(Telephony.Sms.BODY)
-                ) ?: ""
-
-                conversations[address] = ConversationData(
-                    address,
-                    body,
-                    date,
-                    type,
-                    isRead
-                )
-            }
-        }
-
-        // گفتگوهای Mesh تا زمان فعال‌سازی مجدد نمایش داده نمی‌شوند.
-
-        val searchQuery = smsSearchQuery.trim()
-        if (searchQuery.isNotEmpty() && !hiddenWordSearch) {
-            val matchingAddresses = mutableSetOf<String>()
-            val searchProjection = arrayOf(
-                Telephony.Sms.ADDRESS,
-                Telephony.Sms.BODY
-            )
-            val searchCursor = contentResolver.query(
-                Telephony.Sms.CONTENT_URI,
-                searchProjection,
-                null,
-                null,
-                "${Telephony.Sms.DATE} DESC"
-            )
-
-            searchCursor?.use { rows ->
-                while (rows.moveToNext()) {
-                    val address = rows.getString(
-                        rows.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)
-                    ) ?: "Unknown"
-                    val body = rows.getString(
-                        rows.getColumnIndexOrThrow(Telephony.Sms.BODY)
-                    ) ?: ""
-                    if (
-                        address.contains(searchQuery, ignoreCase = true) ||
-                        body.contains(searchQuery, ignoreCase = true)
-                    ) {
-                        matchingAddresses.add(address)
+                        if (name.contains(queryText, ignoreCase = true)) {
+                            matchingAddresses.add(address)
+                        }
                     }
+
+                    conversations.keys.retainAll(matchingAddresses)
                 }
-            }
 
-            matchingAddresses.addAll(
-                conversations.keys.filter { address ->
-                    getContactName(address).orEmpty()
-                        .contains(searchQuery, ignoreCase = true)
-                }
-            )
+                val hasArchivedConversations =
+                    conversations.keys.any {
+                        it in archivedAddresses
+                    }
 
-            conversations.keys.retainAll(matchingAddresses)
-        }
+                val archiveRowEnabled = prefs.getBoolean(
+                    "archived_chats_row_enabled",
+                    false
+                )
 
-        val hasArchivedConversations =
-            conversations.keys.any { it in archivedAddresses }
-
-        if (!hiddenWordSearch) {
-            if (showingArchivedChats) {
-                conversations.keys.retainAll(archivedAddresses)
-            } else {
-                archivedAddresses.forEach { conversations.remove(it) }
-
-                val archiveRowEnabled = getSharedPreferences(PREFS, MODE_PRIVATE)
-                    .getBoolean("archived_chats_row_enabled", false)
-
-                if (archiveRowEnabled && hasArchivedConversations) {
-                    addArchivedChatsRow()
-                }
-            }
-        }
-
-        if (conversations.isEmpty()) {
-            showEmptyState()
-            return
-        }
-
-        val pinned = getPinnedNumbers()
-        val pinnedOrder = getPinnedOrder()
-        pinned.forEach { address ->
-            if (!pinnedOrder.contains(address)) pinnedOrder.add(address)
-        }
-        if (pinnedOrder != getPinnedOrder()) savePinnedOrder(pinnedOrder)
-
-        val pinnedRank = pinnedOrder.withIndex().associate {
-            it.value to it.index
-        }
-
-        conversations.values
-            .sortedWith(
-                compareByDescending<ConversationData> {
-                    pinned.contains(it.address)
-                }.thenBy {
-                    if (pinned.contains(it.address)) {
-                        pinnedRank[it.address] ?: Int.MAX_VALUE
+                if (!hiddenWordSearch) {
+                    if (showingArchivedSnapshot) {
+                        conversations.keys.retainAll(archivedAddresses)
                     } else {
-                        Int.MAX_VALUE
+                        archivedAddresses.forEach {
+                            conversations.remove(it)
+                        }
                     }
-                }.thenByDescending {
-                    it.date
                 }
-            )
-            .forEach {
-                addConversation(
-                    it.address,
-                    it.body,
-                    it.date,
-                    unreadAddresses.contains(it.address)
+
+                val orderedConversations =
+                    if (conversations.isEmpty()) {
+                        emptyList()
+                    } else {
+                        val pinned = getPinnedNumbers()
+                        val pinnedOrder = getPinnedOrder()
+
+                        pinned.forEach {
+                            if (!pinnedOrder.contains(it)) {
+                                pinnedOrder.add(it)
+                            }
+                        }
+
+                        if (pinnedOrder != getPinnedOrder()) {
+                            savePinnedOrder(pinnedOrder)
+                        }
+
+                        val pinnedRank = pinnedOrder
+                            .withIndex()
+                            .associate { it.value to it.index }
+
+                        conversations.values.sortedWith(
+                            compareByDescending<ConversationData> {
+                                pinned.contains(it.address)
+                            }.thenBy {
+                                if (pinned.contains(it.address)) {
+                                    pinnedRank[it.address] ?: Int.MAX_VALUE
+                                } else {
+                                    Int.MAX_VALUE
+                                }
+                            }.thenByDescending {
+                                it.date
+                            }
+                        )
+                    }
+
+                runOnUiThread {
+                    if (
+                        generation != messagesLoadGeneration ||
+                        isFinishing ||
+                        isDestroyed
+                    ) {
+                        return@runOnUiThread
+                    }
+
+                    // تغییر ویوها فقط روی ترد اصلی انجام می‌شود.
+                    messagesContainer.removeAllViews()
+                    archivedAvatarView = null
+                    archivedChatsRowView = null
+                    rowViews.clear()
+                    selectionOverlays.clear()
+                    selectionDragHandles.clear()
+
+                    if (
+                        !hiddenWordSearch &&
+                        !showingArchivedSnapshot &&
+                        archiveRowEnabled &&
+                        hasArchivedConversations
+                    ) {
+                        addArchivedChatsRow()
+                    }
+
+                    if (orderedConversations.isEmpty()) {
+                        showEmptyState()
+                        return@runOnUiThread
+                    }
+
+                    orderedConversations.forEach { conversation ->
+                        addConversation(
+                            conversation.address,
+                            conversation.body,
+                            conversation.date,
+                            unreadAddresses.contains(conversation.address)
+                        )
+                    }
+
+                    if (selectionMode) {
+                        selectedAddresses.retainAll(rowViews.keys)
+
+                        if (selectedAddresses.isNotEmpty()) {
+                            updateSelectionUI()
+                        } else {
+                            exitSelectionMode()
+                        }
+                    }
+                }
+            } catch (error: Exception) {
+                android.util.Log.e(
+                    "MessagesPerformance",
+                    "Loading conversations failed",
+                    error
                 )
+                // در صورت خطا، فهرست قبلی پاک نمی‌شود.
             }
-
-        if (selectionMode) {
-            selectedAddresses.retainAll(rowViews.keys)
-            if (selectedAddresses.isNotEmpty()) {
-                updateSelectionUI()
-            } else {
-                exitSelectionMode()
-            }
-        }
+        }, "messages-list-loader").start()
     }
-
 
     private fun setupMeshNotificationChannel() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {

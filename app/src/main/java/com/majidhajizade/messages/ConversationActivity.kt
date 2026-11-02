@@ -2709,7 +2709,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                     scrollView.requestLayout()
                 }
 
-                renderBatch(0)
+                if (appendOnly) {
+                    renderBatch(0)
+                } else {
+                    renderInitialLatestBatch()
+                }
             }
         }, "conversation-sms-loader").start()
     }
