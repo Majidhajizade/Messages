@@ -68,6 +68,22 @@ class NotificationReplyReceiver : BroadcastReceiver() {
             return
         }
 
+        // Prevent notification quick-reply from bypassing blocked contacts.
+        val blockedNumbers = context.getSharedPreferences(
+            "messages_settings",
+            Context.MODE_PRIVATE
+        ).getStringSet("blocked_numbers", emptySet()) ?: emptySet()
+
+        val isBlocked = blockedNumbers.any { blockedNumber ->
+            normalizePhoneNumber(blockedNumber) == normalizedPhone
+        }
+
+        if (isBlocked) {
+            Log.w(TAG, "Reply blocked: destination is in blocked_numbers")
+            showToast(context, "این مخاطب مسدود شده است؛ ابتدا او را از مسدودی خارج کنید")
+            return
+        }
+
         try {
             val smsManager = SmsManager.getDefault()
             val parts = smsManager.divideMessage(reply)
@@ -121,18 +137,42 @@ class NotificationReplyReceiver : BroadcastReceiver() {
     }
 
     private fun normalizePhoneNumber(value: String): String {
-        val number = value.trim()
-            .replace(" ", "")
-            .replace("-", "")
-            .replace("(", "")
-            .replace(")", "")
+        val digits = StringBuilder()
+        var invalid = false
 
-        return when {
-            number.startsWith("+") -> number
+        for (char in value.trim()) {
+            when {
+                char in '۰'..'۹' ->
+                    digits.append(('0'.code + char.code - '۰'.code).toChar())
+
+                char in '٠'..'٩' ->
+                    digits.append(('0'.code + char.code - '٠'.code).toChar())
+
+                char in '0'..'9' || char == '+' ->
+                    digits.append(char)
+
+                char.isWhitespace() || char in "-()." ->
+                    Unit
+
+                else -> invalid = true
+            }
+        }
+
+        if (invalid) return ""
+
+        val number = digits.toString()
+
+        val canonical = when {
             number.startsWith("0098") -> "+" + number.substring(2)
             number.startsWith("98") -> "+" + number
             number.startsWith("09") -> "+98" + number.substring(1)
             else -> number
+        }
+
+        return if (Regex("""\+?[0-9]{3,20}""").matches(canonical)) {
+            canonical
+        } else {
+            ""
         }
     }
 }

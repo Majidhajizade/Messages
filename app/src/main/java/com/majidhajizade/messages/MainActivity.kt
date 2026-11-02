@@ -240,6 +240,9 @@ companion object {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Prevent screenshots and screen recording of message content.
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         val themePrefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         val themeMode = themePrefs.getString("theme_mode", null)
             ?: if (themePrefs.contains("dark_mode")) {

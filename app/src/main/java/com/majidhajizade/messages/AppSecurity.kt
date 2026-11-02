@@ -275,6 +275,8 @@ object AppSecurity {
             activity,
             android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen
         )
+        dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+
         val density = activity.resources.displayMetrics.density
         fun dp(value: Int): Int = (value * density + 0.5f).toInt()
 

@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <permission
+        android:name="com.majidhajizade.messages.permission.INTERNAL_BROADCAST"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.majidhajizade.messages.permission.INTERNAL_BROADCAST" />
+
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.WRITE_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_MMS" />

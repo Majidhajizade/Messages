@@ -91,6 +91,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         private const val PICK_CONTACT = 3002
         private const val NEARBY_PERMISSION = 3003
         private const val ACTION_DELIVERED = "com.majidhajizade.messages.SMS_DELIVERED"
+        private const val INTERNAL_BROADCAST_PERMISSION = "com.majidhajizade.messages.permission.INTERNAL_BROADCAST"
 
         @Volatile
         var activeMeshId: String? = null
@@ -173,6 +174,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Protect private conversation content from screenshots and recording.
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+
         getSharedPreferences("messages_settings", MODE_PRIVATE).apply {
             selectedSmsSlot = getInt("selected_sms_slot", 0).coerceIn(0, 1)
             hasExplicitSmsSlot = getBoolean("selected_sms_slot_explicit", false)
@@ -253,19 +257,33 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             registerReceiver(
                 smsSentReceiver,
                 filter,
+                INTERNAL_BROADCAST_PERMISSION,
+                null,
                 Context.RECEIVER_NOT_EXPORTED
             )
             registerReceiver(
                 smsDeliveredReceiver,
                 deliveredFilter,
+                INTERNAL_BROADCAST_PERMISSION,
+                null,
                 Context.RECEIVER_NOT_EXPORTED
             )
         } else {
             @Suppress("DEPRECATION")
-            registerReceiver(smsSentReceiver, filter)
+            registerReceiver(
+                smsSentReceiver,
+                filter,
+                INTERNAL_BROADCAST_PERMISSION,
+                null
+            )
 
             @Suppress("DEPRECATION")
-            registerReceiver(smsDeliveredReceiver, deliveredFilter)
+            registerReceiver(
+                smsDeliveredReceiver,
+                deliveredFilter,
+                INTERNAL_BROADCAST_PERMISSION,
+                null
+            )
         }
 
         loadConversation()
@@ -1932,10 +1950,23 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                             emptySet()
                         )?.toMutableSet() ?: mutableSetOf()
 
+                        val normalizedPhone = normalizePhoneNumber(phone)
+
+                        if (normalizedPhone.isBlank()) {
+                            Toast.makeText(
+                                this,
+                                "Invalid contact number",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@setPositiveButton
+                        }
+
                         if (wasBlocked) {
-                            blocked.remove(phone.trim())
+                            blocked.removeAll { blockedNumber ->
+                                normalizePhoneNumber(blockedNumber) == normalizedPhone
+                            }
                         } else {
-                            blocked.add(phone.trim())
+                            blocked.add(normalizedPhone)
                         }
 
                         prefs.edit()
@@ -3900,11 +3931,17 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     }
 
     private fun isContactBlocked(): Boolean {
+        val normalizedPhone = normalizePhoneNumber(phone)
+        if (normalizedPhone.isBlank()) return false
+
         val blocked = getSharedPreferences(
             "messages_settings",
             MODE_PRIVATE
         ).getStringSet("blocked_numbers", emptySet()) ?: emptySet()
-        return blocked.contains(phone.trim())
+
+        return blocked.any { blockedNumber ->
+            normalizePhoneNumber(blockedNumber) == normalizedPhone
+        }
     }
 
     private fun sendButtonColor(): Int =
@@ -4056,6 +4093,15 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             return
         }
 
+        if (normalizePhoneNumber(phone).isBlank()) {
+            Toast.makeText(
+                this,
+                "Invalid destination number",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         if (isContactBlocked()) {
             Toast.makeText(
                 this,
@@ -4150,6 +4196,10 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         isRetry: Boolean
     ) {
         val normalizedPhone = normalizePhoneNumber(phone)
+        require(normalizedPhone.isNotBlank()) {
+            "Invalid destination phone number"
+        }
+
         val smsManager = resolveSmsManager()
         val parts = smsManager.divideMessage(message)
         val attemptCode = (System.nanoTime() and 0x3fffffffL).toInt()
@@ -4220,18 +4270,42 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     }
 
     private fun normalizePhoneNumber(value: String): String {
-        val number = value.trim()
-            .replace(" ", "")
-            .replace("-", "")
-            .replace("(", "")
-            .replace(")", "")
+        val digits = StringBuilder()
+        var invalid = false
 
-        return when {
-            number.startsWith("+98") -> number
+        for (char in value.trim()) {
+            when {
+                char in '۰'..'۹' ->
+                    digits.append(('0'.code + char.code - '۰'.code).toChar())
+
+                char in '٠'..'٩' ->
+                    digits.append(('0'.code + char.code - '٠'.code).toChar())
+
+                char in '0'..'9' || char == '+' ->
+                    digits.append(char)
+
+                char.isWhitespace() || char in "-()." ->
+                    Unit
+
+                else -> invalid = true
+            }
+        }
+
+        if (invalid) return ""
+
+        val number = digits.toString()
+
+        val canonical = when {
             number.startsWith("0098") -> "+" + number.substring(2)
             number.startsWith("98") -> "+" + number
             number.startsWith("09") -> "+98" + number.substring(1)
             else -> number
+        }
+
+        return if (Regex("""\+?[0-9]{3,20}""").matches(canonical)) {
+            canonical
+        } else {
+            ""
         }
     }
 
