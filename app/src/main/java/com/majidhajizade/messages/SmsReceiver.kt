@@ -32,12 +32,6 @@ class SmsReceiver : BroadcastReceiver() {
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
         if (messages.isEmpty()) return
 
-        val prefs = context.getSharedPreferences("messages", Context.MODE_PRIVATE)
-        val oldMessages = prefs.getStringSet(
-            "received_messages",
-            emptySet()
-        )?.toMutableSet() ?: mutableSetOf()
-
         var sender = ""
         var body = ""
         var timestamp = System.currentTimeMillis()
@@ -47,9 +41,6 @@ class SmsReceiver : BroadcastReceiver() {
             body += sms.messageBody ?: ""
             timestamp = sms.timestampMillis
 
-            if (sender.isNotBlank()) {
-                oldMessages.add("$timestamp|$sender|${sms.messageBody ?: ""}")
-            }
         }
 
         // Optional promotional SMS filtering must happen before either
@@ -138,10 +129,6 @@ class SmsReceiver : BroadcastReceiver() {
                 Log.e("MessagesSms", "Failed to save incoming SMS", e)
             }
         }
-
-        prefs.edit()
-            .putStringSet("received_messages", oldMessages)
-            .apply()
 
         if (sender.isNotBlank() && body.isNotBlank()) {
             val blocked = context.getSharedPreferences(
@@ -239,6 +226,15 @@ class SmsReceiver : BroadcastReceiver() {
             .setContentText(body)
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(body)
+            )
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(
+                NotificationCompat.Builder(context, CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.ic_dialog_email)
+                    .setContentTitle("Messages")
+                    .setContentText("New message")
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .build()
             )
             .setAutoCancel(true)
             .setContentIntent(openPendingIntent)

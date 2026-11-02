@@ -38,6 +38,19 @@ class NotificationReplyReceiver : BroadcastReceiver() {
             return
         }
 
+        // Prevent notification quick-reply from bypassing an active lock.
+        if (
+            AppSecurity.isEnabled(context) &&
+            (
+                AppSecurity.isAutoLockPending(context) ||
+                AppSecurity.isChatLocked(context, phone)
+            )
+        ) {
+            Log.w(TAG, "Reply blocked while app or conversation is locked")
+            showToast(context, "برای پاسخ‌دادن ابتدا قفل Messages را باز کنید")
+            return
+        }
+
         if (
             context.checkSelfPermission(Manifest.permission.SEND_SMS) !=
             PackageManager.PERMISSION_GRANTED

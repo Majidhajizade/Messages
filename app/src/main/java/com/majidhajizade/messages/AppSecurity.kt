@@ -125,7 +125,7 @@ object AppSecurity {
     }
 
     fun isAutoLockPending(context: Context) =
-        isEnabled(context) && isAutoLockEnabled(context) &&
+        isEnabled(context) &&
             prefs(context).getBoolean(AUTO_LOCK_PENDING, false)
 
     fun markAutoLockPending(context: Context) {
@@ -408,6 +408,32 @@ object AppSecurity {
         var unlockFinished = false
         var finishUnlock: () -> Unit = {}
 
+        val legacyPinMode = prefs(activity).getInt(PIN_LENGTH, 0) == 0
+        val legacyConfirmButton = TextView(activity).apply {
+            text = "Unlock"
+            textSize = 15f
+            setTextColor(primaryTextColor)
+            gravity = Gravity.CENTER
+            isClickable = true
+            isFocusable = true
+            visibility = if (legacyPinMode) View.VISIBLE else View.GONE
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dp(18).toFloat()
+                setColor(keyColor)
+                setStroke(dp(1), keyStrokeColor)
+            }
+        }
+        val legacyConfirmParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(42)
+        ).apply {
+            topMargin = dp(2)
+            bottomMargin = dp(6)
+            marginStart = dp(18)
+            marginEnd = dp(18)
+        }
+        root.addView(legacyConfirmButton, legacyConfirmParams)
+
         fun refreshPin() {
             while (pinDots.childCount > pin.length) {
                 pinDots.removeViewAt(pinDots.childCount - 1)
@@ -476,6 +502,47 @@ object AppSecurity {
 
             titleShakeAnimation = spring
             spring.start()
+        }
+
+        legacyConfirmButton.setOnClickListener {
+            if (!legacyPinMode || unlockInProgress || unlockFinished) {
+                return@setOnClickListener
+            }
+
+            val wait = remainingPinRetryMillis(activity)
+            if (wait > 0L) {
+                subtitle.text = "Too many attempts. Try again in " +
+                    "${(wait + 999L) / 1000L} seconds."
+                subtitle.setTextColor(Color.rgb(255, 117, 117))
+                return@setOnClickListener
+            }
+
+            if (pin.length !in 4..8) {
+                subtitle.text = "Enter a 4–8 digit passcode, then tap Unlock."
+                subtitle.setTextColor(Color.rgb(255, 117, 117))
+                return@setOnClickListener
+            }
+
+            val entered = pin.toString()
+            if (verifyPin(activity, entered)) {
+                prefs(activity).edit()
+                    .putInt(PIN_LENGTH, entered.length)
+                    .apply()
+                clearAutoLockPending(activity)
+                finishUnlock()
+            } else {
+                val retryWait = remainingPinRetryMillis(activity)
+                subtitle.text = if (retryWait > 0L) {
+                    "Too many attempts. Try again in " +
+                        "${(retryWait + 999L) / 1000L} seconds."
+                } else {
+                    "Incorrect passcode. Try again."
+                }
+                subtitle.setTextColor(Color.rgb(255, 117, 117))
+                pin.clear()
+                refreshPin()
+                shakePasscodeTitle()
+            }
         }
 
         fun makeKey(label: String, action: () -> Unit): TextView {
@@ -660,46 +727,6 @@ object AppSecurity {
                                                 refreshPin()
                                                 shakePasscodeTitle()
                                             }
-                                        } else if (savedLength == 0 &&
-                                            pin.length in 4..8
-                                        ) {
-                                            val legacyPin = pin.toString()
-
-                                            if (verifyPinWithoutRecording(
-                                                    activity, legacyPin
-                                                )
-                                            ) {
-                                                prefs(activity).edit()
-                                                    .putInt(PIN_LENGTH, pin.length)
-                                                    .apply()
-                                                resetPinFailures(activity)
-                                                clearAutoLockPending(activity)
-                                                finishUnlock()
-                                            } else if (pin.length == 8) {
-                                                val valid = verifyPin(activity, legacyPin)
-                                                if (valid) {
-                                                    prefs(activity).edit()
-                                                        .putInt(PIN_LENGTH, pin.length)
-                                                        .apply()
-                                                    clearAutoLockPending(activity)
-                                                    finishUnlock()
-                                                } else {
-                                                    val wait =
-                                                        remainingPinRetryMillis(activity)
-                                                    subtitle.text = if (wait > 0L) {
-                                                        "Too many attempts. Try again in " +
-                                                            "${(wait + 999L) / 1000L} seconds."
-                                                    } else {
-                                                        "Incorrect passcode. Try again."
-                                                    }
-                                                    subtitle.setTextColor(
-                                                        Color.rgb(255, 117, 117)
-                                                    )
-                                                    pin.clear()
-                                                    refreshPin()
-                                                    shakePasscodeTitle()
-                                                }
-                                            }
                                         }
                                     }
                                 }
@@ -789,6 +816,8 @@ object AppSecurity {
             subtitle.visibility = if (show) View.VISIBLE else View.GONE
             pinDots.visibility = if (show) View.VISIBLE else View.GONE
             keypad.visibility = if (show) View.VISIBLE else View.GONE
+            legacyConfirmButton.visibility =
+                if (show && legacyPinMode) View.VISIBLE else View.GONE
         }
 
         startBiometricAuth = {

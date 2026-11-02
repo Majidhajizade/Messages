@@ -270,16 +270,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         loadConversation()
 
-        // Send the draft supplied by the New Message sheet once the chat UI is ready.
+        // Populate the composer with the draft supplied by the New Message sheet.
+        // Sending always requires an explicit user action.
         val initialMessage = intent.getStringExtra("initial_message")?.trim()
         if (!initialMessage.isNullOrEmpty()) {
             intent.removeExtra("initial_message")
             messageInput.setText(initialMessage)
-            messageInput.post {
-                if (!isFinishing && ::messageInput.isInitialized) {
-                    sendMessage()
-                }
-            }
+            messageInput.setSelection(messageInput.text.length)
         }
 
         skipNextResumeReload = !hasActivityResumed &&
