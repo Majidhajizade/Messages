@@ -1605,50 +1605,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             contentDescription = "Send"
             scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
             setPadding(dp(9), dp(9), dp(9), dp(9))
-            background = GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(
-                    Color.rgb(250, 250, 252),
-                    Color.rgb(180, 182, 188),
-                    Color.rgb(255, 255, 255),
-                    Color.rgb(135, 138, 145),
-                    Color.rgb(225, 226, 230)
-                )
-            ).apply {
+            background = GradientDrawable().apply {
+                setColor(sendButtonColor())
                 shape = GradientDrawable.OVAL
-                gradientType = GradientDrawable.LINEAR_GRADIENT
-                setStroke(dp(1), Color.rgb(245, 245, 248))
+                setStroke(dp(2), sendButtonColor())
             }
 
-            imageTintList = android.content.res.ColorStateList.valueOf(
-                Color.rgb(48, 49, 53)
-            )
-
-            elevation = dp(3).toFloat()
-
-            setOnTouchListener { view, event ->
-                when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN -> {
-                        view.animate()
-                            .scaleX(0.92f)
-                            .scaleY(0.92f)
-                            .translationZ(dp(1).toFloat())
-                            .setDuration(100L)
-                            .start()
-                    }
-
-                    android.view.MotionEvent.ACTION_UP,
-                    android.view.MotionEvent.ACTION_CANCEL -> {
-                        view.animate()
-                            .scaleX(1f)
-                            .scaleY(1f)
-                            .translationZ(dp(3).toFloat())
-                            .setDuration(180L)
-                            .start()
-                    }
-                }
-                false
-            }
+            elevation = dp(1).toFloat()
 
             setOnClickListener {
                 sendMessage()
