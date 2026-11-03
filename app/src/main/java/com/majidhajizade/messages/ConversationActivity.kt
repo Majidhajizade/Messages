@@ -3201,7 +3201,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             )
         }
 
-        val emojiAssetPath = emojiAnimationAsset(body)
+        // Normalize emoji variation selectors for consistent rendering.
+        val normalizedEmojiBody = body.trim()
+            .replace('\uFE0F', '')
+            .replace('\uFE0E', '')
+        val emojiAssetPath = emojiAnimationAsset(normalizedEmojiBody)
         val compactSingleLine =
             emojiAssetPath == null &&
             !body.contains('\n') &&
@@ -3330,11 +3334,13 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 }
             }
 
+            val largeEmojiSize = dp(104)
+
             emojiContainer.addView(
                 animationView,
                 android.widget.FrameLayout.LayoutParams(
-                    dp(88),
-                    dp(88),
+                    largeEmojiSize,
+                    largeEmojiSize,
                     Gravity.CENTER
                 )
             )
@@ -3348,9 +3354,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 )
             )
 
+            bubble.background = null
+            bubble.setPadding(0, 0, 0, 0)
             bubble.addView(
                 emojiContainer,
-                LinearLayout.LayoutParams(dp(88), dp(88))
+                LinearLayout.LayoutParams(largeEmojiSize, largeEmojiSize)
             )
         } else {
             val messageText = TextView(this).apply {
@@ -3853,7 +3861,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     private fun emojiAnimationAsset(body: String): String? {
         return when (body) {
-            "❤️" -> "emoji/heart.json"
+            "❤️", "❤" -> "emoji/heart.json"
             "😂" -> "emoji/laugh.json"
             "🔥" -> "emoji/fire.json"
             "🎉" -> "emoji/party.json"
