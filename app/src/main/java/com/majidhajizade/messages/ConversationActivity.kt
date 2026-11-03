@@ -638,7 +638,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
     private inner class MessageBubbleDrawable(
         private val bubbleColor: Int,
-        private val incomingMessage: Boolean
+        private val incomingMessage: Boolean,
+        private val messageSmsSlot: Int
     ) : android.graphics.drawable.Drawable() {
 
         private val paint = android.graphics.Paint(
@@ -687,7 +688,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             } else {
                 android.graphics.LinearGradient(
                     left, top, right, bottom,
-                    if (selectedSmsSlot == 1) {
+                    if (messageSmsSlot == 1) {
                         intArrayOf(
                             Color.rgb(0, 122, 255),
                             Color.rgb(0, 95, 220)
@@ -1611,7 +1612,11 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 setStroke(dp(2), sendButtonColor())
             }
 
-            elevation = dp(1).toFloat()
+            // Prevent the unwanted elevation shadow and pressed-state overlay.
+            elevation = 0f
+            translationZ = 0f
+            stateListAnimator = null
+            foreground = null
 
             setOnClickListener {
                 sendMessage()
@@ -3090,6 +3095,29 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         failed: Boolean = false,
         smsRowId: String? = null
     ) {
+        val messageSmsSlot = if (incoming) {
+            0
+        } else {
+            val prefs = getSharedPreferences(
+                "messages_settings",
+                MODE_PRIVATE
+            )
+
+            when {
+                smsRowId != null -> prefs.getInt(
+                    "sms_slot_for_row_$smsRowId",
+                    0
+                )
+
+                messageId != null -> prefs.getInt(
+                    "sms_slot_for_message_$messageId",
+                    selectedSmsSlot
+                )
+
+                else -> selectedSmsSlot
+            }
+        }
+
         val reactionKey = reactionPreferenceKey(
             body,
             date,
@@ -3168,7 +3196,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 } else {
                     Color.rgb(50, 205, 50)
                 },
-                incoming
+                incoming,
+                messageSmsSlot
             )
         }
 
@@ -3849,7 +3878,18 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             null
         )
 
-        if (existingRowId != null) return
+        if (existingRowId != null) {
+            val messageSlot = prefs.getInt(
+                "sms_slot_for_message_$messageId",
+                selectedSmsSlot
+            )
+
+            prefs.edit()
+                .putInt("sms_slot_for_row_$existingRowId", messageSlot)
+                .apply()
+
+            return
+        }
 
         val values = ContentValues().apply {
             put(Telephony.Sms.ADDRESS, phone)
@@ -3867,8 +3907,14 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             null
         } ?: return
 
+        val messageSlot = prefs.getInt(
+            "sms_slot_for_message_$messageId",
+            selectedSmsSlot
+        )
+
         prefs.edit()
             .putString("sms_row_for_message_$messageId", rowId)
+            .putInt("sms_slot_for_row_$rowId", messageSlot)
             .apply()
     }
 
@@ -3908,8 +3954,14 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             return
         }
 
+        val messageSlot = prefs.getInt(
+            "sms_slot_for_message_$messageId",
+            selectedSmsSlot
+        )
+
         prefs.edit()
             .putString("sms_row_for_message_$messageId", rowId)
+            .putInt("sms_slot_for_row_$rowId", messageSlot)
             .apply()
 
         val deliveredIds = prefs.getStringSet(
@@ -4000,9 +4052,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             .apply()
 
         animateSendButtonColor()
-        if (::messagesContainer.isInitialized) {
-            refreshOutgoingBubbleColors(messagesContainer)
-        }
 
         sendButtonView?.performHapticFeedback(
             android.view.HapticFeedbackConstants.CONTEXT_CLICK
@@ -4030,26 +4079,89 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         )
     }
 
+    private fun resolveSmsManagerAndSlot(): Pair<SmsManager, Int> {
+        // A manually selected SIM is the SIM used for this attempt.
+        if (hasExplicitSmsSlot) {
+            return resolveSmsManager() to selectedSmsSlot
+        }
+
+        // Otherwise preserve Android's default SMS subscription.
+        val manager = SmsManager.getDefault()
+
+        val defaultSubscriptionId =
+            android.telephony.SubscriptionManager.getDefaultSmsSubscriptionId()
+
+        val defaultSlot = try {
+            activeSmsSubscriptions()
+                .firstOrNull {
+                    it.subscriptionId == defaultSubscriptionId
+                }
+                ?.simSlotIndex
+        } catch (_: Exception) {
+            null
+        }
+
+        // Fall back only if Android does not expose the default slot.
+        return manager to (defaultSlot ?: selectedSmsSlot)
+    }
+
+    private fun updateOutgoingMessageSimSlot(
+        messageId: String,
+        simSlot: Int
+    ) {
+        getSharedPreferences("messages_settings", MODE_PRIVATE)
+            .edit()
+            .putInt("sms_slot_for_message_$messageId", simSlot)
+            .apply()
+
+        val wrapper =
+            messagesContainer.findViewWithTag<LinearLayout>(messageId)
+                ?: return
+
+        val bubble =
+            wrapper.findViewWithTag<LinearLayout>("message_bubble")
+                ?: return
+
+        bubble.background = MessageBubbleDrawable(
+            Color.rgb(50, 205, 50),
+            false,
+            simSlot
+        )
+
+        bubble.invalidate()
+    }
+
     private fun animateSendButtonColor() {
         val button = sendButtonView ?: return
-        simColorAnimator?.cancel()
+        val background = button.background as? GradientDrawable ?: return
 
-        // Keep the chrome finish neutral when the SIM changes.
+        simColorAnimator?.cancel()
         button.animate().cancel()
-        button.animate()
-            .scaleX(1.08f)
-            .scaleY(1.08f)
-            .translationZ(dp(6).toFloat())
-            .setDuration(150L)
-            .withEndAction {
-                button.animate()
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .translationZ(dp(3).toFloat())
-                    .setDuration(220L)
-                    .start()
+
+        val targetColor = sendButtonColor()
+        val currentColor = background.color?.defaultColor ?: targetColor
+
+        simColorAnimator = ValueAnimator.ofArgb(
+            currentColor,
+            targetColor
+        ).apply {
+            duration = 190L
+            interpolator = DecelerateInterpolator()
+
+            addUpdateListener { animator ->
+                val color = animator.animatedValue as Int
+                background.setColor(color)
+                background.setStroke(dp(2), color)
+                button.invalidate()
             }
-            .start()
+
+            start()
+        }
+
+        button.scaleX = 1f
+        button.scaleY = 1f
+        button.translationZ = 0f
+        button.elevation = 0f
     }
 
     private fun refreshOutgoingBubbleColors(view: View) {
@@ -4140,6 +4252,12 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         val messageId = System.currentTimeMillis().toString()
 
+        // Freeze the SIM slot selected for this specific message.
+        getSharedPreferences("messages_settings", MODE_PRIVATE)
+            .edit()
+            .putInt("sms_slot_for_message_$messageId", selectedSmsSlot)
+            .apply()
+
         // Show the outgoing message immediately.
         addMessage(
             body = message,
@@ -4181,7 +4299,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             "Invalid destination phone number"
         }
 
-        val smsManager = resolveSmsManager()
+        val (smsManager, actualSmsSlot) = resolveSmsManagerAndSlot()
+        updateOutgoingMessageSimSlot(messageId, actualSmsSlot)
+
         val parts = smsManager.divideMessage(message)
         val attemptCode = (System.nanoTime() and 0x3fffffffL).toInt()
         val attemptId = if (isRetry) "$messageId-$attemptCode" else messageId
