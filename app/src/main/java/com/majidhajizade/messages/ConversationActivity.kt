@@ -3203,8 +3203,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         // Normalize emoji variation selectors for consistent rendering.
         val normalizedEmojiBody = body.trim()
-            .replace('\uFE0F', '')
-            .replace('\uFE0E', '')
+            .replace("\\uFE0F", "")
+            .replace("\\uFE0E", "")
         val emojiAssetPath = emojiAnimationAsset(normalizedEmojiBody)
         val compactSingleLine =
             emojiAssetPath == null &&
