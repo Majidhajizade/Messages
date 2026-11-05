@@ -729,7 +729,7 @@ companion object {
             clipToPadding = false
 
             val scrollContent = LinearLayout(this@MainActivity).apply {
-                setPadding(0, dp(72), 0, dp(88))
+                setPadding(0, dp(72), 0, 0)
                 clipToPadding = false
                 orientation = LinearLayout.VERTICAL
                 setBackgroundColor(Color.TRANSPARENT)
