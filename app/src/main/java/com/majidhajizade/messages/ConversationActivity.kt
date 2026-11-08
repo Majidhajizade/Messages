@@ -664,9 +664,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         fun extendGroup() {
-            // A bubble that gains a following sibling is no longer the tail.
-            // Preserve the first-item state; later items become middle items.
-            setGroupPosition(if (groupPosition == 0 || groupPosition == 3) 1 else 2)
+            // First item stays first; every previous tail becomes a middle item.
+            setGroupPosition(if (groupPosition == 0) 1 else 2)
         }
 
         override fun draw(canvas: android.graphics.Canvas) {
@@ -2790,302 +2789,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
     private var lastBubbleDayKey: String? = null
 
 
-    private fun reactionPreferenceKey(
-        body: String,
-        date: Long,
-        incoming: Boolean,
-        messageId: String?,
-        smsRowId: String?
-    ): String {
-        val identity = smsRowId
-            ?: messageId
-            ?: "$date|${if (incoming) "in" else "out"}|$body"
-        return "reaction_${phone}_$identity"
-    }
-
-    private fun isReactionLinkTap(
-        view: View,
-        event: android.view.MotionEvent
-    ): Boolean {
-        val textView = view as? TextView ?: return false
-        val layout = textView.layout ?: return false
-        val text = textView.text as? android.text.Spanned ?: return false
-        if (text.isEmpty()) return false
-
-        val x = event.x + textView.scrollX - textView.totalPaddingLeft
-        val y = event.y + textView.scrollY - textView.totalPaddingTop
-        if (y < 0 || y >= layout.height) return false
-
-        val line = layout.getLineForVertical(y.toInt())
-        val offset = layout.getOffsetForHorizontal(line, x)
-        if (offset < 0 || offset >= text.length) return false
-
-        return text.getSpans(
-            offset,
-            offset + 1,
-            android.text.style.ClickableSpan::class.java
-        ).isNotEmpty()
-    }
-
-    private fun updateReactionBadge(
-        messageLayer: android.widget.FrameLayout,
-        bubble: View,
-        reactionKey: String,
-        incoming: Boolean
-    ) {
-        messageLayer.findViewWithTag<View>("message_reaction_badge")?.let {
-            messageLayer.removeView(it)
-        }
-
-        val reaction = getSharedPreferences(
-            "message_reactions",
-            MODE_PRIVATE
-        ).getString(reactionKey, null) ?: return
-
-        val badge = TextView(this).apply {
-            tag = "message_reaction_badge"
-            text = reaction
-            textSize = 18f
-            gravity = Gravity.CENTER
-            includeFontPadding = false
-            elevation = dp(4).toFloat()
-            translationZ = dp(1).toFloat()
-            contentDescription = "Message reaction: $reaction"
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(
-                    if (isDarkThemeEnabled()) Color.rgb(55, 55, 62)
-                    else Color.WHITE
-                )
-                setStroke(
-                    dp(1),
-                    if (isDarkThemeEnabled()) Color.rgb(95, 95, 105)
-                    else Color.rgb(205, 209, 218)
-                )
-            }
-            setOnClickListener {
-                showMessageReactionPicker(
-                    this,
-                    reactionKey,
-                    messageLayer,
-                    bubble,
-                    incoming
-                )
-            }
-        }
-
-        messageLayer.addView(
-            badge,
-            android.widget.FrameLayout.LayoutParams(
-                dp(36),
-                dp(36),
-                Gravity.TOP or Gravity.START
-            )
-        )
-
-        bubble.post {
-            if (badge.parent !== messageLayer) return@post
-            badge.x = bubble.x + bubble.width - dp(28)
-            badge.y = bubble.y - dp(13)
-            badge.bringToFront()
-        }
-    }
-
-    private fun showMessageReactionPicker(
-        anchor: View,
-        reactionKey: String,
-        messageLayer: android.widget.FrameLayout,
-        bubble: View,
-        incoming: Boolean
-    ) {
-        if (isFinishing || isDestroyed ||
-            !anchor.isAttachedToWindow ||
-            !bubble.isAttachedToWindow
-        ) return
-
-        val emojis = listOf("❤️", "😂", "👍", "👎", "😮", "😢", "🙏")
-        val dark = isDarkThemeEnabled()
-        val surfaceColor = if (dark) Color.rgb(43, 43, 49) else Color.WHITE
-        val outlineColor = if (dark) Color.argb(115, 150, 150, 165) else Color.rgb(232, 234, 239)
-
-        val capsule = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(dp(7), dp(4), dp(7), dp(4))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(100).toFloat()
-                setColor(surfaceColor)
-                setStroke(dp(1), outlineColor)
-            }
-            elevation = 0f
-            translationZ = 0f
-        }
-
-        val popup = android.widget.PopupWindow(this)
-
-        emojis.forEach { emoji ->
-            val item = TextView(this).apply {
-                text = emoji
-                textSize = 27f
-                alpha = 1f
-                paint.alpha = 255
-                paint.colorFilter = null
-                typeface = android.graphics.Typeface.DEFAULT
-                gravity = Gravity.CENTER
-                includeFontPadding = false
-                isClickable = true
-                isFocusable = true
-                contentDescription = emoji
-                setPadding(dp(3), dp(2), dp(3), dp(2))
-
-                setOnClickListener {
-                    val prefs = getSharedPreferences(
-                        "message_reactions",
-                        MODE_PRIVATE
-                    )
-                    if (prefs.getString(reactionKey, null) == emoji) {
-                        prefs.edit().remove(reactionKey).apply()
-                    } else {
-                        prefs.edit().putString(reactionKey, emoji).apply()
-                    }
-
-                    popup.dismiss()
-                    updateReactionBadge(
-                        messageLayer,
-                        bubble,
-                        reactionKey,
-                        incoming
-                    )
-                }
-            }
-
-            capsule.addView(item, LinearLayout.LayoutParams(dp(38), dp(42)))
-        }
-
-        // Two small shadowed dots below the reaction capsule.
-        val tail = object : View(this) {
-            private val fillPaint = android.graphics.Paint(
-                android.graphics.Paint.ANTI_ALIAS_FLAG
-            )
-
-            init {
-                // Software rendering ensures subtle shadows on both dots.
-                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-            }
-
-            override fun onDraw(canvas: android.graphics.Canvas) {
-                super.onDraw(canvas)
-
-                fillPaint.color = surfaceColor
-                fillPaint.style = android.graphics.Paint.Style.FILL
-                fillPaint.setShadowLayer(
-                    dp(2).toFloat(),
-                    0f,
-                    dp(1).toFloat(),
-                    Color.argb(85, 0, 0, 0)
-                )
-
-                // Keep only the two small decorative dots.
-                canvas.drawCircle(dp(5).toFloat(), dp(4).toFloat(), dp(2).toFloat(), fillPaint)
-                canvas.drawCircle(dp(13).toFloat(), dp(9).toFloat(), dp(3).toFloat(), fillPaint)
-            }
-        }
-
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            clipChildren = false
-            clipToPadding = false
-
-            addView(
-                capsule,
-                LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            )
-
-            val tailParams = LinearLayout.LayoutParams(dp(38), dp(22)).apply {
-                gravity = if (incoming) Gravity.START else Gravity.END
-                if (incoming) marginStart = dp(28) else marginEnd = dp(28)
-                topMargin = -dp(1)
-            }
-            addView(tail, tailParams)
-        }
-
-        popup.contentView = content
-        popup.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-        popup.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-        popup.isFocusable = true
-        popup.isOutsideTouchable = true
-        popup.setBackgroundDrawable(
-            android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
-        )
-        popup.elevation = dp(8).toFloat()
-
-        val root = window.decorView
-        val rootLocation = IntArray(2)
-        val bubbleLocation = IntArray(2)
-        val messagesLocation = IntArray(2)
-
-        root.getLocationOnScreen(rootLocation)
-        bubble.getLocationOnScreen(bubbleLocation)
-        messagesContainer.getLocationOnScreen(messagesLocation)
-
-        content.measure(
-            View.MeasureSpec.makeMeasureSpec(
-                root.width.coerceAtLeast(dp(100)),
-                View.MeasureSpec.AT_MOST
-            ),
-            View.MeasureSpec.makeMeasureSpec(
-                0,
-                View.MeasureSpec.UNSPECIFIED
-            )
-        )
-
-        val popupWidth = content.measuredWidth
-        val popupHeight = content.measuredHeight
-        val maxX = (root.width - popupWidth - dp(8)).coerceAtLeast(dp(8))
-
-        // Center the picker over the actual message bubble, not the text view.
-        val x = (
-            bubbleLocation[0] - rootLocation[0] +
-                bubble.width / 2 - popupWidth / 2
-        ).coerceIn(dp(8), maxX)
-
-        val bubbleTop = bubbleLocation[1] - rootLocation[1]
-        val aboveY = bubbleTop - popupHeight - dp(4)
-        val messageAreaTop = messagesLocation[1] - rootLocation[1]
-
-        // Avoid overlapping the contact header for the first visible message.
-        val y = if (aboveY < messageAreaTop - dp(2)) {
-            bubbleTop + bubble.height + dp(6)
-        } else {
-            aboveY
-        }.coerceAtLeast(dp(8))
-
-        popup.showAtLocation(root, Gravity.TOP or Gravity.START, x, y)
-
-        content.alpha = 0f
-        content.scaleX = 0.92f
-        content.scaleY = 0.92f
-        content.pivotX = if (incoming) {
-            dp(34).toFloat()
-        } else {
-            content.measuredWidth - dp(34).toFloat()
-        }
-        content.pivotY = content.measuredHeight.toFloat()
-
-        content.animate()
-            .alpha(1f)
-            .scaleX(1f)
-            .scaleY(1f)
-            .setDuration(160L)
-            .setInterpolator(DecelerateInterpolator())
-            .start()
-    }
-
     private fun addMessage(
         body: String,
         date: Long,
@@ -3117,14 +2820,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 else -> selectedSmsSlot
             }
         }
-
-        val reactionKey = reactionPreferenceKey(
-            body,
-            date,
-            incoming,
-            messageId,
-            smsRowId
-        )
 
         // فقط اگر کاربر پیش از اضافه‌شدن پیام پایین چت بوده، پایین را حفظ کن.
         val stickToBottom = !isPopulatingConversation &&
@@ -3203,8 +2898,8 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
         // Normalize emoji variation selectors for consistent rendering.
         val normalizedEmojiBody = body.trim()
-            .replace("\\uFE0F", "")
-            .replace("\\uFE0E", "")
+            .replace("\uFE0F", "")
+            .replace("\uFE0E", "")
         val emojiAssetPath = emojiAnimationAsset(normalizedEmojiBody)
         val compactSingleLine =
             emojiAssetPath == null &&
@@ -3501,13 +3196,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
 
             messageLayer.addView(time, timeParams)
 
-            updateReactionBadge(
-                messageLayer,
-                bubble,
-                reactionKey,
-                incoming
-            )
-
             var downX = 0f
             var downY = 0f
             var horizontalDrag = false
@@ -3584,12 +3272,9 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                 groupSwipeRows.clear()
             }
 
-            var reactionPickerShownForTouch = false
-
             bubble.setOnTouchListener { view, event ->
                 when (event.actionMasked) {
                     android.view.MotionEvent.ACTION_DOWN -> {
-                        reactionPickerShownForTouch = false
                         view.animate().cancel()
                         time.animate().cancel()
                         downX = event.rawX
@@ -3642,20 +3327,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                         } else {
                             view.parent?.requestDisallowInterceptTouchEvent(false)
 
-                            if (
-                                event.actionMasked == android.view.MotionEvent.ACTION_UP &&
-                                !reactionPickerShownForTouch
-                            ) {
-                                reactionPickerShownForTouch = true
-                                showMessageReactionPicker(
-                                    view,
-                                    reactionKey,
-                                    messageLayer,
-                                    bubble,
-                                    incoming
-                                )
-                            }
-
                             true
                         }
                     }
@@ -3683,7 +3354,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
             bodyText?.setOnTouchListener { touchedView, event ->
                 when (event.actionMasked) {
                     android.view.MotionEvent.ACTION_DOWN -> {
-                        reactionPickerShownForTouch = false
                         bodyDownX = event.rawX
                         bodyDownY = event.rawY
                         bodyDragging = false
@@ -3718,24 +3388,6 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
                         if (wasDragging) {
                             resetGroupSwipe()
                             touchedView.parent?.requestDisallowInterceptTouchEvent(false)
-                        } else if (
-                            event.actionMasked == android.view.MotionEvent.ACTION_UP
-                        ) {
-                            val isLinkTap = isReactionLinkTap(touchedView, event)
-
-                            if (!reactionPickerShownForTouch) {
-                                reactionPickerShownForTouch = true
-
-                                if (!isLinkTap) {
-                                    showMessageReactionPicker(
-                                        touchedView,
-                                        reactionKey,
-                                        messageLayer,
-                                        bubble,
-                                        incoming
-                                    )
-                                }
-                            }
                         }
 
                         bodyDragging = false
@@ -3827,7 +3479,7 @@ class ConversationActivity : androidx.fragment.app.FragmentActivity() {
         }
 
         // پیام تازه با محوشدن و حرکت بسیار کوتاه، نرم ظاهر می‌شود.
-        if (!isPopulatingConversation || isAppendingConversation) {
+        if (!isPopulatingConversation || isAppendingConversation || messageId != null) {
             wrapper.alpha = 0f
             wrapper.translationY = dp(8).toFloat()
             wrapper.animate()

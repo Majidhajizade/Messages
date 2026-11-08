@@ -772,7 +772,7 @@ companion object {
                 dp(52)
             ).apply {
                 gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                bottomMargin = dp(8)
+                bottomMargin = dp(0)
             }
         )
 
@@ -893,8 +893,8 @@ companion object {
             setPadding(dp(16), 0, dp(16), 0)
             background = GradientDrawable().apply {
                 setColor(
-                    if (isDarkMode) Color.argb(210, 66, 66, 70)
-                    else Color.argb(232, 255, 255, 255)
+                    if (isDarkMode) Color.rgb(35, 35, 38)
+                    else Color.WHITE
                 )
                 cornerRadius = dp(28).toFloat()
             }
@@ -4772,7 +4772,10 @@ private fun createSelectionActionBar(): View {
             gravity = Gravity.CENTER
             setPadding(dp(10), dp(7), dp(10), dp(7))
             background = GradientDrawable().apply {
-                setColor(if (isDarkMode) Color.TRANSPARENT else Color.WHITE)
+                setColor(
+                    if (isDarkMode) Color.rgb(35, 35, 38)
+                    else Color.WHITE
+                )
                 cornerRadius = dp(39).toFloat()
                 setStroke(
                     dp(1),
